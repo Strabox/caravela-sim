@@ -1,0 +1,36 @@
+[ImagesStorage]
+Backend = "DockerHub"
+
+[Caravela]
+APIPort = 8001
+APITimeout = "5s"
+CheckContainersInterval = "30s"
+SupplyingInterval = "30s"
+SpreadOffersInterval = "30s"
+RefreshesCheckInterval = "30s"
+RefreshingInterval = "30s"
+MaxRefreshesFailed = 3
+MaxRefreshesMissed = 2
+RefreshMissedTimeout = "20s"
+ResourcesOvercommit = 50
+    # Cpu Cores Partitions
+    [[Caravela.CpuCoresPartitions]]
+    Cores = 1
+    Percentage = 50
+    [[Caravela.CpuCoresPartitions]]
+    Cores = 2
+    Percentage = 50
+    # Ram Partitions
+    [[Caravela.RamPartitions]]
+    Ram = 256
+    Percentage = 50
+    [[Caravela.RamPartitions]]
+    Ram = 512
+    Percentage = 50
+
+[Overlay]
+OverlayPort = 8000
+ChordTimeout = "3s"
+ChordVirtualNodes = 12
+ChordNumSuccessors = 4
+ChordHashSizeBits = 128
