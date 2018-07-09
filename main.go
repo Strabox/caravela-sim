@@ -1,7 +1,14 @@
 package main
 
-import "fmt"
+import (
+	"github.com/strabox/caravela-sim/caravela"
+	"github.com/strabox/caravela-sim/simulation/simulator"
+)
 
 func main() {
-	fmt.Println("Caravela Simulator")
+	caravela.PrintSimulatorBanner()
+	caravela.SetLogs()
+	mySimulator := simulator.NewSimulator(5000)
+	mySimulator.Init()
+	mySimulator.Start()
 }

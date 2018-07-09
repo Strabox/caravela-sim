@@ -25,6 +25,23 @@
 #   unused-packages = true
 
 
+[[override]]
+  branch = "master"
+  name = "github.com/docker/distribution"
+
+[[override]]
+  name = "github.com/docker/go-connections"
+  version = "0.3.0"
+
+[[override]]
+  branch = "master"
+  name = "github.com/docker/docker"
+
+[[override]]
+  name = "github.com/gorilla/mux"
+  version = "1.6.1"
+
+
 [prune]
   go-tests = true
   unused-packages = true
