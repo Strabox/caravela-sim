@@ -10,22 +10,19 @@ import (
 	"github.com/docker/go-connections/nat"
 	"github.com/strabox/caravela/api/rest"
 	"github.com/strabox/caravela/configuration"
+	myContainer "github.com/strabox/caravela/docker/container"
 	"github.com/strabox/caravela/storage"
 	"github.com/strabox/caravela/util"
 	"strconv"
 )
 
-/*
-DefaultClient that interfaces with docker SDK.
-*/
+// DefaultClient that interfaces with docker SDK.
 type DefaultClient struct {
 	docker        *dockerClient.Client
 	imagesBackend storage.Backend
 }
 
-/*
-Creates a new docker client to interact with the local Docker Engine.
-*/
+// Creates a new docker client to interact with the local Docker Engine.
 func NewDockerClient(config *configuration.Configuration) *DefaultClient {
 	var err error
 	res := &DefaultClient{}
@@ -44,10 +41,8 @@ func NewDockerClient(config *configuration.Configuration) *DefaultClient {
 	return res
 }
 
-/*
-Verify if the Docker client is initialized or not.
-*/
-func (client *DefaultClient) verifyInitialization() {
+// Verify if the Docker client is initialized or not.
+func (client *DefaultClient) isInit() {
 	if client.docker != nil {
 		if _, err := client.docker.Ping(context.Background()); err != nil {
 			// TODO: Shutdown node gracefully in each place where docker calls can fail!!
@@ -58,11 +53,9 @@ func (client *DefaultClient) verifyInitialization() {
 	}
 }
 
-/*
-Get CPUs and RAM dedicated to Docker engine (Decided by the user in Docker configuration).
-*/
+// Get CPUs and RAM dedicated to Docker engine (Decided by the user in Docker configuration).
 func (client *DefaultClient) GetDockerCPUAndRAM() (int, int) {
-	client.verifyInitialization()
+	client.isInit()
 
 	ctx := context.Background()
 	info, err := client.docker.Info(ctx)
@@ -75,32 +68,28 @@ func (client *DefaultClient) GetDockerCPUAndRAM() (int, int) {
 	return cpu, int(ram)
 }
 
-/*
-Check the container status (running, stopped, etc)
-*/
-func (client *DefaultClient) CheckContainerStatus(containerID string) (ContainerStatus, error) {
-	client.verifyInitialization()
+// Check the container status (running, stopped, etc)
+func (client *DefaultClient) CheckContainerStatus(containerID string) (myContainer.ContainerStatus, error) {
+	client.isInit()
 
 	ctx := context.Background()
 	status, err := client.docker.ContainerInspect(ctx, containerID)
 	if err != nil {
-		return NewContainerStatus(Unknown), err
+		return myContainer.NewContainerStatus(myContainer.Unknown), err
 	}
 
 	if status.State.Running {
-		return NewContainerStatus(Running), nil
+		return myContainer.NewContainerStatus(myContainer.Running), nil
 	} else {
-		return NewContainerStatus(Finished), nil
+		return myContainer.NewContainerStatus(myContainer.Finished), nil
 	}
 }
 
-/*
-Launches a container from an image in the local Docker Engine.
-*/
+// Launches a container from an image in the local Docker Engine.
 func (client *DefaultClient) RunContainer(imageKey string, portMappings []rest.PortMapping,
 	args []string, cpus int64, ram int) (string, error) {
 
-	client.verifyInitialization()
+	client.isInit()
 
 	dockerImageKey, err := client.imagesBackend.Load(imageKey)
 	if err != nil {
@@ -148,34 +137,16 @@ func (client *DefaultClient) RunContainer(imageKey string, portMappings []rest.P
 		return "", err // Error starting the container
 	}
 
-	/* THIS CODE MAKES ONLY WORKS IF THE CONTAINER EXITS, I GUESS :)
-	statusCh, errCh := client.docker.ContainerWait(ctx, resp.ID, container.WaitConditionNotRunning)
-	select {
-	case err := <- errCh:
-		if err != nil {
-			client.docker.ContainerRemove(ctx, resp.ID, types.ContainerRemoveOptions{})	// Remove the container (avoid filling space)
-			log.Errorf(util.LogTag("Docker") + "Waiting for container to exit error: %s", err)
-			return "", err
-		}
-	case <- statusCh:
-		// Container is finally running!!!
-		log.Infof(util.LogTag("Docker") + "Container RUNNING, Image: %s, Args: %v, Resources: <%d,%d>",
-			imageKey, args, cpus, ram)
-	}
-	*/
-
 	log.Infof(util.LogTag("Docker")+"Container RUNNING, Image: %s, Args: %v, Resources: <%d,%d>",
 		imageKey, args, cpus, ram)
 
 	return resp.ID, nil
 }
 
-/*
-Remove a container from the Docker engine (to avoid filling space in the node).
-*/
-func (client *DefaultClient) RemoveContainer(containerID string) {
-	client.verifyInitialization()
+// Remove a container from the Docker engine (to avoid filling space in the node).
+func (client *DefaultClient) RemoveContainer(containerID string) error {
+	client.isInit()
 
-	ctx := context.Background()
-	client.docker.ContainerRemove(ctx, containerID, types.ContainerRemoveOptions{Force: true})
+	err := client.docker.ContainerRemove(context.Background(), containerID, types.ContainerRemoveOptions{Force: true})
+	return fmt.Errorf("problem stopping and removing container. Error: %s", err)
 }

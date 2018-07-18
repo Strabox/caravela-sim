@@ -1,0 +1,6 @@
+NumberOfNodes = 10
+TimeBetweenNodeStart = "100ms"
+TimeBeforeStartSimulating = "1m"
+SimulatorLogLevel = "info"
+
+CaravelaLogLevel = "debug"

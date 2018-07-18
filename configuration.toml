@@ -1,8 +1,4 @@
-[ImagesStorage]
-Backend = "DockerHub"
-
 [Caravela]
-APIPort = 8001
 APITimeout = "5s"
 CheckContainersInterval = "30s"
 SupplyingInterval = "30s"
@@ -29,8 +25,5 @@ ResourcesOvercommit = 50
     Percentage = 50
 
 [Overlay]
-OverlayPort = 8000
-ChordTimeout = "3s"
-ChordVirtualNodes = 12
 ChordNumSuccessors = 4
 ChordHashSizeBits = 128

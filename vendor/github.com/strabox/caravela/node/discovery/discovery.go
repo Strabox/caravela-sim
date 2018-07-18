@@ -15,80 +15,45 @@ import (
 	"sync"
 )
 
-/*
-Discovery module of a CARAVELA node. It is responsible for dealing with the resource management
-and finding.
-*/
+// Discovery module of a CARAVELA node. It is responsible for dealing with the resource management
+// and finding.
 type Discovery struct {
-	common.SystemSubComponent // Base component
+	common.NodeComponent // Base component
 
 	config  *configuration.Configuration // System's configurations
 	overlay overlay.Overlay              // Node overlay to efficient route messages to specific nodes.
 	client  remote.Caravela              // Remote caravela's client
 
-	resourcesMap        *resources.Mapping        // GUID<->Resources mapping
-	supplier            *supplier.Supplier        // Supplier for managing the offers locally and remotely
-	virtualTraders      map[string]*trader.Trader // Node can have multiple "virtual" traders in several places of the overlay
-	virtualTradersMutex sync.Mutex
+	resourcesMap   *resources.Mapping // GUID<->Resources mapping
+	supplier       *supplier.Supplier // Supplier for managing the offers locally and remotely
+	virtualTraders sync.Map           // map[string]*trader.Trader // Node can have multiple "virtual" traders in several places of the overlay
 }
 
 func NewDiscovery(config *configuration.Configuration, overlay overlay.Overlay,
 	client remote.Caravela, resourcesMap *resources.Mapping, maxResources resources.Resources) *Discovery {
-	res := &Discovery{}
-	res.config = config
-	res.overlay = overlay
-	res.client = client
-	res.resourcesMap = resourcesMap
-	res.supplier = supplier.NewSupplier(config, overlay, client, resourcesMap, maxResources)
-	res.virtualTraders = make(map[string]*trader.Trader)
-	res.virtualTradersMutex = sync.Mutex{}
-	return res
+
+	return &Discovery{
+		config:  config,
+		overlay: overlay,
+		client:  client,
+
+		resourcesMap:   resourcesMap,
+		supplier:       supplier.NewSupplier(config, overlay, client, resourcesMap, maxResources),
+		virtualTraders: sync.Map{},
+	}
 }
 
 /*============================== DiscoveryInternal Interface =============================== */
 
-/*
-Start the node's supplier module
-*/
-func (disc *Discovery) Start() {
-	disc.Started(func() {
-		disc.supplier.Start()
-	})
-}
-
-/*
-Stops the node's supplier module
-*/
-func (disc *Discovery) Stop() {
-	disc.Stopped(func() {
-		disc.virtualTradersMutex.Lock()
-		defer disc.virtualTradersMutex.Unlock()
-
-		disc.supplier.Stop()
-		for _, trader := range disc.virtualTraders {
-			trader.Stop()
-		}
-	})
-}
-
-func (disc *Discovery) isWorking() bool {
-	return disc.Working()
-}
-
-/*
-Adds a new local "virtual" trader when the overlay notifies its presence.
-*/
+// Adds a new local "virtual" trader when the overlay notifies its presence.
 func (disc *Discovery) AddTrader(traderGUID guid.GUID) {
-	disc.virtualTradersMutex.Lock()
-
 	newTrader := trader.NewTrader(disc.config, disc.overlay, disc.client, traderGUID, disc.resourcesMap)
-	disc.virtualTraders[traderGUID.String()] = newTrader
-
-	disc.virtualTradersMutex.Unlock()
+	disc.virtualTraders.Store(traderGUID.String(), newTrader)
 
 	newTrader.Start() // Start the node's trader module.
+	newTraderResources, _ := disc.resourcesMap.ResourcesByGUID(traderGUID)
 	log.Debugf(util.LogTag("Discovery")+"New Trader: %s | Resources: %s",
-		(&traderGUID).String(), newTrader.HandledResources().String())
+		(&traderGUID).String(), newTraderResources.String())
 }
 
 func (disc *Discovery) FindOffers(resources resources.Resources) []api.Offer {
@@ -108,9 +73,10 @@ func (disc *Discovery) ReturnResources(resources resources.Resources) {
 func (disc *Discovery) CreateOffer(fromSupplierGUID string, fromSupplierIP string, toTraderGUID string,
 	id int64, amount int, cpus int, ram int) {
 
-	t, exist := disc.virtualTraders[toTraderGUID]
-	if exist {
-		t.CreateOffer(id, amount, cpus, ram, fromSupplierGUID, fromSupplierIP)
+	t, exist := disc.virtualTraders.Load(toTraderGUID)
+	toTrader, ok := t.(*trader.Trader)
+	if exist && ok {
+		toTrader.CreateOffer(id, amount, cpus, ram, fromSupplierGUID, fromSupplierIP)
 	}
 }
 
@@ -121,16 +87,18 @@ func (disc *Discovery) RefreshOffer(offerID int64, fromTraderGUID string) bool {
 func (disc *Discovery) RemoveOffer(fromSupplierIP string, fromSupplierGUID string, toTraderGUID string,
 	offerID int64) {
 
-	t, exist := disc.virtualTraders[toTraderGUID]
-	if exist {
-		t.RemoveOffer(fromSupplierIP, fromSupplierGUID, toTraderGUID, offerID)
+	t, exist := disc.virtualTraders.Load(toTraderGUID)
+	toTrader, ok := t.(*trader.Trader)
+	if exist && ok {
+		toTrader.RemoveOffer(fromSupplierIP, fromSupplierGUID, toTraderGUID, offerID)
 	}
 }
 
 func (disc *Discovery) GetOffers(toTraderGUID string, relay bool, fromNodeGUID string) []api.Offer {
-	t, exist := disc.virtualTraders[toTraderGUID]
-	if exist {
-		return t.GetOffers(relay, fromNodeGUID)
+	t, exist := disc.virtualTraders.Load(toTraderGUID)
+	toTrader, ok := t.(*trader.Trader)
+	if exist && ok {
+		return toTrader.GetOffers(relay, fromNodeGUID)
 	} else {
 		return nil
 	}
@@ -139,8 +107,38 @@ func (disc *Discovery) GetOffers(toTraderGUID string, relay bool, fromNodeGUID s
 func (disc *Discovery) AdvertiseNeighborOffers(toTraderGUID string, fromTraderGUID string, traderOfferingIP string,
 	traderOfferingGUID string) {
 
-	t, exist := disc.virtualTraders[toTraderGUID]
-	if exist {
-		t.AdvertiseNeighborOffer(fromTraderGUID, traderOfferingIP, traderOfferingGUID)
+	t, exist := disc.virtualTraders.Load(toTraderGUID)
+	toTrader, ok := t.(*trader.Trader)
+	if exist && ok {
+		toTrader.AdvertiseNeighborOffer(fromTraderGUID, traderOfferingIP, traderOfferingGUID)
 	}
+}
+
+/*
+===============================================================================
+							SubComponent Interface
+===============================================================================
+*/
+
+func (disc *Discovery) Start() {
+	disc.Started(disc.config.Simulation(), func() {
+		disc.supplier.Start()
+	})
+}
+
+func (disc *Discovery) Stop() {
+	disc.Stopped(func() {
+		disc.supplier.Stop()
+		disc.virtualTraders.Range(func(_, value interface{}) bool {
+			currentTrader, ok := value.(*trader.Trader)
+			if ok {
+				currentTrader.Stop()
+			}
+			return true
+		})
+	})
+}
+
+func (disc *Discovery) isWorking() bool {
+	return disc.Working()
 }

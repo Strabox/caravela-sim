@@ -1,6 +1,8 @@
 package simulation
 
-import caravelaNode "github.com/strabox/caravela/node"
+import (
+	caravelaNode "github.com/strabox/caravela/node"
+)
 
 type Simulator interface {
 	Init()
