@@ -99,7 +99,7 @@
     "overlay/types",
     "util"
   ]
-  revision = "73e8d34029a26a210f3f1f9a6a7e0ee4dbbcc2c1"
+  revision = "23f696b43b9498ebdaf090da2afae723ecb30cec"
 
 [[projects]]
   name = "github.com/urfave/cli"
@@ -112,6 +112,12 @@
   name = "golang.org/x/crypto"
   packages = ["ssh/terminal"]
   revision = "c126467f60eb25f8f27e5a981f32a87e3965053f"
+
+[[projects]]
+  branch = "master"
+  name = "golang.org/x/exp"
+  packages = ["rand"]
+  revision = "14dda7b62fcdb381624aaca63b04df07203856d4"
 
 [[projects]]
   branch = "master"
@@ -171,7 +177,7 @@
     "vg/vgpdf",
     "vg/vgsvg"
   ]
-  revision = "39ccdfa2a491a630db72d7bbe2c760f4f3d06ab6"
+  revision = "e0f807cd86063a7a348b058594faafe8fb16fb00"
 
 [solve-meta]
   analyzer-name = "dep"
