@@ -1,32 +1,45 @@
 package chord
 
 import (
-	logger "github.com/Sirupsen/logrus"
 	"github.com/strabox/caravela-sim/mocks/caravela"
 	overlayMock "github.com/strabox/caravela-sim/mocks/overlay"
+	"github.com/strabox/caravela-sim/simulation"
 	"github.com/strabox/caravela-sim/util"
-	nodeAPI "github.com/strabox/caravela/node/api"
-	"github.com/strabox/caravela/overlay"
+	"github.com/strabox/caravela/overlay/types"
+	overlayTypes "github.com/strabox/caravela/overlay/types"
+	"math"
 	"sort"
 )
 
-type Mock struct {
-	log *logger.Logger
+const chordLogLevel = "CHORD"
+const numSpeedupNodes = 100 // 1% Window Size
 
-	numNodes        int                    // Initial number of nodes for the chord
+// Mock mocks the interactions with a Chord overlay client simulating the function of it.
+type Mock struct {
+	simulator simulation.Simulator
+
+	numNodes      int // Initial number of nodes for the chord
+	numSuccessors int
+
+	speedupNodes    []speedupNodeMock
 	fakeNodesRing   []overlayMock.NodeMock // The array that represent the node's chord ring
 	nodesIdIndexMap map[string]int         // ID <-> Index
 	nodesIpIndexMap map[string]int         // IP <-> Index
 }
 
-func NewChordMock(numNodes int, log *logger.Logger) *Mock {
+func NewChordMock(numNodes, numSuccessors int) *Mock {
 	return &Mock{
-		log:             log,
 		numNodes:        numNodes,
+		numSuccessors:   numSuccessors,
+		speedupNodes:    make([]speedupNodeMock, numSpeedupNodes),
 		fakeNodesRing:   make([]overlayMock.NodeMock, numNodes),
 		nodesIdIndexMap: make(map[string]int),
 		nodesIpIndexMap: make(map[string]int),
 	}
+}
+
+func (chord *Mock) SetSimulator(sim simulation.Simulator) {
+	chord.simulator = sim
 }
 
 func (chord *Mock) Init() {
@@ -34,19 +47,36 @@ func (chord *Mock) Init() {
 		chord.fakeNodesRing[i] = *overlayMock.NewRandomNode()
 	}
 
-	sort.Sort(chord)
+	sort.Sort(chord) // Sort nodes by ID (ascending order)
 
-	// After sort because the index of the nodes changed
+	speedupDivSize := chord.numNodes / numSpeedupNodes
+	divSize := 1
+	speedupNodeIndex := 0
 	for i := 0; i < chord.numNodes; i++ {
 		chord.nodesIdIndexMap[chord.fakeNodesRing[i].String()] = i
 		chord.nodesIpIndexMap[chord.fakeNodesRing[i].IP()] = i
+
+		if speedupDivSize != 0 && divSize == speedupDivSize && speedupNodeIndex < numSpeedupNodes {
+			chord.speedupNodes[speedupNodeIndex] = *newSpeedupNodeMock(i, &chord.fakeNodesRing[i])
+			util.Log.Debugf(util.LogTag(chordLogLevel)+"Speedup Node: %d, GUID: %s, ToNodeIndex: %d",
+				speedupNodeIndex, chord.speedupNodes[speedupNodeIndex].String(), i)
+			speedupNodeIndex++
+			divSize = 1
+			continue
+		}
+		divSize++
 	}
+
+	chord.Print()
 }
 
 func (chord *Mock) Print() {
-	for _, node := range chord.fakeNodesRing {
-		chord.log.Printf(util.LogTag("SIMULATOR")+"IP: %s, ID: %s", node.IP(), node.String())
-	}
+	util.Log.Infof("##################################################################")
+	util.Log.Infof("#                    CHORD MOCK CONFIGURATION                    #")
+	util.Log.Infof("##################################################################")
+	util.Log.Infof("#Nodes:              %d", chord.numNodes)
+	util.Log.Infof("#Speedup Nodes:      %d", len(chord.speedupNodes))
+	util.Log.Infof("Speedup Window Size: %d", chord.numNodes/numSpeedupNodes)
 }
 
 func (chord *Mock) GetNodeMockByIndex(index int) *overlayMock.NodeMock {
@@ -69,55 +99,76 @@ func (chord *Mock) GetNodeMockByIP(ip string) (int, *overlayMock.NodeMock) {
 ===============================================================================
 */
 
-func (chord *Mock) Create(thisNode nodeAPI.OverlayMembership) error {
+func (chord *Mock) Create(thisNode types.OverlayMembership) error {
 	// Do Nothing (For now not necessary for the simulation)
 	return nil
 }
 
-func (chord *Mock) Join(overlayNodeIP string, overlayNodePort int, thisNode nodeAPI.OverlayMembership) error {
+func (chord *Mock) Join(overlayNodeIP string, overlayNodePort int,
+	thisNode overlayTypes.OverlayMembership) error {
 	// Do Nothing (For now not necessary for the simulation)
 	return nil
 }
 
-func (chord *Mock) Lookup(key []byte) ([]*overlay.Node, error) {
-	const numOfRes = 3
+func (chord *Mock) Lookup(key []byte) ([]*overlayTypes.OverlayNode, error) {
+	chord.simulator.Metrics().MsgsTradedActiveRequest(int(math.Log(float64(chord.numNodes))))
 	searchMockNode := overlayMock.NewNode(key)
-	chord.log.Printf(util.LogTag("SIMULATOR")+"LOOKUP, %s", searchMockNode.String())
+	util.Log.Debugf(util.LogTag(chordLogLevel)+"Lookup %s", searchMockNode.String())
 
-	res := make([]*overlay.Node, numOfRes)
+	// Simulate the lookup using the fake ring/array
+
+	startSearchIndex := 0
+
+	// Speeding up the lookup using the special pointer nodes (speedup nodes)
+	if len(chord.fakeNodesRing) >= numSpeedupNodes {
+		for index, node := range chord.speedupNodes {
+			if searchMockNode.Smaller(node.NodeMock) {
+				if index == 0 {
+					break
+				} else {
+					startSearchIndex = chord.speedupNodes[index-1].index
+					break
+				}
+			}
+		}
+	}
+
+	// Regular sequential search for the node in the fake ring section.
+	res := make([]*overlayTypes.OverlayNode, chord.numSuccessors)
 	resIndex := 0
-	for _, node := range chord.fakeNodesRing {
-		if !node.Smaller(searchMockNode) {
-			res[resIndex] = overlay.NewNode(node.IP(), caravela.FakePort, node.Bytes())
+	for i := startSearchIndex; i < len(chord.fakeNodesRing); i++ {
+		currentNode := chord.fakeNodesRing[i]
+		if !currentNode.Smaller(searchMockNode) {
+			res[resIndex] = overlayTypes.NewOverlayNode(currentNode.IP(), caravela.FakePort, currentNode.Bytes())
 			resIndex++
 		}
-		if resIndex == numOfRes {
+		if resIndex == chord.numSuccessors {
 			return res, nil
 		}
 	}
 
 	startIndex := 0
-	for ; resIndex < numOfRes; resIndex++ {
-		res[resIndex] = overlay.NewNode(chord.fakeNodesRing[startIndex].IP(), caravela.FakePort, chord.fakeNodesRing[startIndex].Bytes())
+	for ; resIndex < chord.numSuccessors; resIndex++ {
+		res[resIndex] = overlayTypes.NewOverlayNode(chord.fakeNodesRing[startIndex].IP(), caravela.FakePort, chord.fakeNodesRing[startIndex].Bytes())
 		startIndex++
 	}
 
 	return res, nil
 }
 
-func (chord *Mock) Neighbors(nodeID []byte) ([]*overlay.Node, error) {
-	res := make([]*overlay.Node, 2)
+func (chord *Mock) Neighbors(nodeID []byte) ([]*overlayTypes.OverlayNode, error) {
+	res := make([]*overlayTypes.OverlayNode, 2)
 	neighMockNode := overlayMock.NewNode(nodeID)
 	index := chord.nodesIdIndexMap[neighMockNode.String()]
 	if index == 0 {
-		res[0] = overlay.NewNode(chord.fakeNodesRing[chord.numNodes-1].IP(), caravela.FakePort, chord.fakeNodesRing[chord.numNodes-1].Bytes())
-		res[1] = overlay.NewNode(chord.fakeNodesRing[1].IP(), caravela.FakePort, chord.fakeNodesRing[1].Bytes())
+		res[0] = overlayTypes.NewOverlayNode(chord.fakeNodesRing[chord.numNodes-1].IP(), caravela.FakePort, chord.fakeNodesRing[chord.numNodes-1].Bytes())
+		res[1] = overlayTypes.NewOverlayNode(chord.fakeNodesRing[1].IP(), caravela.FakePort, chord.fakeNodesRing[1].Bytes())
 	} else if index == chord.numNodes-1 {
-		res[0] = overlay.NewNode(chord.fakeNodesRing[chord.numNodes-2].IP(), caravela.FakePort, chord.fakeNodesRing[chord.numNodes-2].Bytes())
-		res[1] = overlay.NewNode(chord.fakeNodesRing[0].IP(), caravela.FakePort, chord.fakeNodesRing[0].Bytes())
+		res[0] = overlayTypes.NewOverlayNode(chord.fakeNodesRing[chord.numNodes-2].IP(), caravela.FakePort, chord.fakeNodesRing[chord.numNodes-2].Bytes())
+		res[1] = overlayTypes.NewOverlayNode(chord.fakeNodesRing[0].IP(), caravela.FakePort, chord.fakeNodesRing[0].Bytes())
 	} else {
-		res[0] = overlay.NewNode(chord.fakeNodesRing[index-1].IP(), caravela.FakePort, chord.fakeNodesRing[index-1].Bytes())
-		res[1] = overlay.NewNode(chord.fakeNodesRing[index+1].IP(), caravela.FakePort, chord.fakeNodesRing[index+1].Bytes())
+		res[0] = overlayTypes.NewOverlayNode(chord.fakeNodesRing[index-1].IP(), caravela.FakePort, chord.fakeNodesRing[index-1].Bytes())
+		res[1] = overlayTypes.NewOverlayNode(chord.fakeNodesRing[index+1].IP(), caravela.FakePort, chord.fakeNodesRing[index+1].Bytes())
 	}
 	return nil, nil
 }

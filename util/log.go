@@ -1,16 +1,22 @@
 package util
 
 import (
-	log "github.com/Sirupsen/logrus"
+	logger "github.com/Sirupsen/logrus"
 	"strings"
 )
+
+var Log *logger.Logger = nil
+
+func Init(logger *logger.Logger) {
+	if Log == nil {
+		Log = logger
+	}
+}
 
 // Max size for a log's entry tag
 const maxTagSize = 12
 
-/*
-Builds a tag for the log entries with indentation in order to align the log entries.
-*/
+// Builds a tag for the log entries with indentation in order to align the log entries.
 func LogTag(tag string) string {
 	tag = "[" + tag + "]"
 	sizeOfIndentation := maxTagSize - len(tag)
@@ -22,27 +28,28 @@ func LogTag(tag string) string {
 	return tag + indentation
 }
 
-func LogFormatter(disableColors bool, disableTimestamp bool) log.Formatter {
-	logOutputFormatter := &log.TextFormatter{}
+func LogFormatter(disableColors bool, disableTimestamp bool) logger.Formatter {
+	logOutputFormatter := &logger.TextFormatter{}
 	logOutputFormatter.DisableColors = disableColors
 	logOutputFormatter.DisableTimestamp = disableTimestamp
 	return logOutputFormatter
 }
 
-func LogLevel(logLevel string) log.Level {
+func LogLevel(logLevel string) logger.Level {
 	switch logLevel {
 	case "info":
-		return log.InfoLevel
+		return logger.InfoLevel
 	case "debug":
-		return log.DebugLevel
+		return logger.DebugLevel
 	case "warning":
-		return log.WarnLevel
+		return logger.WarnLevel
 	case "error":
-		return log.ErrorLevel
+		return logger.ErrorLevel
 	case "fatal":
-		return log.FatalLevel
+		return logger.FatalLevel
 	case "panic":
-		return log.PanicLevel
+		return logger.PanicLevel
+	default:
+		return logger.DebugLevel
 	}
-	return log.DebugLevel
 }

@@ -1,12 +1,13 @@
 package overlay
 
 import (
+	"github.com/strabox/caravela-sim/util"
 	"math/big"
 )
 
 var idSizeBytes = 16
 
-func SetNodeIDSizeBytes(guidSizeBytes int) {
+func Init(guidSizeBytes int) {
 	idSizeBytes = guidSizeBytes
 }
 
@@ -26,12 +27,12 @@ func NewNode(id []byte) *NodeMock {
 
 func NewRandomNode() *NodeMock {
 	id := make([]byte, idSizeBytes)
-	generateRandomHash(id)
+	util.RandomHash(id)
 	temp := big.NewInt(0)
 	temp.SetBytes(id)
 	return &NodeMock{
 		id: temp,
-		ip: generateRandomIP(),
+		ip: util.RandomIP(),
 	}
 }
 

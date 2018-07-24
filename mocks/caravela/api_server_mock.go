@@ -5,6 +5,7 @@ import (
 	"github.com/strabox/caravela/api"
 )
 
+// APIServerMock mocks the the web server that attends the API requests.
 type APIServerMock struct {
 	sim simulation.Simulator
 }

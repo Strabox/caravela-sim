@@ -1,98 +1,150 @@
 package simulator
 
 import (
-	logger "github.com/Sirupsen/logrus"
 	"github.com/strabox/caravela-sim/configuration"
 	"github.com/strabox/caravela-sim/mocks/caravela"
 	"github.com/strabox/caravela-sim/mocks/docker"
-	overlayMock "github.com/strabox/caravela-sim/mocks/overlay"
+	"github.com/strabox/caravela-sim/mocks/overlay"
 	"github.com/strabox/caravela-sim/mocks/overlay/chord"
+	"github.com/strabox/caravela-sim/simulation/metrics"
 	"github.com/strabox/caravela-sim/util"
+	"github.com/strabox/caravela/api/types"
 	caravelaConfig "github.com/strabox/caravela/configuration"
 	caravelaNode "github.com/strabox/caravela/node"
-	"github.com/strabox/caravela/node/common/guid"
-	"os"
+	"runtime"
 	"time"
 )
 
+const ticksPerPersist = 3
+const simLogTag = "SIMULATOR"
+
 type Simulator struct {
+	tickInterval time.Duration    // Tick interval for simulation time
+	currentTime  time.Duration    // Current simulation tick time
+	metrics      *metrics.Metrics // Metrics gatherer
+
 	nodes   []*caravelaNode.Node // Array with all the nodes for the simulation
 	overlay *chord.Mock          // Overlay mock that "connects" all the nodes
 
-	config *configuration.Configuration // Configurations for the simulator
-	log    *logger.Logger               // Object used for Simulator logging
+	caravelaConfigurations *caravelaConfig.Configuration // CARAVELA's configurations
+	simConfig              *configuration.Configuration  // Simulator's configurations
 }
 
-func NewSimulator(config *configuration.Configuration) *Simulator {
-	log := logger.New()
+func NewSimulator(simConfig *configuration.Configuration,
+	caravelaConfigurations *caravelaConfig.Configuration) *Simulator {
 	return &Simulator{
-		overlay: chord.NewChordMock(config.NumberOfNodes, log),
-		nodes:   make([]*caravelaNode.Node, config.NumberOfNodes),
+		tickInterval: simConfig.TickInterval.Duration,
+		currentTime:  0 * time.Second,
+		metrics:      metrics.NewMetrics(simConfig.NumberOfNodes, simConfig.OutDirectoryPath),
 
-		config: config,
-		log:    log,
+		overlay: chord.NewChordMock(simConfig.NumberOfNodes, caravelaConfigurations.ChordNumSuccessors()),
+		nodes:   make([]*caravelaNode.Node, simConfig.NumberOfNodes),
+
+		caravelaConfigurations: caravelaConfigurations,
+		simConfig:              simConfig,
 	}
 }
 
 func (sim *Simulator) Init() {
-	PrintSimulatorBanner()
-	sim.log.Print(util.LogTag("SIMULATOR") + "INITIALIZING SIMULATOR...")
+	util.Log.Info(util.LogTag(simLogTag) + "Initializing...")
 
-	// Init caravela logs
-	caravela.InitLogs(sim.config.CaravelaLogLevel)
+	// Init metrics
+	sim.metrics.Init()
+	sim.overlay.SetSimulator(sim)
 
-	// Init simulator logs
-	sim.log.Level = util.LogLevel(sim.config.SimulatorLogLevel)
-	sim.log.Formatter = util.LogFormatter(true, true)
-	sim.log.Out = os.Stdout
-
-	// Caravela configurations
-	caravelaConfigs, _ := caravelaConfig.ReadFromFile("")
+	// Init caravela packages
+	caravela.Init(sim.simConfig.CaravelaLogLevel)
 
 	// External component mocks creation and initialization
 	apiServerMock := caravela.NewAPIServerMock(sim)
 	caravelaClientMock := caravela.NewRemoteClientMock(sim)
 	dockerClientMock := docker.NewClientMock()
-	overlayMock.SetNodeIDSizeBytes(caravelaConfigs.Overlay.ChordHashSizeBits / 8)
+	overlay.Init(sim.caravelaConfigurations.ChordHashSizeBits() / 8)
 	sim.overlay.Init()
 
-	// Caravela GUID initialization
-	guid.InitializeGUID(caravelaConfigs.Overlay.ChordHashSizeBits)
-
-	sim.log.Print(util.LogTag("SIMULATOR") + "INITIALIZING CARAVELA NODES...")
-	// Set up Caravela nodes and start them
-	for i := 0; i < sim.config.NumberOfNodes; i++ {
+	util.Log.Info(util.LogTag(simLogTag) + "Initializing nodes...")
+	// Create all the CARAVELA's nodes
+	for i := 0; i < sim.simConfig.NumberOfNodes; i++ {
 		overlayNodeMock := sim.overlay.GetNodeMockByIndex(i)
-		nodeConfig, _ := caravelaConfig.ReadFromFile(overlayNodeMock.IP())
+		nodeConfig, _ := caravelaConfig.ObtainExternal(overlayNodeMock.IP(), sim.caravelaConfigurations)
 		sim.nodes[i] = caravelaNode.NewNode(nodeConfig, sim.overlay, caravelaClientMock, dockerClientMock,
 			apiServerMock)
-		go sim.nodes[i].Start(true, caravela.LocalIP) // Each node has a unique goroutine for it!!!!!!!
 		sim.nodes[i].AddTrader(overlayNodeMock.Bytes())
-		time.Sleep(sim.config.TimeBetweenNodeStart.Duration) // To avoid all the nodes being exactly timely synced (due to timers)
 	}
-	sim.log.Print(util.LogTag("SIMULATOR") + "SIMULATOR INITIALIZED")
+	// Start all the CARAVELA's nodes
+	for i := 0; i < sim.simConfig.NumberOfNodes; i++ {
+		sim.nodes[i].Start(true, util.RandomIP())
+	}
+
+	time.Sleep(sim.simConfig.TimeBeforeSimulation.Duration)
+	util.Log.Info(util.LogTag(simLogTag) + "Initialized")
 }
 
 func (sim *Simulator) Start() {
-	time.Sleep(sim.config.TimeBeforeStartSimulating.Duration)
-	sim.log.Print(util.LogTag("SIMULATOR") + "SIMULATION STARTED...")
+	util.Log.Info(util.LogTag(simLogTag) + "Simulation started...")
 
-	for _, node := range sim.nodes {
-		go node.SubmitContainers(caravela.FakeContainerImageKey, caravela.EmptyPortMappings(),
-			caravela.EmptyContainerArgs(), 1, 512)
-		time.Sleep(50 * time.Millisecond)
+	// Send 10% of cluster size in requests per node
+	nodesPerTick := int(float64(len(sim.nodes)) * float64(0.1))
+	numTicks := 0
+
+	for {
+		util.Log.Infof(util.LogTag(simLogTag)+"Current Simulation Time: %.2f, Tick: %d, Ticks Remaining: %d",
+			sim.currentTime.Seconds(), numTicks, sim.simConfig.MaxTicks-numTicks)
+
+		// Do the tick actions
+		for i := 0; i < nodesPerTick; i++ {
+			nodeIndex, node := sim.randomNode()
+
+			res := types.Resources{CPUs: 1, RAM: 256}
+			sim.metrics.CreateRunRequest(nodeIndex, res, sim.currentTime)
+
+			err := node.SubmitContainers(util.RandomName(),
+				caravela.EmptyPortMappings(), caravela.EmptyContainerArgs(), res.CPUs, res.RAM)
+			if err == nil {
+				sim.metrics.RunRequestSucceeded()
+			}
+		}
+
+		sim.currentTime = sim.currentTime + sim.tickInterval
+		numTicks++
+		if numTicks == sim.simConfig.MaxTicks {
+			break
+		}
+		if (numTicks % ticksPerPersist) == 0 {
+			sim.metrics.Persist(sim.currentTime)
+			continue
+		}
+		sim.metrics.CreateNewSnapshot(sim.currentTime)
 	}
 
-	time.Sleep(5 * time.Minute)
-	sim.log.Print(util.LogTag("SIMULATOR") + "SIMULATION ENDED")
+	util.Log.Info(util.LogTag(simLogTag) + "Simulation Ended")
+	sim.tearDown()      // Clear all the simulation nodes (clear all the memory) ...
+	sim.metrics.Print() // Print the metrics results
+	sim.metrics.Clear() // Clear all the temporary metric files
 }
 
-func (sim *Simulator) NodeByIP(ip string) *caravelaNode.Node {
+// randomNode returns a random node from the active nodes
+func (sim *Simulator) randomNode() (int, *caravelaNode.Node) {
+	randIndex := util.RandomInteger(0, len(sim.nodes)-1)
+	return randIndex, sim.nodes[randIndex]
+}
+
+func (sim *Simulator) tearDown() {
+	sim.nodes = nil
+	sim.overlay = nil
+	runtime.GC() // Force the GC to run in order to release the memory
+}
+
+func (sim *Simulator) NodeByIP(ip string) (*caravelaNode.Node, int) {
 	index, _ := sim.overlay.GetNodeMockByIP(ip)
-	return sim.nodes[index]
+	return sim.nodes[index], index
 }
 
-func (sim *Simulator) NodeByGUID(guid string) *caravelaNode.Node {
+func (sim *Simulator) NodeByGUID(guid string) (*caravelaNode.Node, int) {
 	index, _ := sim.overlay.GetNodeMockByGUID(guid)
-	return sim.nodes[index]
+	return sim.nodes[index], index
+}
+
+func (sim *Simulator) Metrics() *metrics.Metrics {
+	return sim.metrics
 }

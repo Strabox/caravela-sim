@@ -3,53 +3,45 @@ package configuration
 import (
 	"fmt"
 	"github.com/BurntSushi/toml"
+	"github.com/strabox/caravela-sim/util"
 	"time"
 )
 
-//Directory path to where search for the default configuration file. (Directory of binary execution)
-const configurationFilePath = ""
+// Default name of the configuration file.
+const DefaultConfigFilePath = "simulation.toml"
 
-//Default name of the configuration file.
-const configurationFileName = "simulation.toml"
+// Default Simulator's log's level
+const DefaultSimLogLevel = "panic"
 
-/*
-Configuration structure used to initialize the simulator.
-*/
+// Default Simulator's out directory path
+const DefaultOutDirectoryPath = "out"
+
+// Configuration structure with initialization parameters for the simulator.
 type Configuration struct {
-	NumberOfNodes             int
-	TimeBetweenNodeStart      duration
-	TimeBeforeStartSimulating duration
-	SimulatorLogLevel         string
-
-	CaravelaLogLevel string
+	NumberOfNodes        int
+	TickInterval         duration
+	MaxTicks             int
+	TimeBeforeSimulation duration
+	OutDirectoryPath     string
+	SimulatorLogLevel    string
+	CaravelaLogLevel     string
 }
 
-/*
-Produces the configuration structure for a basic simulation.
-*/
+// Produces the configuration structure for a basic simulation.
 func Default() *Configuration {
 	return &Configuration{
-		NumberOfNodes:             1000,
-		TimeBetweenNodeStart:      duration{Duration: 100 * time.Millisecond},
-		TimeBeforeStartSimulating: duration{Duration: 1 * time.Minute},
-		SimulatorLogLevel:         "debug",
-
-		CaravelaLogLevel: "debug",
+		NumberOfNodes:        2500,
+		TickInterval:         duration{Duration: 10 * time.Second},
+		MaxTicks:             10,
+		TimeBeforeSimulation: duration{Duration: 30 * time.Second},
+		OutDirectoryPath:     DefaultOutDirectoryPath,
+		SimulatorLogLevel:    DefaultSimLogLevel,
+		CaravelaLogLevel:     "info",
 	}
 }
 
-/*
-Produces configuration structure reading from the configuration file and filling the rest
-with the default values of the simulation
-*/
-func ReadFromDefaultFile() (*Configuration, error) {
-	return ReadFromFile(configurationFilePath + configurationFileName)
-}
-
-/*
-Produces configuration structure reading from the configuration file and filling the rest
-with the default values of the simulation
-*/
+// Produces configuration structure reading from the configuration file and filling the rest
+// with the default values of the simulation
 func ReadFromFile(configFilePath string) (*Configuration, error) {
 	config := Default()
 
@@ -64,13 +56,12 @@ func ReadFromFile(configFilePath string) (*Configuration, error) {
 	return config, nil
 }
 
-/*
-Briefly validate the configuration to avoid/short-circuit many runtime errors due to
-typos or completely non sense configurations.
-*/
+// Briefly validate the configuration to avoid/short-circuit many runtime errors due to
+// typos or completely non sense configurations.
 func (config *Configuration) validate() error {
 	isValidLogLevel := func(logLevel string) bool {
-		if logLevel == "info" || logLevel == "debug" || logLevel == "warning" || logLevel == "error" || logLevel == "fatal" || logLevel == "panic" {
+		if logLevel == "info" || logLevel == "debug" || logLevel == "warning" ||
+			logLevel == "error" || logLevel == "fatal" || logLevel == "panic" {
 			return true
 		} else {
 			return false
@@ -79,6 +70,10 @@ func (config *Configuration) validate() error {
 
 	if config.NumberOfNodes <= 0 {
 		return fmt.Errorf("the number of nodes in the simulation must be > 0: %d", config.NumberOfNodes)
+	}
+
+	if config.MaxTicks <= 0 {
+		return fmt.Errorf("the number of maximum ticks must be > 0: %d", config.MaxTicks)
 	}
 
 	if !isValidLogLevel(config.CaravelaLogLevel) {
@@ -90,4 +85,21 @@ func (config *Configuration) validate() error {
 	}
 
 	return nil
+}
+
+// Print/log the current configurations in order to debug the programs behavior.
+func (config *Configuration) Print() {
+	util.Log.Infof("##################################################################")
+	util.Log.Infof("#               CARAVELA's SIMULATOR CONFIGURATIONS              #")
+	util.Log.Infof("##################################################################")
+
+	util.Log.Infof("#Nodes:               %d", config.NumberOfNodes)
+	util.Log.Infof("Tick Interval:        %s", config.TickInterval.Duration.String())
+	util.Log.Infof("Max Ticks:            %d", config.MaxTicks)
+	util.Log.Infof("Time before sim:      %s", config.TimeBeforeSimulation.Duration.String())
+	util.Log.Infof("Output directory:     %s", config.OutDirectoryPath)
+	util.Log.Infof("Sim log level:        %s", config.SimulatorLogLevel)
+	util.Log.Infof("CARAVELA's log level: %s", config.CaravelaLogLevel)
+
+	util.Log.Infof("##################################################################")
 }

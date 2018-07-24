@@ -1,29 +1,34 @@
 [Caravela]
-APITimeout = "5s"
-CheckContainersInterval = "30s"
-SupplyingInterval = "30s"
-SpreadOffersInterval = "30s"
-RefreshesCheckInterval = "30s"
-RefreshingInterval = "30s"
-MaxRefreshesFailed = 3
-MaxRefreshesMissed = 2
-RefreshMissedTimeout = "20s"
-ResourcesOvercommit = 50
+RefreshesInterval = "30s"
+OffersStrategy = "chordDefault"
+Simulation = true
     # Cpu Cores Partitions
     [[Caravela.CpuCoresPartitions]]
     Cores = 1
-    Percentage = 50
+    Percentage = 10
     [[Caravela.CpuCoresPartitions]]
     Cores = 2
-    Percentage = 50
+    Percentage = 40
+    [[Caravela.CpuCoresPartitions]]
+    Cores = 4
+    Percentage = 30
+    [[Caravela.CpuCoresPartitions]]
+    Cores = 8
+    Percentage = 20
     # Ram Partitions
     [[Caravela.RamPartitions]]
+    Ram = 128
+    Percentage = 25
+    [[Caravela.RamPartitions]]
     Ram = 256
-    Percentage = 50
+    Percentage = 25
     [[Caravela.RamPartitions]]
     Ram = 512
-    Percentage = 50
+    Percentage = 25
+    [[Caravela.RamPartitions]]
+    Ram = 1024
+    Percentage = 25
 
 [Overlay]
-ChordNumSuccessors = 4
+ChordNumSuccessors = 3
 ChordHashSizeBits = 128

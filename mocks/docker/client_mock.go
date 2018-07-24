@@ -1,32 +1,29 @@
 package docker
 
 import (
-	"github.com/strabox/caravela/api/rest"
+	"github.com/strabox/caravela-sim/util"
+	"github.com/strabox/caravela/api/types"
 	myContainer "github.com/strabox/caravela/docker/container"
 	"sync"
 )
 
+const containerIDSize = 64
+
 type ClientMock struct {
+	numOfContainers   int
 	containersRunning sync.Map
-	containersIdGen   int
 	idGenMutex        sync.Mutex
 }
 
 func NewClientMock() *ClientMock {
 	return &ClientMock{
 		containersRunning: sync.Map{},
-		containersIdGen:   0,
 		idGenMutex:        sync.Mutex{},
 	}
 }
 
-func (cliMock *ClientMock) generateContainerID() string {
-	cliMock.idGenMutex.Lock()
-	defer cliMock.idGenMutex.Unlock()
-
-	id := cliMock.containersIdGen
-	cliMock.containersIdGen++
-	return string(id)
+func (cliMock *ClientMock) ContainersRunning() int {
+	return cliMock.numOfContainers
 }
 
 /*
@@ -36,8 +33,9 @@ func (cliMock *ClientMock) generateContainerID() string {
 */
 
 func (cliMock *ClientMock) GetDockerCPUAndRAM() (int, int) {
-	// TODO: Instead of hardcode values put a function that distributes the resources of each node realistically
-	return 4, 2048
+	// TODO: Instead of hardcode values put a function that
+	// distributes the resources of each node realistically
+	return 2, 512
 }
 
 func (cliMock *ClientMock) CheckContainerStatus(containerID string) (myContainer.ContainerStatus, error) {
@@ -49,16 +47,18 @@ func (cliMock *ClientMock) CheckContainerStatus(containerID string) (myContainer
 	}
 }
 
-func (cliMock *ClientMock) RunContainer(imageKey string, portMappings []rest.PortMapping, args []string, cpus int64,
-	ram int) (string, error) {
+func (cliMock *ClientMock) RunContainer(imageKey string, portMappings []types.PortMapping, args []string,
+	cpus int64, ram int) (string, error) {
+	cliMock.numOfContainers++
 
 	// Generate a random ID for the container and store it in an HashMap
-	randomContainerID := cliMock.generateContainerID()
+	randomContainerID := util.RandomString(containerIDSize)
 	cliMock.containersRunning.Store(randomContainerID, nil)
 	return randomContainerID, nil
 }
 
 func (cliMock *ClientMock) RemoveContainer(containerID string) error {
+	cliMock.numOfContainers--
 	cliMock.containersRunning.Delete(containerID)
 	return nil
 }

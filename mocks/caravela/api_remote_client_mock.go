@@ -2,11 +2,11 @@ package caravela
 
 import (
 	"github.com/strabox/caravela-sim/simulation"
-	"github.com/strabox/caravela/api/rest"
+	"github.com/strabox/caravela/api/types"
 	"github.com/strabox/caravela/configuration"
-	nodeAPI "github.com/strabox/caravela/node/api"
 )
 
+// RemoteClientMock mocks the RPC from a node to another via the simulator.
 type RemoteClientMock struct {
 	sim simulation.Simulator
 }
@@ -19,62 +19,67 @@ func NewRemoteClientMock(sim simulation.Simulator) *RemoteClientMock {
 
 /*
 ===============================================================================
-                      Caravela Remote Client Interface
+=                      Caravela Remote Client Interface                       =
 ===============================================================================
 */
 
-func (mock *RemoteClientMock) CreateOffer(fromSupplierIP string, fromSupplierGUID string, toTraderIP string,
-	toTraderGUID string, offerID int64, amount int, cpus int, ram int) error {
+func (mock *RemoteClientMock) CreateOffer(fromSupp *types.Node, toTrader *types.Node,
+	offer *types.Offer) error {
 
-	mock.sim.NodeByGUID(toTraderGUID).CreateOffer(fromSupplierGUID, fromSupplierIP, toTraderGUID,
-		offerID, amount, cpus, ram)
+	node, _ := mock.sim.NodeByGUID(toTrader.GUID)
+	mock.sim.Metrics().MsgsTradedActiveRequest(1)
+
+	node.CreateOffer(fromSupp, toTrader, offer)
 	return nil
 }
 
-func (mock *RemoteClientMock) RefreshOffer(toSupplierIP string, fromTraderGUID string, offerID int64) (bool, error) {
-	return mock.sim.NodeByIP(toSupplierIP).RefreshOffer(offerID, fromTraderGUID), nil
+func (mock *RemoteClientMock) RefreshOffer(fromTrader, toSupp *types.Node, offer *types.Offer) (bool, error) {
+	node, _ := mock.sim.NodeByIP(toSupp.IP)
+	mock.sim.Metrics().MsgsTradedActiveRequest(1)
+
+	return node.RefreshOffer(fromTrader, offer), nil
 }
 
-func (mock *RemoteClientMock) RemoveOffer(fromSupplierIP string, fromSupplierGUID, toTraderIP string,
-	toTraderGUID string, offerID int64) error {
+func (mock *RemoteClientMock) RemoveOffer(fromSupp, toTrader *types.Node, offer *types.Offer) error {
+	node, _ := mock.sim.NodeByGUID(toTrader.GUID)
+	mock.sim.Metrics().MsgsTradedActiveRequest(1)
 
-	mock.sim.NodeByGUID(toTraderGUID).RemoveOffer(fromSupplierIP, fromSupplierGUID, toTraderGUID, offerID)
+	node.RemoveOffer(fromSupp, toTrader, offer)
 	return nil
 }
 
-func (mock *RemoteClientMock) GetOffers(toTraderIP string, toTraderGUID string, relay bool,
-	fromNodeGUID string) ([]nodeAPI.Offer, error) {
+func (mock *RemoteClientMock) GetOffers(fromNode, toTrader *types.Node, relay bool) ([]types.AvailableOffer, error) {
+	node, _ := mock.sim.NodeByGUID(toTrader.GUID)
+	mock.sim.Metrics().MsgsTradedActiveRequest(1)
 
-	offers := mock.sim.NodeByGUID(toTraderGUID).GetOffers(toTraderGUID, relay, fromNodeGUID)
+	offers := node.GetOffers(fromNode, toTrader, relay)
 	return offers, nil
 }
 
-func (mock *RemoteClientMock) AdvertiseOffersNeighbor(toNeighborTraderIP string, toNeighborTraderGUID string,
-	fromTraderGUID string, traderOfferingGUID string, traderOfferingIP string) error {
+func (mock *RemoteClientMock) AdvertiseOffersNeighbor(fromTrader, toNeighborTrader, traderOffering *types.Node) error {
+	node, _ := mock.sim.NodeByGUID(toNeighborTrader.GUID)
+	mock.sim.Metrics().MsgsTradedActiveRequest(1)
 
-	mock.sim.NodeByGUID(toNeighborTraderGUID).AdvertiseNeighborOffers(toNeighborTraderGUID, fromTraderGUID,
-		traderOfferingIP, traderOfferingGUID)
+	node.AdvertiseOffersNeighbor(fromTrader, toNeighborTrader, traderOffering)
 	return nil
 }
 
-func (mock *RemoteClientMock) LaunchContainer(toSupplierIP string, fromBuyerIP string, offerID int64, containerImageKey string,
-	portMappings []rest.PortMapping, containerArgs []string, cpus int, ram int) (*rest.ContainerStatus, error) {
+func (mock *RemoteClientMock) LaunchContainer(fromBuyer, toSupplier *types.Node, offer *types.Offer,
+	containerConfig *types.ContainerConfig) (*types.ContainerStatus, error) {
+	node, _ := mock.sim.NodeByIP(toSupplier.IP)
+	mock.sim.Metrics().MsgsTradedActiveRequest(1)
 
-	containerID, err := mock.sim.NodeByIP(toSupplierIP).LaunchContainers(fromBuyerIP, offerID, containerImageKey, portMappings, containerArgs,
-		cpus, ram)
-
-	return &rest.ContainerStatus{
-		ImageKey:     containerImageKey,
-		ID:           containerID,
-		PortMappings: portMappings,
-	}, err
+	return node.LaunchContainers(fromBuyer, offer, containerConfig)
 }
 
-func (mock *RemoteClientMock) StopLocalContainer(toSupplierIP string, containerID string) error {
-	return mock.sim.NodeByIP(toSupplierIP).StopLocalContainer(containerID)
+func (mock *RemoteClientMock) StopLocalContainer(toSupplier *types.Node, containerID string) error {
+	node, _ := mock.sim.NodeByIP(toSupplier.IP)
+	mock.sim.Metrics().MsgsTradedActiveRequest(1)
+
+	return node.StopLocalContainer(containerID)
 }
 
-func (mock *RemoteClientMock) ObtainConfiguration(systemsNodeIP string) (*configuration.Configuration, error) {
+func (mock *RemoteClientMock) ObtainConfiguration(systemsNode *types.Node) (*configuration.Configuration, error) {
 	// Do Nothing (For now not necessary for the simulation)
 	return nil, nil
 }

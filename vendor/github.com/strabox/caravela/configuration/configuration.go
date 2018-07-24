@@ -5,6 +5,7 @@ import (
 	"github.com/BurntSushi/toml"
 	log "github.com/Sirupsen/logrus"
 	"github.com/strabox/caravela/util"
+	"net"
 	"strings"
 	"time"
 )
@@ -85,6 +86,7 @@ func Default(hostIP string) *Configuration {
 			APITimeout:              duration{Duration: 5 * time.Second},
 			CheckContainersInterval: duration{Duration: 30 * time.Second},
 			SupplyingInterval:       duration{Duration: 45 * time.Second},
+			SpreadOffersInterval:    duration{Duration: 40 * time.Second},
 			RefreshesCheckInterval:  duration{Duration: 30 * time.Second},
 			RefreshingInterval:      refreshingInterval,
 			MaxRefreshesFailed:      2,
@@ -134,23 +136,22 @@ func ReadFromFile(hostIP string) (*Configuration, error) {
 // Produces configuration structured based on a given structure that.
 // Used to pass the system configurations between nodes, usually during the joining process.
 func ObtainExternal(hostIP string, config *Configuration) (*Configuration, error) {
-	config.Host.IP = hostIP
+	res := *config
+	res.Host.IP = hostIP
 
-	if err := config.validate(); err != nil {
+	if err := res.validate(); err != nil {
 		return nil, err
 	}
 
-	return config, nil
+	return &res, nil
 }
 
 // Briefly validate the configuration to avoid/short-circuit many runtime errors due to
 // typos or completely non sense configurations, like negative ports.
 func (c *Configuration) validate() error {
-	/* TODO: Undo this when simulator generates valid unique IPs
 	if net.ParseIP(c.HostIP()) == nil {
 		return fmt.Errorf("invalid host ip address: %s", c.HostIP())
 	}
-	*/
 	if !util.IsValidPort(c.APIPort()) {
 		return fmt.Errorf("invalid api port: %d", c.APIPort())
 	}
@@ -236,6 +237,7 @@ func (c *Configuration) Print() {
 	log.Printf("OffersStrategy:              %s", c.OffersStrategy())
 	log.Printf("Check Containers Interval:   %s", c.CheckContainersInterval().String())
 	log.Printf("Supply Resources Interval:   %s", c.SupplyingInterval().String())
+	log.Printf("Spread Offers Interval:      %s", c.SpreadOffersInterval().String())
 	log.Printf("Refreshes Check Interval:    %s", c.RefreshesCheckInterval().String())
 	log.Printf("Refreshes Interval:          %s", c.RefreshingInterval().String())
 	log.Printf("Refresh missed timeout:      %s", c.RefreshMissedTimeout().String())

@@ -1,6 +1,6 @@
-NumberOfNodes = 10
-TimeBetweenNodeStart = "100ms"
-TimeBeforeStartSimulating = "1m"
+NumberOfNodes = 10000
+TickInterval = "10s"
+MaxTicks = 25
+TimeBeforeSimulation = "30s"
 SimulatorLogLevel = "info"
-
-CaravelaLogLevel = "debug"
+CaravelaLogLevel = "info"

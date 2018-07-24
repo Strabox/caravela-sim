@@ -3,7 +3,7 @@ package user
 import (
 	log "github.com/Sirupsen/logrus"
 	"github.com/pkg/errors"
-	"github.com/strabox/caravela/api/rest"
+	"github.com/strabox/caravela/api/types"
 	"github.com/strabox/caravela/configuration"
 	"github.com/strabox/caravela/node/common"
 	"github.com/strabox/caravela/node/common/resources"
@@ -31,7 +31,7 @@ func NewManager(config *configuration.Configuration, localScheduler localSchedul
 	}
 }
 
-func (man *Manager) SubmitContainers(containerImageKey string, portMappings []rest.PortMapping,
+func (man *Manager) SubmitContainers(containerImageKey string, portMappings []types.PortMapping,
 	containerArgs []string, cpus int, ram int) error {
 
 	containerID, suppIP, err := man.localScheduler.SubmitContainers(containerImageKey, portMappings,
@@ -53,7 +53,7 @@ func (man *Manager) StopContainers(containerIDs []string) error {
 		contTmp, contExist := man.containers.Load(contID)
 		container, ok := contTmp.(*deployedContainer)
 		if contExist && ok {
-			if err := man.userRemoteCli.StopLocalContainer(container.supplierIP(), container.ID()); err == nil {
+			if err := man.userRemoteCli.StopLocalContainer(&types.Node{IP: container.supplierIP()}, container.ID()); err == nil {
 				man.containers.Delete(contID)
 			} else {
 				fail = true
@@ -64,25 +64,26 @@ func (man *Manager) StopContainers(containerIDs []string) error {
 
 	if fail {
 		err := errors.New(errMsg)
-		log.Debugf(util.LogTag("UsrMng")+" Error stopping containers: %s", err)
+		log.Debugf(util.LogTag("USRMNG")+"STOPPING containers error: %s", err)
 		return err
 	}
 
 	return nil
 }
 
-func (man *Manager) ListContainers() rest.ContainersList {
-	res := rest.ContainersList{
-		ContainersStatus: make([]rest.ContainerStatus, 0),
-	}
+func (man *Manager) ListContainers() []types.ContainerStatus {
+	res := make([]types.ContainerStatus, 0)
+
 	man.containers.Range(func(key, value interface{}) bool {
 		if cont, ok := value.(*deployedContainer); ok {
-			res.ContainersStatus = append(res.ContainersStatus,
-				rest.ContainerStatus{
-					ImageKey:     cont.ImageKey(),
-					ID:           cont.ShortID(),
-					PortMappings: cont.PortMappings(),
-					Status:       "Running", // TODO: Solve this hardcode
+			res = append(res,
+				types.ContainerStatus{
+					ContainerConfig: types.ContainerConfig{
+						ImageKey:     cont.ImageKey(),
+						PortMappings: cont.PortMappings(),
+					},
+					ContainerID: cont.ShortID(),
+					Status:      "Running", // TODO: Solve this hardcode
 				})
 		}
 		return true
