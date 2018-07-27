@@ -70,22 +70,21 @@ func (sup *Supplier) startSupplying() {
 				sup.createOffer()
 			}()
 		case <-sup.refreshesCheckTicker: // Check if the activeOffers are being refreshed by the respective trader
-			go func() {
-				sup.offersMutex.Lock()
-				defer sup.offersMutex.Unlock()
+			sup.offersMutex.Lock()
 
-				for offerKey, offer := range sup.activeOffers {
-					offer.VerifyRefreshes(sup.config.RefreshMissedTimeout())
+			for offerKey, offer := range sup.activeOffers {
+				offer.VerifyRefreshes(sup.config.RefreshMissedTimeout())
 
-					if offer.RefreshesMissed() >= sup.config.MaxRefreshesMissed() {
-						log.Debugf(util.LogTag("SUPPLIER")+"Offer DOWN, Offer: %d, HandlerTrader: %s",
-							offer.ID(), offer.ResponsibleTraderIP())
+				if offer.RefreshesMissed() >= sup.config.MaxRefreshesMissed() {
+					log.Debugf(util.LogTag("SUPPLIER")+"Offer DOWN, Offer: %d, HandlerTrader: %s",
+						offer.ID(), offer.ResponsibleTraderIP())
 
-						sup.availableResources.Add(*offer.Resources())
-						delete(sup.activeOffers, offerKey)
-					}
+					sup.availableResources.Add(*offer.Resources())
+					delete(sup.activeOffers, offerKey)
 				}
-			}()
+			}
+
+			sup.offersMutex.Unlock()
 		case res := <-sup.quitChan: // Stopping the supplier
 			if res {
 				log.Infof(util.LogTag("SUPPLIER") + "STOPPED")
@@ -109,7 +108,7 @@ func (sup *Supplier) FindOffers(targetResources resources.Resources) []types.Ava
 }
 
 // Tries refresh an offer. Called when a refresh message was received.
-func (sup *Supplier) RefreshOffer(fromTrader *types.Node, recvOffer *types.Offer) bool {
+func (sup *Supplier) RefreshOffer(fromTrader *types.Node, refreshOffer *types.Offer) bool {
 	if !sup.isWorking() {
 		panic(errors.New("can't refresh offer, supplier not working"))
 	}
@@ -117,19 +116,19 @@ func (sup *Supplier) RefreshOffer(fromTrader *types.Node, recvOffer *types.Offer
 	sup.offersMutex.Lock()
 	defer sup.offersMutex.Unlock()
 
-	offer, exist := sup.activeOffers[common.OfferID(recvOffer.ID)]
+	offer, exist := sup.activeOffers[common.OfferID(refreshOffer.ID)]
 
 	if !exist {
-		log.Debugf(util.LogTag("SUPPLIER")+"Offer: %d refresh FAILED (Offer does not exist)", recvOffer.ID)
+		log.Debugf(util.LogTag("SUPPLIER")+"Offer: %d refresh FAILED (Offer does not exist)", refreshOffer.ID)
 		return false
 	}
 
 	if offer.IsResponsibleTrader(*guid.NewGUIDString(fromTrader.GUID)) {
 		offer.Refresh()
-		log.Debugf(util.LogTag("SUPPLIER")+"Offer: %d refresh SUCCESS", recvOffer.ID)
+		log.Debugf(util.LogTag("SUPPLIER")+"Offer: %d refresh SUCCESS", refreshOffer.ID)
 		return true
 	} else {
-		log.Debugf(util.LogTag("SUPPLIER")+"Offer: %d refresh FAILED (wrong trader)", recvOffer.ID)
+		log.Debugf(util.LogTag("SUPPLIER")+"Offer: %d refresh FAILED (wrong trader)", refreshOffer.ID)
 		return false
 	}
 }
@@ -157,19 +156,19 @@ func (sup *Supplier) ObtainResources(offerID int64, resourcesNecessary resources
 
 		delete(sup.activeOffers, common.OfferID(offerID))
 
-		if sup.config.Simulation() {
+		removeOffer := func() {
 			sup.client.RemoveOffer(
 				&types.Node{IP: sup.config.HostIP(), GUID: ""},
 				&types.Node{IP: supOffer.ResponsibleTraderIP(), GUID: supOffer.ResponsibleTraderGUID().String()},
 				&types.Offer{ID: int64(supOffer.ID())},
 			)
+		}
+
+		if sup.config.Simulation() {
+			removeOffer()
 			sup.createOffer() // Update its own offers
 		} else {
-			go sup.client.RemoveOffer(
-				&types.Node{IP: sup.config.HostIP(), GUID: ""},
-				&types.Node{IP: supOffer.ResponsibleTraderIP(), GUID: supOffer.ResponsibleTraderGUID().String()},
-				&types.Offer{ID: int64(supOffer.ID())},
-			)
+			go removeOffer()
 			go func() {
 				sup.offersMutex.Lock()
 				defer sup.offersMutex.Unlock()
@@ -192,13 +191,13 @@ func (sup *Supplier) ReturnResources(releasedResources resources.Resources) {
 	sup.availableResources.Add(releasedResources)
 
 	if sup.config.Simulation() {
-		sup.createOffer() // Update its own offers
+		sup.createOffer() // Update its own offers sequential
 	} else {
 		go func() {
 			sup.offersMutex.Lock()
 			defer sup.offersMutex.Unlock()
 			sup.createOffer()
-		}() // Update its own offers
+		}() // Update its own offers in the background
 	}
 }
 
@@ -208,27 +207,26 @@ func (sup *Supplier) createOffer() {
 		// Goal: This is used to try offer the maximum amount of resources the node has available between
 		//		 the Available (offered) and the Available (but not offered).
 		for offerID, offer := range sup.activeOffers {
-			offerIDRef := offerID
-			offerRef := offer
-			if sup.config.Simulation() {
+			removeOffer := func(offer *supplierOffer) {
 				sup.client.RemoveOffer(
 					&types.Node{IP: sup.config.HostIP(), GUID: ""},
-					&types.Node{IP: offerRef.ResponsibleTraderIP(), GUID: offerRef.ResponsibleTraderGUID().String()},
-					&types.Offer{ID: int64(offerIDRef)},
-				) // Send remove offer message in background
-			} else {
-				go sup.client.RemoveOffer(
-					&types.Node{IP: sup.config.HostIP(), GUID: ""},
-					&types.Node{IP: offerRef.ResponsibleTraderIP(), GUID: offerRef.ResponsibleTraderGUID().String()},
-					&types.Offer{ID: int64(offerIDRef)},
-				) // Send remove offer message in background
+					&types.Node{IP: offer.ResponsibleTraderIP(), GUID: offer.ResponsibleTraderGUID().String()},
+					&types.Offer{ID: int64(offer.ID())},
+				)
 			}
+			if sup.config.Simulation() {
+				removeOffer(offer) // Send remove offer message sequential
+			} else {
+				go removeOffer(offer) // Send remove offer message in background
+			}
+
 			delete(sup.activeOffers, offerID)
 			sup.availableResources.Add(*offer.Resources())
 		}
 
 		log.Debugf(util.LogTag("SUPPLIER")+"CREATING offer... Offer: %d, Res: <%d;%d>",
 			int64(sup.offersIDGen), sup.availableResources.CPUs(), sup.availableResources.RAM())
+
 		offer, err := sup.offersStrategy.CreateOffer(int64(sup.offersIDGen), *sup.availableResources)
 		if err == nil {
 			sup.activeOffers[offer.ID()] = offer
@@ -238,11 +236,35 @@ func (sup *Supplier) createOffer() {
 	}
 }
 
-/*
-===============================================================================
-							SubComponent Interface
-===============================================================================
-*/
+// Simulation
+func (sup *Supplier) AvailableResources() types.Resources {
+	sup.offersMutex.Lock()
+	defer sup.offersMutex.Unlock()
+
+	res := types.Resources{
+		CPUs: sup.availableResources.CPUs(),
+		RAM:  sup.availableResources.RAM(),
+	}
+
+	for _, offer := range sup.activeOffers {
+		res.CPUs += offer.Resources().CPUs()
+		res.RAM += offer.Resources().RAM()
+	}
+
+	return res
+}
+
+// Simulation
+func (sup *Supplier) MaximumResources() types.Resources {
+	return types.Resources{
+		CPUs: sup.maxResources.CPUs(),
+		RAM:  sup.maxResources.RAM(),
+	}
+}
+
+// ===============================================================================
+// =							SubComponent Interface                           =
+// ===============================================================================
 
 func (sup *Supplier) Start() {
 	sup.Started(sup.config.Simulation(), func() {

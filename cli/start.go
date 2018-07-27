@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"github.com/strabox/caravela-sim/configuration"
 	"github.com/strabox/caravela-sim/mocks/caravela"
-	"github.com/strabox/caravela-sim/simulation/simulator"
+	"github.com/strabox/caravela-sim/simulation"
 	"github.com/strabox/caravela-sim/util"
 	"github.com/urfave/cli"
 )
@@ -15,7 +15,7 @@ func start(c *cli.Context) {
 	simulatorConfig, err := configuration.ReadFromFile(configFilePath)
 	if err != nil {
 		util.Log.Errorf("Cannot read config file %s, error: %s", configFilePath, err)
-		fmt.Println("Information: Using the default configurations!")
+		fmt.Println("Information: Using the default configurations!!")
 		simulatorConfig = configuration.Default()
 	}
 
@@ -24,7 +24,7 @@ func start(c *cli.Context) {
 	simulatorConfig.Print()
 
 	caravelaConfigs := caravela.Configuration()
-	mySimulator := simulator.NewSimulator(simulatorConfig, caravelaConfigs)
+	mySimulator := simulation.NewSimulator(simulatorConfig, caravelaConfigs)
 
 	fmt.Println("Initializing simulation...")
 	mySimulator.Init()

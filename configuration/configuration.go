@@ -18,25 +18,23 @@ const DefaultOutDirectoryPath = "out"
 
 // Configuration structure with initialization parameters for the simulator.
 type Configuration struct {
-	NumberOfNodes        int
-	TickInterval         duration
-	MaxTicks             int
-	TimeBeforeSimulation duration
-	OutDirectoryPath     string
-	SimulatorLogLevel    string
-	CaravelaLogLevel     string
+	NumberOfNodes     int
+	TickInterval      duration
+	MaxTicks          int
+	OutDirectoryPath  string
+	SimulatorLogLevel string
+	CaravelaLogLevel  string
 }
 
 // Produces the configuration structure for a basic simulation.
 func Default() *Configuration {
 	return &Configuration{
-		NumberOfNodes:        2500,
-		TickInterval:         duration{Duration: 10 * time.Second},
-		MaxTicks:             10,
-		TimeBeforeSimulation: duration{Duration: 30 * time.Second},
-		OutDirectoryPath:     DefaultOutDirectoryPath,
-		SimulatorLogLevel:    DefaultSimLogLevel,
-		CaravelaLogLevel:     "info",
+		NumberOfNodes:     2500,
+		TickInterval:      duration{Duration: 10 * time.Second},
+		MaxTicks:          10,
+		OutDirectoryPath:  DefaultOutDirectoryPath,
+		SimulatorLogLevel: DefaultSimLogLevel,
+		CaravelaLogLevel:  "info",
 	}
 }
 
@@ -87,19 +85,42 @@ func (config *Configuration) validate() error {
 	return nil
 }
 
+func (config *Configuration) TotalNumberOfNodes() int {
+	return config.NumberOfNodes
+}
+
+func (config *Configuration) TicksInterval() time.Duration {
+	return config.TickInterval.Duration
+}
+
+func (config *Configuration) MaximumTicks() int {
+	return config.MaxTicks
+}
+
+func (config *Configuration) OutputDirectoryPath() string {
+	return config.OutDirectoryPath
+}
+
+func (config *Configuration) SimulatorLogsLevel() string {
+	return config.SimulatorLogLevel
+}
+
+func (config *Configuration) CaravelaLogsLevel() string {
+	return config.CaravelaLogLevel
+}
+
 // Print/log the current configurations in order to debug the programs behavior.
 func (config *Configuration) Print() {
 	util.Log.Infof("##################################################################")
 	util.Log.Infof("#               CARAVELA's SIMULATOR CONFIGURATIONS              #")
 	util.Log.Infof("##################################################################")
 
-	util.Log.Infof("#Nodes:               %d", config.NumberOfNodes)
-	util.Log.Infof("Tick Interval:        %s", config.TickInterval.Duration.String())
-	util.Log.Infof("Max Ticks:            %d", config.MaxTicks)
-	util.Log.Infof("Time before sim:      %s", config.TimeBeforeSimulation.Duration.String())
-	util.Log.Infof("Output directory:     %s", config.OutDirectoryPath)
-	util.Log.Infof("Sim log level:        %s", config.SimulatorLogLevel)
-	util.Log.Infof("CARAVELA's log level: %s", config.CaravelaLogLevel)
+	util.Log.Infof("#Nodes:               %d", config.TotalNumberOfNodes())
+	util.Log.Infof("Tick Interval:        %s", config.TicksInterval().String())
+	util.Log.Infof("Max Ticks:            %d", config.MaximumTicks())
+	util.Log.Infof("Output directory:     %s", config.OutputDirectoryPath())
+	util.Log.Infof("Sim's log level:      %s", config.SimulatorLogsLevel())
+	util.Log.Infof("CARAVELA's log level: %s", config.CaravelaLogsLevel())
 
 	util.Log.Infof("##################################################################")
 }

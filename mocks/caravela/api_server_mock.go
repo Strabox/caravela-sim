@@ -1,26 +1,23 @@
 package caravela
 
 import (
-	"github.com/strabox/caravela-sim/simulation"
 	"github.com/strabox/caravela/api"
 )
 
 // APIServerMock mocks the the web server that attends the API requests.
+// Dummy object only to be passed into CARAVELA's Node structure.
+// It implements the github.com/strabox/caravela/api Server interface.
 type APIServerMock struct {
-	sim simulation.Simulator
+	// Nothing
 }
 
-func NewAPIServerMock(sim simulation.Simulator) *APIServerMock {
-	return &APIServerMock{
-		sim: sim,
-	}
+func NewAPIServerMock() *APIServerMock {
+	return &APIServerMock{}
 }
 
-/*
-===============================================================================
-							  API Server Interface
-===============================================================================
-*/
+// ===============================================================================
+// =							  API Server Interface                           =
+// ===============================================================================
 
 func (server *APIServerMock) Start(thisNode api.LocalNode) error {
 	// Do Nothing (For now not necessary for the simulation)

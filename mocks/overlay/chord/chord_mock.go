@@ -3,7 +3,7 @@ package chord
 import (
 	"github.com/strabox/caravela-sim/mocks/caravela"
 	overlayMock "github.com/strabox/caravela-sim/mocks/overlay"
-	"github.com/strabox/caravela-sim/simulation"
+	"github.com/strabox/caravela-sim/simulation/metrics"
 	"github.com/strabox/caravela-sim/util"
 	"github.com/strabox/caravela/overlay/types"
 	overlayTypes "github.com/strabox/caravela/overlay/types"
@@ -11,24 +11,31 @@ import (
 	"sort"
 )
 
-const chordLogLevel = "CHORD"
-const numSpeedupNodes = 100 // 1% Window Size
+// Chord's mock log tag
+const chordLogTag = "SIM-CHORD"
 
-// Mock mocks the interactions with a Chord overlay client simulating the function of it.
+// Amount of nodes to speed up the simulation of a lookup request.
+const numSpeedupNodes = 100
+
+// Mock mocks the interactions with a Chord overlay client simulating its functionality.
+// All in memory.
 type Mock struct {
-	simulator simulation.Simulator
+	collector *metrics.Collector // Metrics collector.
 
-	numNodes      int // Initial number of nodes for the chord
-	numSuccessors int
+	numNodes      int // Initial number of nodes for the chord.
+	numSuccessors int // Number of successors for each chord node.
 
-	speedupNodes    []speedupNodeMock
-	fakeNodesRing   []overlayMock.NodeMock // The array that represent the node's chord ring
-	nodesIdIndexMap map[string]int         // ID <-> Index
-	nodesIpIndexMap map[string]int         // IP <-> Index
+	speedupNodes    []speedupNodeMock      // Array of speed up nodes.
+	fakeNodesRing   []overlayMock.NodeMock // Array that represent the node's chord ring.
+	nodesIdIndexMap map[string]int         // ID <-> Index.
+	nodesIpIndexMap map[string]int         // IP <-> Index.
 }
 
-func NewChordMock(numNodes, numSuccessors int) *Mock {
+// NewChordMock creates a new chord overlay that can be used by an application component.
+// It implements the github.com/strabox/caravela/node/external Overlay interface.
+func NewChordMock(numNodes, numSuccessors int, metricsCollector *metrics.Collector) *Mock {
 	return &Mock{
+		collector:       metricsCollector,
 		numNodes:        numNodes,
 		numSuccessors:   numSuccessors,
 		speedupNodes:    make([]speedupNodeMock, numSpeedupNodes),
@@ -36,10 +43,6 @@ func NewChordMock(numNodes, numSuccessors int) *Mock {
 		nodesIdIndexMap: make(map[string]int),
 		nodesIpIndexMap: make(map[string]int),
 	}
-}
-
-func (chord *Mock) SetSimulator(sim simulation.Simulator) {
-	chord.simulator = sim
 }
 
 func (chord *Mock) Init() {
@@ -58,7 +61,7 @@ func (chord *Mock) Init() {
 
 		if speedupDivSize != 0 && divSize == speedupDivSize && speedupNodeIndex < numSpeedupNodes {
 			chord.speedupNodes[speedupNodeIndex] = *newSpeedupNodeMock(i, &chord.fakeNodesRing[i])
-			util.Log.Debugf(util.LogTag(chordLogLevel)+"Speedup Node: %d, GUID: %s, ToNodeIndex: %d",
+			util.Log.Debugf(util.LogTag(chordLogTag)+"Speedup Node: %d, GUID: %s, ToNodeIndex: %d",
 				speedupNodeIndex, chord.speedupNodes[speedupNodeIndex].String(), i)
 			speedupNodeIndex++
 			divSize = 1
@@ -71,12 +74,13 @@ func (chord *Mock) Init() {
 }
 
 func (chord *Mock) Print() {
-	util.Log.Infof("##################################################################")
-	util.Log.Infof("#                    CHORD MOCK CONFIGURATION                    #")
-	util.Log.Infof("##################################################################")
-	util.Log.Infof("#Nodes:              %d", chord.numNodes)
-	util.Log.Infof("#Speedup Nodes:      %d", len(chord.speedupNodes))
-	util.Log.Infof("Speedup Window Size: %d", chord.numNodes/numSpeedupNodes)
+	util.Log.Debugf("##################################################################")
+	util.Log.Debugf("#                   CHORD's MOCK CONFIGURATIONS                  #")
+	util.Log.Debugf("##################################################################")
+	util.Log.Debugf("#Nodes:              %d", chord.numNodes)
+	util.Log.Debugf("#Speedup Nodes:      %d", len(chord.speedupNodes))
+	util.Log.Debugf("Speedup Window Size: %d", chord.numNodes/numSpeedupNodes)
+	util.Log.Debugf("##################################################################")
 }
 
 func (chord *Mock) GetNodeMockByIndex(index int) *overlayMock.NodeMock {
@@ -93,33 +97,32 @@ func (chord *Mock) GetNodeMockByIP(ip string) (int, *overlayMock.NodeMock) {
 	return index, &chord.fakeNodesRing[index]
 }
 
-/*
-===============================================================================
-							  Overlay Interface
-===============================================================================
-*/
+// ===============================================================================
+// =							  Overlay Interface                              =
+// ===============================================================================
 
 func (chord *Mock) Create(thisNode types.OverlayMembership) error {
-	// Do Nothing (For now not necessary for the simulation)
+	// Do Nothing (Not necessary for the simulation)
 	return nil
 }
 
 func (chord *Mock) Join(overlayNodeIP string, overlayNodePort int,
 	thisNode overlayTypes.OverlayMembership) error {
-	// Do Nothing (For now not necessary for the simulation)
+	// Do Nothing (Not necessary for the simulation)
 	return nil
 }
 
 func (chord *Mock) Lookup(key []byte) ([]*overlayTypes.OverlayNode, error) {
-	chord.simulator.Metrics().MsgsTradedActiveRequest(int(math.Log(float64(chord.numNodes))))
+	chord.collector.MsgsTradedActiveRequest(int(math.Log2(float64(chord.numNodes))) / 2)
+
 	searchMockNode := overlayMock.NewNode(key)
-	util.Log.Debugf(util.LogTag(chordLogLevel)+"Lookup %s", searchMockNode.String())
+	//util.Log.Debugf(util.LogTag(chordLogTag)+"Lookup %s", searchMockNode.String())
 
 	// Simulate the lookup using the fake ring/array
 
 	startSearchIndex := 0
 
-	// Speeding up the lookup using the special pointer nodes (speedup nodes)
+	// Speeding up the lookup using the special pointer nodes (Speedup Nodes)
 	if len(chord.fakeNodesRing) >= numSpeedupNodes {
 		for index, node := range chord.speedupNodes {
 			if searchMockNode.Smaller(node.NodeMock) {
@@ -174,20 +177,18 @@ func (chord *Mock) Neighbors(nodeID []byte) ([]*overlayTypes.OverlayNode, error)
 }
 
 func (chord *Mock) NodeID() ([]byte, error) {
-	// Do Nothing (For now not necessary for the simulation)
+	// Do Nothing (Not necessary for the simulation)
 	return nil, nil
 }
 
 func (chord *Mock) Leave() error {
-	// Do Nothing (For now not necessary for the simulation)
+	// Do Nothing (Not necessary for the simulation)
 	return nil
 }
 
-/*
-===============================================================================
-							  Sort Interface
-===============================================================================
-*/
+// ===============================================================================
+// =							  Sort Interface                                 =
+// ===============================================================================
 
 func (chord *Mock) Len() int {
 	return len(chord.fakeNodesRing)

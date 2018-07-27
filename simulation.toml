@@ -1,6 +1,5 @@
 NumberOfNodes = 10000
 TickInterval = "10s"
-MaxTicks = 25
-TimeBeforeSimulation = "30s"
-SimulatorLogLevel = "info"
+MaxTicks = 26
+SimulatorLogLevel = "debug"
 CaravelaLogLevel = "info"

@@ -2,7 +2,6 @@ package metrics
 
 import (
 	"errors"
-	"fmt"
 	"github.com/strabox/caravela/api/types"
 	"time"
 )
@@ -27,9 +26,10 @@ func NewGlobal(numNodes int, startTime time.Duration) *Global {
 	}
 }
 
-func (metrics *Global) Init() {
+func (metrics *Global) Init(nodesMaxRes []types.Resources) {
 	for index := range metrics.NodesMetrics {
-		metrics.NodesMetrics[index] = *NewNode()
+		newNode := NewNode(nodesMaxRes[index])
+		metrics.NodesMetrics[index] = *newNode
 	}
 }
 
@@ -45,10 +45,10 @@ func (metrics *Global) RunRequestSucceeded() {
 	metrics.RunRequestsSucceeded++
 }
 
-func (metrics *Global) CreateRunRequest(nodeIndex int, resources types.Resources,
-	currentTime time.Duration) {
-	newRequest := NewRunRequest(resources)
-	metrics.RunRequestsSubmitted = append(metrics.RunRequestsSubmitted, *newRequest)
+func (metrics *Global) APIRequestReceived(nodeIndex int) {
+	if len(metrics.NodesMetrics) > nodeIndex {
+		metrics.NodesMetrics[nodeIndex].APIRequestReceived()
+	}
 }
 
 func (metrics *Global) MsgsTradedActiveRequest(numMsgs int) {
@@ -58,7 +58,7 @@ func (metrics *Global) MsgsTradedActiveRequest(numMsgs int) {
 	}
 }
 
-func (metrics *Global) RunRequestsAvgMsgs(numMessages int) float64 {
+func (metrics *Global) RunRequestsAvgMsgs() float64 {
 	accMsgsTrader := int64(0)
 	for _, runRequest := range metrics.RunRequestsSubmitted {
 		accMsgsTrader += runRequest.TotalMessagesTraded()
@@ -66,16 +66,44 @@ func (metrics *Global) RunRequestsAvgMsgs(numMessages int) float64 {
 	return float64(accMsgsTrader) / float64(len(metrics.RunRequestsSubmitted))
 }
 
+func (metrics *Global) AllAvailableResourcesAvg() float64 {
+	maxCPUsAvailable, maxRAMAvailable, totalCPUsAvailable, totalRAMAvailable := 0, 0, 0, 0
+	for _, nodeMetrics := range metrics.NodesMetrics {
+		maxCPUsAvailable += nodeMetrics.MaximumResources().CPUs
+		maxRAMAvailable += nodeMetrics.MaximumResources().RAM
+		totalCPUsAvailable += nodeMetrics.AvailableResources().CPUs
+		totalRAMAvailable += nodeMetrics.AvailableResources().RAM
+	}
+
+	percentageCPUAvailable := float64(totalCPUsAvailable) / float64(maxCPUsAvailable)
+	percentageRAMAvailable := float64(totalRAMAvailable) / float64(maxRAMAvailable)
+	return (percentageCPUAvailable + percentageRAMAvailable) / 2
+}
+
 func (metrics *Global) TotalRunRequestsSucceeded() int64 {
 	return metrics.RunRequestsSucceeded
 }
 
-func (metrics *Global) RunRequests() int64 {
+func (metrics *Global) PercentageRunRequestsSucceeded() float64 {
+	return float64(metrics.RunRequestsSucceeded) / float64(len(metrics.RunRequestsSubmitted))
+}
+
+func (metrics *Global) TotalRunRequests() int64 {
 	return int64(len(metrics.RunRequestsSubmitted))
 }
 
+func (metrics *Global) SetAvailableNodeResources(nodeIndex int, res types.Resources) {
+	metrics.NodesMetrics[nodeIndex].SetAvailableResources(res)
+}
+
 func (metrics *Global) RequestSuccessRatio() float64 {
-	return float64(metrics.RunRequestsSucceeded) / float64(metrics.RunRequests())
+	return float64(metrics.RunRequestsSucceeded) / float64(metrics.TotalRunRequests())
+}
+
+func (metrics *Global) CreateRunRequest(nodeIndex int, resources types.Resources,
+	currentTime time.Duration) {
+	newRequest := NewRunRequest(resources)
+	metrics.RunRequestsSubmitted = append(metrics.RunRequestsSubmitted, *newRequest)
 }
 
 func (metrics *Global) activeRequest() (*RunRequest, error) {
@@ -83,12 +111,4 @@ func (metrics *Global) activeRequest() (*RunRequest, error) {
 		return nil, errors.New("no request active")
 	}
 	return &metrics.RunRequestsSubmitted[len(metrics.RunRequestsSubmitted)-1], nil
-}
-
-func (metrics *Global) Print() {
-	fmt.Print("Msgs Traded: ")
-	for _, runRequest := range metrics.RunRequestsSubmitted {
-		fmt.Printf("%d, ", runRequest.TotalMessagesTraded())
-	}
-	fmt.Println()
 }

@@ -1,5 +1,5 @@
 [Caravela]
-RefreshesInterval = "30s"
+RefreshingInterval = "30s"
 OffersStrategy = "chordDefault"
 Simulation = true
     # Cpu Cores Partitions
@@ -27,7 +27,7 @@ Simulation = true
     Percentage = 25
     [[Caravela.RamPartitions]]
     Ram = 1024
-    Percentage = 25
+    Percentage = 15
 
 [Overlay]
 ChordNumSuccessors = 3
