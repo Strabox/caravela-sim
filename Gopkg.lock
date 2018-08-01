@@ -70,7 +70,6 @@
   version = "v0.8.0"
 
 [[projects]]
-  branch = "master"
   name = "github.com/strabox/caravela"
   packages = [
     "api",
@@ -99,7 +98,8 @@
     "overlay/types",
     "util"
   ]
-  revision = "e2e8e06d757b10728b8f7867961d55c26bd4f237"
+  revision = "f8c08f85fc0efb09e250502a2c5ac7a8240a30b3"
+  version = "v0.1.0"
 
 [[projects]]
   name = "github.com/urfave/cli"
@@ -182,6 +182,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "a36fb78143fa0a8bc39b456912696bc556cadf9b480b73c72ce84e5ec82bb696"
+  inputs-digest = "3dbe68a4eaec16995e0df87afb44465cb31d23aa4ea84ce3d9b9ef92a8f959c4"
   solver-name = "gps-cdcl"
   solver-version = 1

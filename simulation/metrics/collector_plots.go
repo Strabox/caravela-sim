@@ -23,17 +23,17 @@ func (collector *Collector) plotRequestsSucceededOverTime() {
 	}
 
 	// Save the graphics to a PNG file.
-	graphics.Save(plot, 15*vg.Centimeter, 10*vg.Centimeter,
+	graphics.Save(plot, 22*vg.Centimeter, 15*vg.Centimeter,
 		collector.outputDirPath+"\\"+"RequestsSucceeded.png")
 }
 
-func (collector *Collector) plotRequestsMsgsTradedOverTime() {
+func (collector *Collector) plotRequestsMessagesTradedOverTime() {
 	plot := graphics.New("Average Messages Trader", "Time", "Number of Messages")
 
 	pts := make(plotter.XYs, len(collector.snapshots))
 	for i := range pts {
 		pts[i].X = collector.snapshots[i].StartTimes().Seconds()
-		pts[i].Y = float64(collector.snapshots[i].RunRequestsAvgMsgs())
+		pts[i].Y = float64(collector.snapshots[i].RunRequestsAvgMessages())
 	}
 
 	err := plotutil.AddLinePoints(plot, "Total Messages", pts)
@@ -42,7 +42,7 @@ func (collector *Collector) plotRequestsMsgsTradedOverTime() {
 	}
 
 	// Save the graphics to a PNG file.
-	graphics.Save(plot, 15*vg.Centimeter, 10*vg.Centimeter,
+	graphics.Save(plot, 22*vg.Centimeter, 15*vg.Centimeter,
 		collector.outputDirPath+"\\"+"MessagesPerRequest.png")
 }
 
@@ -55,7 +55,7 @@ func (collector *Collector) plotAvailableResourcesOverTime() {
 		availableResPts[i].X = collector.snapshots[i].StartTimes().Seconds()
 		availableResPts[i].Y = float64(collector.snapshots[i].AllAvailableResourcesAvg())
 		requestsSucceeded[i].X = collector.snapshots[i].StartTimes().Seconds()
-		requestsSucceeded[i].Y = collector.snapshots[i].PercentageRunRequestsSucceeded()
+		requestsSucceeded[i].Y = collector.snapshots[i].RunRequestSuccessRatio()
 	}
 
 	err := plotutil.AddLinePoints(plot, "Available Resources", availableResPts,
@@ -65,6 +65,6 @@ func (collector *Collector) plotAvailableResourcesOverTime() {
 	}
 
 	// Save the graphics to a PNG file.
-	graphics.Save(plot, 20*vg.Centimeter, 15*vg.Centimeter,
+	graphics.Save(plot, 22*vg.Centimeter, 15*vg.Centimeter,
 		collector.outputDirPath+"\\"+"AvailableResources.png")
 }

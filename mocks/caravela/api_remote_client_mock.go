@@ -52,7 +52,7 @@ func (mock *RemoteClientMock) RemoveOffer(fromSupp, toTrader *types.Node, offer 
 
 func (mock *RemoteClientMock) GetOffers(fromNode, toTrader *types.Node, relay bool) ([]types.AvailableOffer, error) {
 	node, nodeIndex := mock.nodeService.NodeByGUID(toTrader.GUID)
-	mock.collector.MsgsTradedActiveRequest(1)
+	mock.collector.IncrMessagesTradedRequest(1)
 	mock.collector.APIRequestReceived(nodeIndex)
 
 	offers := node.GetOffers(fromNode, toTrader, relay)
@@ -70,7 +70,7 @@ func (mock *RemoteClientMock) AdvertiseOffersNeighbor(fromTrader, toNeighborTrad
 func (mock *RemoteClientMock) LaunchContainer(fromBuyer, toSupplier *types.Node, offer *types.Offer,
 	containerConfig *types.ContainerConfig) (*types.ContainerStatus, error) {
 	node, nodeIndex := mock.nodeService.NodeByIP(toSupplier.IP)
-	mock.collector.MsgsTradedActiveRequest(1)
+	mock.collector.IncrMessagesTradedRequest(1)
 	mock.collector.APIRequestReceived(nodeIndex)
 
 	return node.LaunchContainers(fromBuyer, offer, containerConfig)

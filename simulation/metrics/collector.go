@@ -14,16 +14,17 @@ import (
 // Prefix name for the temp directory
 const metricsTempDirName = "metrics-"
 
+// Collector aggregates all the metrics information about the system during a simulation.
 type Collector struct {
-	nodesMaxRes []types.Resources // Array with maximum resources of each node
-	numNodes    int               // Number of simulation nodes
-	snapshots   []Global          // Array of global metrics snapshots
+	numNodes  int      // Number of simulation nodes
+	snapshots []Global // Array of global metrics snapshots
 
 	outputDirPath  string // Output directory path
 	tmpDirFullPath string // Temp directory to store intermediate metrics
 }
 
-func NewMetrics(numNodes int, outputDirPath string) *Collector {
+// NewCollector creates a new metric's collector.
+func NewCollector(numNodes int, outputDirPath string) *Collector {
 	return &Collector{
 		numNodes:      numNodes,
 		snapshots:     make([]Global, 1),
@@ -31,7 +32,7 @@ func NewMetrics(numNodes int, outputDirPath string) *Collector {
 	}
 }
 
-// Init initialize the metrics.
+// Init initialize the metric's collector.
 func (collector *Collector) Init(nodesMaxRes []types.Resources) {
 	dirFullPath, err := ioutil.TempDir("", metricsTempDirName)
 	if err != nil {
@@ -41,10 +42,10 @@ func (collector *Collector) Init(nodesMaxRes []types.Resources) {
 
 	os.Mkdir(collector.outputDirPath, 0644)
 
-	collector.nodesMaxRes = nodesMaxRes
-	collector.snapshots[0] = *NewGlobal(collector.numNodes, time.Duration(0))
-	collector.snapshots[0].Init(nodesMaxRes)
+	collector.snapshots[0] = *NewGlobalInitial(collector.numNodes, time.Duration(0), nodesMaxRes)
 }
+
+// ========================= Metrics Collector Methods ====================================
 
 func (collector *Collector) RunRequestSucceeded() {
 	collector.activeGlobal().RunRequestSucceeded()
@@ -54,20 +55,18 @@ func (collector *Collector) APIRequestReceived(nodeIndex int) {
 	collector.activeGlobal().APIRequestReceived(nodeIndex)
 }
 
-func (collector *Collector) MsgsTradedActiveRequest(numMsgs int) {
-	collector.activeGlobal().MsgsTradedActiveRequest(numMsgs)
+func (collector *Collector) IncrMessagesTradedRequest(numMessages int) {
+	collector.activeGlobal().IncrMessagesTradedRequest(numMessages)
 }
 
 func (collector *Collector) SetAvailableNodeResources(nodeIndex int, res types.Resources) {
 	collector.activeGlobal().SetAvailableNodeResources(nodeIndex, res)
 }
 
-// CreateNewSnapshot creates a snapshot of the current metrics and initialize a new one.
-func (collector *Collector) CreateNewSnapshot(currentTime time.Duration) {
+// CreateNewGlobalSnapshot creates a snapshot of the system's current metrics and initialize a new one.
+func (collector *Collector) CreateNewGlobalSnapshot(currentTime time.Duration) {
 	collector.activeGlobal().SetEndTime(currentTime)
-	newGlobal := NewGlobal(collector.numNodes, currentTime)
-	newGlobal.Init(collector.nodesMaxRes)
-	collector.snapshots = append(collector.snapshots, *newGlobal)
+	collector.snapshots = append(collector.snapshots, *NewGlobalNext(collector.numNodes, collector.activeGlobal()))
 }
 
 // CreateRunRequest creates a new run request in order to gather its metrics.
@@ -94,8 +93,7 @@ func (collector *Collector) Persist(currentTime time.Duration) {
 		}
 	}
 
-	newGlobal := NewGlobal(collector.numNodes, currentTime)
-	newGlobal.Init(collector.nodesMaxRes)
+	newGlobal := NewGlobalNext(collector.numNodes, collector.activeGlobal())
 	collector.snapshots = make([]Global, 1)
 	collector.snapshots[0] = *newGlobal
 }
@@ -149,7 +147,7 @@ func (collector *Collector) Print() {
 
 func (collector *Collector) plotGraphics() {
 	collector.plotRequestsSucceededOverTime()
-	collector.plotRequestsMsgsTradedOverTime()
+	collector.plotRequestsMessagesTradedOverTime()
 	collector.plotAvailableResourcesOverTime()
 }
 

@@ -18,12 +18,12 @@ const DefaultOutDirectoryPath = "out"
 
 // Configuration structure with initialization parameters for the simulator.
 type Configuration struct {
-	NumberOfNodes     int
-	TickInterval      duration
-	MaxTicks          int
-	OutDirectoryPath  string
-	SimulatorLogLevel string
-	CaravelaLogLevel  string
+	NumberOfNodes     int      // Number of nodes used in the simulation.
+	TickInterval      duration // Interval between each simulator tick (in simulation time).
+	MaxTicks          int      // Maximum number of ticks done by the simulator.
+	OutDirectoryPath  string   // Path of the output's directory.
+	SimulatorLogLevel string   // Log's level of the simulator.
+	CaravelaLogLevel  string   // Log's level of the CARAVELA's system.
 }
 
 // Produces the configuration structure for a basic simulation.
@@ -31,7 +31,7 @@ func Default() *Configuration {
 	return &Configuration{
 		NumberOfNodes:     2500,
 		TickInterval:      duration{Duration: 10 * time.Second},
-		MaxTicks:          10,
+		MaxTicks:          15,
 		OutDirectoryPath:  DefaultOutDirectoryPath,
 		SimulatorLogLevel: DefaultSimLogLevel,
 		CaravelaLogLevel:  "info",

@@ -113,7 +113,7 @@ func (chord *Mock) Join(overlayNodeIP string, overlayNodePort int,
 }
 
 func (chord *Mock) Lookup(key []byte) ([]*overlayTypes.OverlayNode, error) {
-	chord.collector.MsgsTradedActiveRequest(int(math.Log2(float64(chord.numNodes))) / 2)
+	chord.collector.IncrMessagesTradedRequest(int(math.Log2(float64(chord.numNodes))) / 2)
 
 	searchMockNode := overlayMock.NewNode(key)
 	//util.Log.Debugf(util.LogTag(chordLogTag)+"Lookup %s", searchMockNode.String())

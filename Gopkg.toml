@@ -38,8 +38,8 @@
   version = "1.0.5"
 
 [[constraint]]
-  branch = "master"
   name = "github.com/strabox/caravela"
+  version = "0.1.0"
 
 [prune]
   go-tests = true

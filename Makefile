@@ -27,3 +27,7 @@ install:
 	@echo Installing CARAVELA-SIM in the local GO environment...
 	$(GOINSTALL) -v -gcflags "-N -l" .
 
+test:
+	@echo Testing CARAVELA-SIM...
+	$(BINARY_NAME) start
+

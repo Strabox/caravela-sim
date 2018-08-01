@@ -1,0 +1,13 @@
+language: go
+go:
+- 1.9.4
+before_script:
+- mv ../../Strabox ../../strabox
+script:
+# Build the project
+- make build
+# Test the project
+- make test
+notifications:
+  on_success: change
+  on_failure: change

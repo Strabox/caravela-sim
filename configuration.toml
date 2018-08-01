@@ -27,7 +27,7 @@ Simulation = true
     Percentage = 25
     [[Caravela.RamPartitions]]
     Ram = 1024
-    Percentage = 15
+    Percentage = 25
 
 [Overlay]
 ChordNumSuccessors = 3

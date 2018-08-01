@@ -18,7 +18,7 @@ import (
 const simLogTag = "SIMULATOR"
 
 type Simulator struct {
-	metricsCollector *metrics.Collector            // Metrics collector
+	metricsCollector *metrics.Collector            // Metric's collector
 	nodes            []*caravelaNode.Node          // Array with all the nodes for the simulation
 	overlayMock      *chord.Mock                   // Overlay that connects all nodes
 	caravelaConfigs  *caravelaConfig.Configuration // CARAVELA's configurations
@@ -28,7 +28,7 @@ type Simulator struct {
 func NewSimulator(simConfig *configuration.Configuration,
 	caravelaConfigurations *caravelaConfig.Configuration) *Simulator {
 	return &Simulator{
-		metricsCollector: metrics.NewMetrics(simConfig.TotalNumberOfNodes(), simConfig.OutputDirectoryPath()),
+		metricsCollector: metrics.NewCollector(simConfig.TotalNumberOfNodes(), simConfig.OutputDirectoryPath()),
 		nodes:            make([]*caravelaNode.Node, simConfig.TotalNumberOfNodes()),
 		overlayMock:      nil,
 		caravelaConfigs:  caravelaConfigurations,
@@ -60,19 +60,20 @@ func (sim *Simulator) Init() {
 			apiServerMock)
 		sim.nodes[i].AddTrader(overlayNodeMock.Bytes())
 	}
+
+	util.Log.Info(util.LogTag(simLogTag) + "Starting nodes functions...")
 	// Start all the CARAVELA's nodes
 	for i := 0; i < sim.simulatorConfigs.TotalNumberOfNodes(); i++ {
 		sim.nodes[i].Start(true, util.RandomIP())
 	}
 
-	// Init metricsCollector gatherer
+	// Init metric's collector
 	maxNodesResources := make([]types.Resources, sim.simulatorConfigs.TotalNumberOfNodes())
 	for i := range maxNodesResources {
 		maxNodesResources[i] = sim.nodes[i].MaximumResourcesSim()
 	}
 	sim.metricsCollector.Init(maxNodesResources)
 
-	//time.Sleep(sim.simulatorConfigs.TimeBeforeSimulationStart()) //Deprecated
 	util.Log.Info(util.LogTag(simLogTag) + "Initialized")
 }
 
@@ -87,7 +88,7 @@ func (sim *Simulator) Start() {
 		util.Log.Infof(util.LogTag(simLogTag)+"Current Simulation Time: %.2f, Tick: %d, Ticks Remaining: %d",
 			currentTime.Seconds(), numTicks, sim.simulatorConfigs.MaximumTicks()-numTicks)
 
-		// ============= Inject the requests in the nodes, introducing the liveness. =============
+		// ============ Inject the requests in the nodes, introducing the liveness. ============
 		for i := 0; i < runReqPerTick; i++ {
 			nodeIndex, node := sim.randomNode()
 
@@ -101,7 +102,7 @@ func (sim *Simulator) Start() {
 			}
 		}
 
-		// ============ Do the actions dependent on time (e.g. timer dependent actions) ===========
+		// ========== Do the actions dependent on time (e.g. timer dependent actions) ===========
 
 		// Refresh offers
 		if (currentTime - lastTimeRefreshes) >= sim.caravelaConfigs.RefreshingInterval() {
@@ -118,7 +119,7 @@ func (sim *Simulator) Start() {
 		// TODO: Spread offers ??
 		// TODO: Advertise resources offers ??
 
-		// =============== Update metricsCollector with node's current information ================
+		// ================= Update metrics with system's current information ====================
 		for i := range sim.nodes {
 			sim.metricsCollector.SetAvailableNodeResources(i, sim.nodes[i].AvailableResourcesSim())
 		}
@@ -133,7 +134,7 @@ func (sim *Simulator) Start() {
 			sim.metricsCollector.Persist(currentTime)
 			continue
 		}
-		sim.metricsCollector.CreateNewSnapshot(currentTime)
+		sim.metricsCollector.CreateNewGlobalSnapshot(currentTime)
 	}
 
 	util.Log.Info(util.LogTag(simLogTag) + "Simulation Ended")
