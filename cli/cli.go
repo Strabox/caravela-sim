@@ -18,6 +18,7 @@ func Run() {
 	app.Author = author
 	app.Email = email
 
+	// Global Flags.
 	app.Flags = []cli.Flag{
 		cli.StringFlag{
 			Name:  "log, l",
@@ -31,22 +32,20 @@ func Run() {
 		},
 	}
 
-	// Before running the user's command
+	// Before running the user's command.
 	app.Before = func(context *cli.Context) error {
 		logger := log.New()
-
 		// Set the format of the log text and the place to write
 		logger.Level = util.LogLevel(context.String("log"))
 		logger.Formatter = util.LogFormatter(true, true)
-		log.SetOutput(os.Stdout)
-
+		logger.SetOutput(os.Stdout)
 		util.Init(logger)
 		return nil
 	}
 
 	app.Commands = commands
 
-	// Run the user's command
+	// Run the user's command.
 	if err := app.Run(os.Args); err != nil {
 		log.Fatal(err)
 	}

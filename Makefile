@@ -5,6 +5,7 @@ GOCMD=go
 GOBUILD=$(GOCMD) build
 GOINSTALL=$(GOCMD) install
 GOCLEAN=$(GOCMD) clean
+GOTEST=$(GOCMD) test
 
 ############ Output Files ###########
 EXE=.exe
@@ -12,7 +13,7 @@ BINARY_NAME=caravela_sim$(EXE)
 
 ########################## COMMANDS ############################
 
-all: build
+all: test build
 
 build:
 	@echo Building for the current machine settings...
@@ -28,6 +29,9 @@ install:
 	$(GOINSTALL) -v -gcflags "-N -l" .
 
 test:
-	@echo Testing CARAVELA-SIM...
-	$(BINARY_NAME) start
+	@echo Testing...
+	$(GOTEST) -v ./...
 
+simulate:
+	@echo Executing default/example simulation
+	$(BINARY_NAME) start

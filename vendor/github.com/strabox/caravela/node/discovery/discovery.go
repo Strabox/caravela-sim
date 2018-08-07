@@ -1,6 +1,7 @@
 package discovery
 
 import (
+	"context"
 	log "github.com/Sirupsen/logrus"
 	"github.com/pkg/errors"
 	"github.com/strabox/caravela/api/types"
@@ -15,18 +16,18 @@ import (
 	"sync"
 )
 
-// Discovery module of a CARAVELA node. It is responsible for dealing with the resource management
-// and finding.
+// Discovery is responsible for dealing with the resource management local and remote.
+// It allows the other components to use its services.
 type Discovery struct {
 	common.NodeComponent // Base component
 
-	config  *configuration.Configuration // System's configurations
-	overlay external.Overlay             // Node overlay to efficient route messages to specific nodes.
-	client  external.Caravela            // Remote caravela's client
+	config  *configuration.Configuration // System's configurations.
+	overlay external.Overlay             // Overlay component.
+	client  external.Caravela            // Remote caravela's client.
 
 	resourcesMap   *resources.Mapping // GUID<->Resources mapping
 	supplier       *supplier.Supplier // Supplier for managing the offers locally and remotely
-	virtualTraders sync.Map           // map[string]*trader.Trader // Node can have multiple "virtual" traders in several places of the overlay
+	virtualTraders sync.Map           // Node can have multiple "virtual" traders in several places of the overlay
 }
 
 func NewDiscovery(config *configuration.Configuration, overlay external.Overlay,
@@ -43,7 +44,7 @@ func NewDiscovery(config *configuration.Configuration, overlay external.Overlay,
 	}
 }
 
-// ============================== DiscoveryInternal Interface ===============================
+// ====================== Local Services (Consumed by other Components) ============================
 
 // Adds a new local "virtual" trader when the overlay notifies its presence.
 func (disc *Discovery) AddTrader(traderGUID guid.GUID) {
@@ -56,8 +57,8 @@ func (disc *Discovery) AddTrader(traderGUID guid.GUID) {
 		(&traderGUID).Short(), newTraderResources.String())
 }
 
-func (disc *Discovery) FindOffers(resources resources.Resources) []types.AvailableOffer {
-	return disc.supplier.FindOffers(resources)
+func (disc *Discovery) FindOffers(ctx context.Context, resources resources.Resources) []types.AvailableOffer {
+	return disc.supplier.FindOffers(ctx, resources)
 }
 
 func (disc *Discovery) ObtainResources(offerID int64, resourcesNecessary resources.Resources) bool {
@@ -68,7 +69,7 @@ func (disc *Discovery) ReturnResources(resources resources.Resources) {
 	disc.supplier.ReturnResources(resources)
 }
 
-// ============================== DiscoveryExternal Interface ==============================
+// ======================= External Services (Consumed by other Nodes) ==============================
 
 func (disc *Discovery) CreateOffer(fromNode *types.Node, toNode *types.Node, offer *types.Offer) {
 	t, exist := disc.virtualTraders.Load(toNode.GUID)
@@ -107,6 +108,8 @@ func (disc *Discovery) AdvertiseNeighborOffers(fromTrader, toNeighborTrader, tra
 		targetTrader.AdvertiseNeighborOffer(fromTrader, toNeighborTrader, traderOffering)
 	}
 }
+
+// ======================= External Services (Consumed during simulation ONLY) =========================
 
 // Simulation
 func (disc *Discovery) AvailableResourcesSim() types.Resources {

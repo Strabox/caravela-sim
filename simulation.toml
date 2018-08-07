@@ -1,0 +1,8 @@
+NumberOfNodes = 75000
+TickInterval = "10s"
+MaxTicks = 25
+Multithread = true
+RequestFeeder = "random"
+ResourceGenerator = "partition-aware"
+SimulatorLogLevel = "debug"
+CaravelaLogLevel = "info"

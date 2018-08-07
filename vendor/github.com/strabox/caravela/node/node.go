@@ -1,6 +1,12 @@
+/*
+Node package contains the main logic for a CARAVELA's node. It represents a CARAVELA's node it has a one-to-one
+relation with the number of daemons/machine in the system.
+It is the facade for all the functionality exposing it.
+*/
 package node
 
 import (
+	"context"
 	log "github.com/Sirupsen/logrus"
 	"github.com/pkg/errors"
 	"github.com/strabox/caravela/api"
@@ -18,15 +24,15 @@ import (
 
 // Node is the top level entry structure, facade, for all the functionality of a CARAVELA's node.
 type Node struct {
-	config   *configuration.Configuration // System's configuration
-	stopChan chan bool                    // Channel to stop the node functions
+	apiServerComp         api.Server           // API server component.
+	discoveryComp         *discovery.Discovery // Discovery component.
+	schedulerComp         *scheduler.Scheduler // Scheduler component.
+	containersManagerComp *containers.Manager  // Container's Manager component.
+	userManagerComp       *user.Manager        // User's Manager component.
+	overlayComp           external.Overlay     // Overlay component.
 
-	apiServer         api.Server           // API server component
-	discovery         *discovery.Discovery // Discovery component
-	scheduler         *scheduler.Scheduler // Scheduler component
-	containersManager *containers.Manager  // Containers Manager component
-	userManager       *user.Manager        // User Manager component
-	overlay           external.Overlay     // Overlay component
+	config   *configuration.Configuration // System's configurations.
+	stopChan chan bool                    // Channel to stop the node functions.
 }
 
 // NewNode creates a Node object that contains all the functionality of a CARAVELA's node.
@@ -52,46 +58,41 @@ func NewNode(config *configuration.Configuration, overlay external.Overlay, cara
 	userManagerComp := user.NewManager(config, schedulerComp, caravelaCli)
 
 	return &Node{
+		apiServerComp:         apiServer,
+		discoveryComp:         discoveryComp,
+		schedulerComp:         schedulerComp,
+		containersManagerComp: containersManagerComp,
+		userManagerComp:       userManagerComp,
+		overlayComp:           overlay,
+
 		config:   config,
 		stopChan: make(chan bool),
-
-		apiServer:         apiServer,
-		overlay:           overlay,
-		discovery:         discoveryComp,
-		containersManager: containersManagerComp,
-		scheduler:         schedulerComp,
-		userManager:       userManagerComp,
 	}
 }
 
-// Configuration returns the system's configuration of this CARAVELA's node.
-func (node *Node) Configuration() *configuration.Configuration {
-	return node.config
-}
-
-// ================================ SubComponent Interface ================================
-
+// Start the node's functions. If the node is joining an instance of CARAVELA's it is called with join
+// as true and the joinIP contains the IP address of a node that already belongs to the CARAVELA's instance.
 func (node *Node) Start(join bool, joinIP string) error {
 	var err error
 
 	// Start creating/joining an overlay of CARAVELA nodes
 	if join {
-		log.Debugln(util.LogTag("Node") + "Joining a overlay ...")
-		err = node.overlay.Join(joinIP, node.config.OverlayPort(), node)
+		log.Debugln(util.LogTag("Node") + "Joining a overlay...")
+		err = node.overlayComp.Join(context.Background(), joinIP, node.config.OverlayPort(), node)
 	} else {
-		log.Debugln(util.LogTag("Node") + "Creating an overlay ...")
-		err = node.overlay.Create(node)
+		log.Debugln(util.LogTag("Node") + "Creating an overlay...")
+		err = node.overlayComp.Create(context.Background(), node)
 	}
 	if err != nil {
 		return err
 	}
 	log.Debug(util.LogTag("Node") + "Overlay INITIALIZED")
 
-	node.discovery.Start()
-	node.containersManager.Start()
-	node.scheduler.Start()
+	node.discoveryComp.Start()
+	node.containersManagerComp.Start()
+	node.schedulerComp.Start()
 
-	err = node.apiServer.Start(node) // Start CARAVELA REST API web server
+	err = node.apiServerComp.Start(node) // Start CARAVELA's REST API web server
 	if err != nil {
 		return err
 	}
@@ -109,67 +110,27 @@ func (node *Node) Start(join bool, joinIP string) error {
 	return nil
 }
 
-func (node *Node) Stop() {
+// Stop the node's functions.
+func (node *Node) Stop(ctx context.Context) {
 	log.Debug(util.LogTag("Node") + "STOPPING...")
-	node.apiServer.Stop()
+	node.apiServerComp.Stop()
 	log.Debug(util.LogTag("Node") + "-> API SERVER STOPPED")
-	node.scheduler.Stop()
+	node.schedulerComp.Stop()
 	log.Debug(util.LogTag("Node") + "-> SCHEDULER STOPPED")
-	node.containersManager.Stop()
+	node.containersManagerComp.Stop()
 	log.Debug(util.LogTag("Node") + "-> CONTAINERS MANAGER STOPPED")
-	node.discovery.Stop()
+	node.discoveryComp.Stop()
 	log.Debug(util.LogTag("Node") + "-> DISCOVERY STOPPED")
-	node.overlay.Leave()
+	node.overlayComp.Leave(context.Background())
 	log.Debug(util.LogTag("Node") + "-> OVERLAY STOPPED")
 	// Used to make the main goroutine quit and exit the process
 	node.stopChan <- true
 	log.Debug(util.LogTag("Node") + "-> STOPPED")
 }
 
-// ##############################################################################################
-// #								   REMOTE CLIENT API (RPC)  								#
-// ##############################################################################################
-
-// ================================= Overlay Membership Interface ===============================
-
-func (node *Node) AddTrader(guidBytes []byte) {
-	guidRes := guid.NewGUIDBytes(guidBytes)
-	node.discovery.AddTrader(*guidRes)
-}
-
-// ================================== Discovery Component Interface =============================
-
-func (node *Node) CreateOffer(fromNode *types.Node, toNode *types.Node, offer *types.Offer) {
-	node.discovery.CreateOffer(fromNode, toNode, offer)
-}
-
-func (node *Node) RefreshOffer(fromTrader *types.Node, offer *types.Offer) bool {
-	return node.discovery.RefreshOffer(fromTrader, offer)
-}
-
-func (node *Node) RemoveOffer(fromSupp *types.Node, toTrader *types.Node, offer *types.Offer) {
-	node.discovery.RemoveOffer(fromSupp, toTrader, offer)
-}
-
-func (node *Node) GetOffers(fromNode, toTrader *types.Node, relay bool) []types.AvailableOffer {
-	return node.discovery.GetOffers(fromNode, toTrader, relay)
-}
-
-func (node *Node) AdvertiseOffersNeighbor(fromTrader, toNeighborTrader, traderOffering *types.Node) {
-	node.discovery.AdvertiseNeighborOffers(fromTrader, toNeighborTrader, traderOffering)
-}
-
-// ================================ Scheduling Component Interface ==============================
-
-func (node *Node) LaunchContainers(fromBuyer *types.Node, offer *types.Offer,
-	containerConfig *types.ContainerConfig) (*types.ContainerStatus, error) {
-	return node.scheduler.Launch(fromBuyer, offer, containerConfig)
-}
-
-// ============================== Containers Component Interface ================================
-
-func (node *Node) StopLocalContainer(containerID string) error {
-	return node.containersManager.StopContainer(containerID)
+// Configuration returns the system's configuration of this node.
+func (node *Node) Configuration(c context.Context) *configuration.Configuration {
+	return node.config
 }
 
 // ##############################################################################################
@@ -178,17 +139,62 @@ func (node *Node) StopLocalContainer(containerID string) error {
 
 // =========================== User Component Interface (USER API) ==============================
 
-func (node *Node) SubmitContainers(containerImageKey string, portMappings []types.PortMapping,
-	containerArgs []string, cpus int, ram int) error {
-	return node.userManager.SubmitContainers(containerImageKey, portMappings, containerArgs, cpus, ram)
+func (node *Node) SubmitContainers(ctx context.Context, containerConfigs []types.ContainerConfig) error {
+	return node.userManagerComp.SubmitContainers(ctx, containerConfigs)
 }
 
-func (node *Node) StopContainers(containersIDs []string) error {
-	return node.userManager.StopContainers(containersIDs)
+func (node *Node) StopContainers(ctx context.Context, containersIDs []string) error {
+	return node.userManagerComp.StopContainers(ctx, containersIDs)
 }
 
-func (node *Node) ListContainers() []types.ContainerStatus {
-	return node.userManager.ListContainers()
+func (node *Node) ListContainers(_ context.Context) []types.ContainerStatus {
+	return node.userManagerComp.ListContainers()
+}
+
+// ##############################################################################################
+// #								 REMOTE CLIENT API (RPC)  								    #
+// ##############################################################################################
+
+// =============================== Overlay Membership Interface =================================
+
+func (node *Node) AddTrader(guidBytes []byte) {
+	guidRes := guid.NewGUIDBytes(guidBytes)
+	node.discoveryComp.AddTrader(*guidRes)
+}
+
+// =============================== Discovery Component Interface =================================
+
+func (node *Node) CreateOffer(_ context.Context, fromNode *types.Node, toNode *types.Node, offer *types.Offer) {
+	node.discoveryComp.CreateOffer(fromNode, toNode, offer)
+}
+
+func (node *Node) RefreshOffer(_ context.Context, fromTrader *types.Node, offer *types.Offer) bool {
+	return node.discoveryComp.RefreshOffer(fromTrader, offer)
+}
+
+func (node *Node) RemoveOffer(_ context.Context, fromSupp *types.Node, toTrader *types.Node, offer *types.Offer) {
+	node.discoveryComp.RemoveOffer(fromSupp, toTrader, offer)
+}
+
+func (node *Node) GetOffers(_ context.Context, fromNode, toTrader *types.Node, relay bool) []types.AvailableOffer {
+	return node.discoveryComp.GetOffers(fromNode, toTrader, relay)
+}
+
+func (node *Node) AdvertiseOffersNeighbor(_ context.Context, fromTrader, toNeighborTrader, traderOffering *types.Node) {
+	node.discoveryComp.AdvertiseNeighborOffers(fromTrader, toNeighborTrader, traderOffering)
+}
+
+// ================================ Scheduling Component Interface ==============================
+
+func (node *Node) LaunchContainers(ctx context.Context, fromBuyer *types.Node, offer *types.Offer,
+	containersConfigs []types.ContainerConfig) ([]types.ContainerStatus, error) {
+	return node.schedulerComp.Launch(ctx, fromBuyer, offer, containersConfigs)
+}
+
+// ============================== Containers Component Interface ================================
+
+func (node *Node) StopLocalContainer(_ context.Context, containerID string) error {
+	return node.containersManagerComp.StopContainer(containerID)
 }
 
 // ##############################################################################################
@@ -197,30 +203,38 @@ func (node *Node) ListContainers() []types.ContainerStatus {
 
 // =========================== APIs exclusively used in Simulation ==============================
 
+// AvailableResourcesSim returns the current available resources of the node.
+// Note: Only available when the node is running in simulation mode.
 func (node *Node) AvailableResourcesSim() types.Resources {
 	if !node.config.Simulation() {
 		panic(errors.New("AvailableResourcesSim request can only be used in simulation mode"))
 	}
-	return node.discovery.AvailableResourcesSim()
+	return node.discoveryComp.AvailableResourcesSim()
 }
 
+// MaximumResourcesSim returns the maximum available resources of the node.
+// Note: Only available when the node is running in simulation mode.
 func (node *Node) MaximumResourcesSim() types.Resources {
 	if !node.config.Simulation() {
 		panic(errors.New("MaximumResourcesSim request can only be used in simulation mode"))
 	}
-	return node.discovery.MaximumResourcesSim()
+	return node.discoveryComp.MaximumResourcesSim()
 }
 
+// RefreshOffersSim triggers the inner actions to refresh all the offers that the node is handling.
+// Note: Only available when the node is running in simulation mode.
 func (node *Node) RefreshOffersSim() {
 	if !node.config.Simulation() {
 		panic(errors.New("RefreshOffersSim request can only be used in simulation mode"))
 	}
-	node.discovery.RefreshOffersSim()
+	node.discoveryComp.RefreshOffersSim()
 }
 
+// SpreadOffersSim triggers the inner actions to spread the offers that the node is handling.
+// Note: Only available when the node is running in simulation mode.
 func (node *Node) SpreadOffersSim() {
 	if !node.config.Simulation() {
 		panic(errors.New("SpreadOffersSim request can only be used in simulation mode"))
 	}
-	node.discovery.SpreadOffersSim()
+	node.discoveryComp.SpreadOffersSim()
 }

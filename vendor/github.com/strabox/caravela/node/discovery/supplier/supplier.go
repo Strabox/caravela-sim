@@ -1,6 +1,7 @@
 package supplier
 
 import (
+	"context"
 	"errors"
 	log "github.com/Sirupsen/logrus"
 	"github.com/strabox/caravela/api/types"
@@ -19,7 +20,7 @@ import (
 type Supplier struct {
 	nodeCommon.NodeComponent // Base component
 
-	config         *configuration.Configuration // Configurations of the system
+	config         *configuration.Configuration // System's configurations.
 	offersStrategy OffersManager                // Encapsulates the strategies to manage the offers in the system.
 	client         external.Caravela            // Client to collaborate with other CARAVELA's nodes
 
@@ -59,7 +60,7 @@ func NewSupplier(config *configuration.Configuration, overlay external.Overlay, 
 	}
 }
 
-// Controls the time dependant actions like supplying the resources.
+// startSupplying controls the time dependant actions like supplying the resources.
 func (sup *Supplier) startSupplying() {
 	for {
 		select {
@@ -95,7 +96,7 @@ func (sup *Supplier) startSupplying() {
 }
 
 // Find a list active Offers that best suit the target resources given.
-func (sup *Supplier) FindOffers(targetResources resources.Resources) []types.AvailableOffer {
+func (sup *Supplier) FindOffers(ctx context.Context, targetResources resources.Resources) []types.AvailableOffer {
 	if !sup.isWorking() {
 		panic(errors.New("can't find offers, supplier not working"))
 	}
@@ -104,7 +105,7 @@ func (sup *Supplier) FindOffers(targetResources resources.Resources) []types.Ava
 		targetResources = *sup.resourcesMap.LowestResources()
 	}
 
-	return sup.offersStrategy.FindOffers(targetResources)
+	return sup.offersStrategy.FindOffers(ctx, targetResources)
 }
 
 // Tries refresh an offer. Called when a refresh message was received.
@@ -158,6 +159,7 @@ func (sup *Supplier) ObtainResources(offerID int64, resourcesNecessary resources
 
 		removeOffer := func() {
 			sup.client.RemoveOffer(
+				context.Background(),
 				&types.Node{IP: sup.config.HostIP(), GUID: ""},
 				&types.Node{IP: supOffer.ResponsibleTraderIP(), GUID: supOffer.ResponsibleTraderGUID().String()},
 				&types.Offer{ID: int64(supOffer.ID())},
@@ -209,6 +211,7 @@ func (sup *Supplier) createOffer() {
 		for offerID, offer := range sup.activeOffers {
 			removeOffer := func(offer *supplierOffer) {
 				sup.client.RemoveOffer(
+					context.Background(),
 					&types.Node{IP: sup.config.HostIP(), GUID: ""},
 					&types.Node{IP: offer.ResponsibleTraderIP(), GUID: offer.ResponsibleTraderGUID().String()},
 					&types.Offer{ID: int64(offer.ID())},

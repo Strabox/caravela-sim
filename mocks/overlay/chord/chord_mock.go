@@ -1,24 +1,25 @@
 package chord
 
 import (
+	"context"
 	"github.com/strabox/caravela-sim/mocks/caravela"
 	overlayMock "github.com/strabox/caravela-sim/mocks/overlay"
 	"github.com/strabox/caravela-sim/simulation/metrics"
 	"github.com/strabox/caravela-sim/util"
-	"github.com/strabox/caravela/overlay/types"
+	"github.com/strabox/caravela/api/types"
 	overlayTypes "github.com/strabox/caravela/overlay/types"
 	"math"
 	"sort"
 )
 
-// Chord's mock log tag
+// Chord's mock log tag.
 const chordLogTag = "SIM-CHORD"
 
 // Amount of nodes to speed up the simulation of a lookup request.
-const numSpeedupNodes = 100
+const numSpeedupNodes = 200
 
 // Mock mocks the interactions with a Chord overlay client simulating its functionality.
-// All in memory.
+// All in memory, goroutine-safe.
 type Mock struct {
 	collector *metrics.Collector // Metrics collector.
 
@@ -101,24 +102,24 @@ func (chord *Mock) GetNodeMockByIP(ip string) (int, *overlayMock.NodeMock) {
 // =							  Overlay Interface                              =
 // ===============================================================================
 
-func (chord *Mock) Create(thisNode types.OverlayMembership) error {
+func (chord *Mock) Create(_ context.Context, _ overlayTypes.OverlayMembership) error {
 	// Do Nothing (Not necessary for the simulation)
 	return nil
 }
 
-func (chord *Mock) Join(overlayNodeIP string, overlayNodePort int,
-	thisNode overlayTypes.OverlayMembership) error {
+func (chord *Mock) Join(_ context.Context, _ string, _ int, _ overlayTypes.OverlayMembership) error {
 	// Do Nothing (Not necessary for the simulation)
 	return nil
 }
 
-func (chord *Mock) Lookup(key []byte) ([]*overlayTypes.OverlayNode, error) {
-	chord.collector.IncrMessagesTradedRequest(int(math.Log2(float64(chord.numNodes))) / 2)
+func (chord *Mock) Lookup(ctx context.Context, key []byte) ([]*overlayTypes.OverlayNode, error) {
+	if requestID, ok := ctx.Value(types.RequestCtxKey(util.SimRequestIDKey)).(string); ok {
+		chord.collector.IncrMessagesTradedRequest(requestID, int(math.Log2(float64(chord.numNodes)))/2)
+	}
 
 	searchMockNode := overlayMock.NewNode(key)
-	//util.Log.Debugf(util.LogTag(chordLogTag)+"Lookup %s", searchMockNode.String())
 
-	// Simulate the lookup using the fake ring/array
+	// Simulate the lookup using the chord with the array
 
 	startSearchIndex := 0
 
@@ -159,7 +160,7 @@ func (chord *Mock) Lookup(key []byte) ([]*overlayTypes.OverlayNode, error) {
 	return res, nil
 }
 
-func (chord *Mock) Neighbors(nodeID []byte) ([]*overlayTypes.OverlayNode, error) {
+func (chord *Mock) Neighbors(_ context.Context, nodeID []byte) ([]*overlayTypes.OverlayNode, error) {
 	res := make([]*overlayTypes.OverlayNode, 2)
 	neighMockNode := overlayMock.NewNode(nodeID)
 	index := chord.nodesIdIndexMap[neighMockNode.String()]
@@ -176,12 +177,12 @@ func (chord *Mock) Neighbors(nodeID []byte) ([]*overlayTypes.OverlayNode, error)
 	return nil, nil
 }
 
-func (chord *Mock) NodeID() ([]byte, error) {
+func (chord *Mock) NodeID(_ context.Context) ([]byte, error) {
 	// Do Nothing (Not necessary for the simulation)
 	return nil, nil
 }
 
-func (chord *Mock) Leave() error {
+func (chord *Mock) Leave(_ context.Context) error {
 	// Do Nothing (Not necessary for the simulation)
 	return nil
 }

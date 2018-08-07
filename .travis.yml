@@ -5,9 +5,9 @@ before_script:
 - mv ../../Strabox ../../strabox
 script:
 # Build the project
-- make build
-# Test the project
-- make test
+- make
+# Run the default/example simulation
+- make simulate
 notifications:
   on_success: change
   on_failure: change

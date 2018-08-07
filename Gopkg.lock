@@ -48,6 +48,12 @@
   version = "v1.6.2"
 
 [[projects]]
+  branch = "master"
+  name = "github.com/ivpusic/grpool"
+  packages = ["."]
+  revision = "28957a27c9441f178d644aa598bac0aad4dd7bba"
+
+[[projects]]
   name = "github.com/jung-kurt/gofpdf"
   packages = ["."]
   revision = "14c1db30737a138f8d9797cffea58783892b2fae"
@@ -88,7 +94,6 @@
     "node/common/resources",
     "node/containers",
     "node/discovery",
-    "node/discovery/api",
     "node/discovery/common",
     "node/discovery/supplier",
     "node/discovery/trader",
@@ -98,8 +103,8 @@
     "overlay/types",
     "util"
   ]
-  revision = "f8c08f85fc0efb09e250502a2c5ac7a8240a30b3"
-  version = "v0.1.0"
+  revision = "312fce63252c5460bf306e88c438a6368994427e"
+  version = "v0.2.1"
 
 [[projects]]
   name = "github.com/urfave/cli"
@@ -111,7 +116,7 @@
   branch = "master"
   name = "golang.org/x/crypto"
   packages = ["ssh/terminal"]
-  revision = "c126467f60eb25f8f27e5a981f32a87e3965053f"
+  revision = "56440b844dfe139a8ac053f4ecac0b20b79058f4"
 
 [[projects]]
   branch = "master"
@@ -139,7 +144,7 @@
     "unix",
     "windows"
   ]
-  revision = "e072cadbbdc8dd3d3ffa82b8b4b9304c261d9311"
+  revision = "0ffbfd41fbef8ffcf9b62b0b0aa3a5873ed7a4fe"
 
 [[projects]]
   branch = "master"
@@ -158,7 +163,7 @@
     "lapack/lapack64",
     "mat"
   ]
-  revision = "72e79ca98526cae0807f57ef69033b767f715ea7"
+  revision = "73ea1e732937f96d723d31dc5263d214a275d204"
 
 [[projects]]
   branch = "master"
@@ -182,6 +187,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "3dbe68a4eaec16995e0df87afb44465cb31d23aa4ea84ce3d9b9ef92a8f959c4"
+  inputs-digest = "a2e5f916b94c9f1564eb34e8f8c231bd14de72cf430f0c84af92b4b93cd3f597"
   solver-name = "gps-cdcl"
   solver-version = 1

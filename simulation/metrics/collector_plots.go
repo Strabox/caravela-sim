@@ -13,7 +13,7 @@ func (collector *Collector) plotRequestsSucceededOverTime() {
 
 	pts := make(plotter.XYs, len(collector.snapshots))
 	for i := range pts {
-		pts[i].X = collector.snapshots[i].StartTimes().Seconds()
+		pts[i].X = collector.snapshots[i].StartTime().Seconds()
 		pts[i].Y = float64(collector.snapshots[i].TotalRunRequestsSucceeded())
 	}
 
@@ -32,7 +32,7 @@ func (collector *Collector) plotRequestsMessagesTradedOverTime() {
 
 	pts := make(plotter.XYs, len(collector.snapshots))
 	for i := range pts {
-		pts[i].X = collector.snapshots[i].StartTimes().Seconds()
+		pts[i].X = collector.snapshots[i].StartTime().Seconds()
 		pts[i].Y = float64(collector.snapshots[i].RunRequestsAvgMessages())
 	}
 
@@ -52,9 +52,32 @@ func (collector *Collector) plotAvailableResourcesOverTime() {
 	availableResPts := make(plotter.XYs, len(collector.snapshots))
 	requestsSucceeded := make(plotter.XYs, len(collector.snapshots))
 	for i := range availableResPts {
-		availableResPts[i].X = collector.snapshots[i].StartTimes().Seconds()
+		availableResPts[i].X = collector.snapshots[i].StartTime().Seconds()
 		availableResPts[i].Y = float64(collector.snapshots[i].AllAvailableResourcesAvg())
-		requestsSucceeded[i].X = collector.snapshots[i].StartTimes().Seconds()
+		requestsSucceeded[i].X = collector.snapshots[i].StartTime().Seconds()
+		requestsSucceeded[i].Y = collector.snapshots[i].RunRequestSuccessRatio()
+	}
+
+	err := plotutil.AddLinePoints(plot, "Available Resources", availableResPts,
+		"Requests Succeeded", requestsSucceeded)
+	if err != nil {
+		panic(errors.New("Problem with plots, error: " + err.Error()))
+	}
+
+	// Save the graphics to a PNG file.
+	graphics.Save(plot, 22*vg.Centimeter, 15*vg.Centimeter,
+		collector.outputDirPath+"\\"+"AvailableResources.png")
+}
+
+func (collector *Collector) plotResourceDistributionOverTime() {
+	plot := graphics.New("Available resources over time", "Time", "%Resources Available")
+
+	availableResPts := make(plotter.XYs, len(collector.snapshots))
+	requestsSucceeded := make(plotter.XYs, len(collector.snapshots))
+	for i := range availableResPts {
+		availableResPts[i].X = collector.snapshots[i].StartTime().Seconds()
+		availableResPts[i].Y = float64(collector.snapshots[i].AllAvailableResourcesAvg())
+		requestsSucceeded[i].X = collector.snapshots[i].StartTime().Seconds()
 		requestsSucceeded[i].Y = collector.snapshots[i].RunRequestSuccessRatio()
 	}
 

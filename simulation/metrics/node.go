@@ -2,6 +2,7 @@ package metrics
 
 import (
 	"github.com/strabox/caravela/api/types"
+	"sync/atomic"
 )
 
 // Node represents a node in the system and it is used to collect node's level metrics of
@@ -26,18 +27,18 @@ func NewNode(maxResources types.Resources) *Node {
 // ========================= Metrics Collector Methods ====================================
 
 func (node *Node) APIRequestReceived() {
-	node.ApiRequestsReceived++
+	atomic.AddInt64(&node.ApiRequestsReceived, 1)
 }
 
 func (node *Node) RunRequestSubmitted() {
-	node.RequestsSubmitted++
+	atomic.AddInt64(&node.RequestsSubmitted, 1)
 }
 
 func (node *Node) SetAvailableResources(res types.Resources) {
 	node.AvailableRes = res
 }
 
-// ============================ Getters and Setters ========================================
+// ================================= Getters  ==============================================
 
 func (node *Node) MaximumResources() types.Resources {
 	return node.MaxResources

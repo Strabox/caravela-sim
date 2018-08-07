@@ -14,24 +14,25 @@ func Init(router *mux.Router, nodeScheduling Scheduling) {
 	router.Handle(rest.ContainersBaseEndpoint, rest.AppHandler(launchContainer)).Methods(http.MethodPost)
 }
 
-func launchContainer(w http.ResponseWriter, r *http.Request) (interface{}, error) {
+func launchContainer(w http.ResponseWriter, req *http.Request) (interface{}, error) {
 	var err error
 	var launchContainerMsg rest.LaunchContainerMsg
 
-	err = rest.ReceiveJSONFromHttp(w, r, &launchContainerMsg)
+	err = rest.ReceiveJSONFromHttp(w, req, &launchContainerMsg)
 	if err != nil {
 		return nil, err
 	}
-	log.Infof("<-- LAUNCH From: %s, ID: %d, Img: %s, PortMaps: %v, Args: %v, Res: <%d;%d>",
-		launchContainerMsg.FromBuyer.IP, launchContainerMsg.Offer.ID, launchContainerMsg.ContainerConfig.ImageKey,
-		launchContainerMsg.ContainerConfig.PortMappings, launchContainerMsg.ContainerConfig.Args,
-		launchContainerMsg.ContainerConfig.Resources.CPUs, launchContainerMsg.ContainerConfig.Resources.RAM)
+	for i, contConfig := range launchContainerMsg.ContainersConfigs {
+		log.Infof("<-- LAUNCH [%d] From: %s, ID: %d, Img: %s, PortMaps: %v, Args: %v, Res: <%d;%d>",
+			i, launchContainerMsg.FromBuyer.IP, launchContainerMsg.Offer.ID, contConfig.ImageKey,
+			contConfig.PortMappings, contConfig.Args, contConfig.Resources.CPUs, contConfig.Resources.RAM)
+	}
 
-	containerStatus, err := nodeSchedulingAPI.LaunchContainers(&launchContainerMsg.FromBuyer,
-		&launchContainerMsg.Offer, &launchContainerMsg.ContainerConfig)
+	containersStatus, err := nodeSchedulingAPI.LaunchContainers(req.Context(), &launchContainerMsg.FromBuyer,
+		&launchContainerMsg.Offer, launchContainerMsg.ContainersConfigs)
 	if err != nil {
 		return nil, err
 	}
 
-	return containerStatus, err
+	return containersStatus, err
 }

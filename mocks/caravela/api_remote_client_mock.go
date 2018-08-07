@@ -1,7 +1,9 @@
 package caravela
 
 import (
+	"context"
 	"github.com/strabox/caravela-sim/simulation/metrics"
+	"github.com/strabox/caravela-sim/util"
 	"github.com/strabox/caravela/api/types"
 	"github.com/strabox/caravela/configuration"
 )
@@ -25,65 +27,79 @@ func NewRemoteClientMock(nodeService NodeService, metricsCollector *metrics.Coll
 // =                      CARAVELA's Remote Client Interface                     =
 // ===============================================================================
 
-func (mock *RemoteClientMock) CreateOffer(fromSupp *types.Node, toTrader *types.Node,
+func (mock *RemoteClientMock) CreateOffer(ctx context.Context, fromSupp *types.Node, toTrader *types.Node,
 	offer *types.Offer) error {
 
 	node, nodeIndex := mock.nodeService.NodeByGUID(toTrader.GUID)
+
+	// Collect Metrics
 	mock.collector.APIRequestReceived(nodeIndex)
 
-	node.CreateOffer(fromSupp, toTrader, offer)
+	node.CreateOffer(ctx, fromSupp, toTrader, offer)
 	return nil
 }
 
-func (mock *RemoteClientMock) RefreshOffer(fromTrader, toSupp *types.Node, offer *types.Offer) (bool, error) {
+func (mock *RemoteClientMock) RefreshOffer(ctx context.Context, fromTrader, toSupp *types.Node, offer *types.Offer) (bool, error) {
 	node, nodeIndex := mock.nodeService.NodeByIP(toSupp.IP)
+
+	// Collect Metrics
 	mock.collector.APIRequestReceived(nodeIndex)
 
-	return node.RefreshOffer(fromTrader, offer), nil
+	return node.RefreshOffer(ctx, fromTrader, offer), nil
 }
 
-func (mock *RemoteClientMock) RemoveOffer(fromSupp, toTrader *types.Node, offer *types.Offer) error {
+func (mock *RemoteClientMock) RemoveOffer(ctx context.Context, fromSupp, toTrader *types.Node, offer *types.Offer) error {
 	node, nodeIndex := mock.nodeService.NodeByGUID(toTrader.GUID)
+
+	// Collect Metrics
 	mock.collector.APIRequestReceived(nodeIndex)
 
-	node.RemoveOffer(fromSupp, toTrader, offer)
+	node.RemoveOffer(ctx, fromSupp, toTrader, offer)
 	return nil
 }
 
-func (mock *RemoteClientMock) GetOffers(fromNode, toTrader *types.Node, relay bool) ([]types.AvailableOffer, error) {
+func (mock *RemoteClientMock) GetOffers(ctx context.Context, fromNode, toTrader *types.Node, relay bool) ([]types.AvailableOffer, error) {
 	node, nodeIndex := mock.nodeService.NodeByGUID(toTrader.GUID)
-	mock.collector.IncrMessagesTradedRequest(1)
+
+	// Collect Metrics
+	mock.collector.IncrMessagesTradedRequest(ctx.Value(types.RequestCtxKey(util.SimRequestIDKey)).(string), 1)
 	mock.collector.APIRequestReceived(nodeIndex)
 
-	offers := node.GetOffers(fromNode, toTrader, relay)
+	offers := node.GetOffers(ctx, fromNode, toTrader, relay)
 	return offers, nil
 }
 
-func (mock *RemoteClientMock) AdvertiseOffersNeighbor(fromTrader, toNeighborTrader, traderOffering *types.Node) error {
+func (mock *RemoteClientMock) AdvertiseOffersNeighbor(ctx context.Context, fromTrader, toNeighborTrader, traderOffering *types.Node) error {
 	node, nodeIndex := mock.nodeService.NodeByGUID(toNeighborTrader.GUID)
+
+	// Collect Metrics
 	mock.collector.APIRequestReceived(nodeIndex)
 
-	node.AdvertiseOffersNeighbor(fromTrader, toNeighborTrader, traderOffering)
+	node.AdvertiseOffersNeighbor(ctx, fromTrader, toNeighborTrader, traderOffering)
 	return nil
 }
 
-func (mock *RemoteClientMock) LaunchContainer(fromBuyer, toSupplier *types.Node, offer *types.Offer,
-	containerConfig *types.ContainerConfig) (*types.ContainerStatus, error) {
+func (mock *RemoteClientMock) LaunchContainer(ctx context.Context, fromBuyer, toSupplier *types.Node, offer *types.Offer,
+	containersConfigs []types.ContainerConfig) ([]types.ContainerStatus, error) {
 	node, nodeIndex := mock.nodeService.NodeByIP(toSupplier.IP)
-	mock.collector.IncrMessagesTradedRequest(1)
+
+	// Collect Metrics
+	mock.collector.IncrMessagesTradedRequest(ctx.Value(types.RequestCtxKey(util.SimRequestIDKey)).(string), 1)
 	mock.collector.APIRequestReceived(nodeIndex)
 
-	return node.LaunchContainers(fromBuyer, offer, containerConfig)
+	return node.LaunchContainers(ctx, fromBuyer, offer, containersConfigs)
 }
 
-func (mock *RemoteClientMock) StopLocalContainer(toSupplier *types.Node, containerID string) error {
+func (mock *RemoteClientMock) StopLocalContainer(ctx context.Context, toSupplier *types.Node, containerID string) error {
 	node, nodeIndex := mock.nodeService.NodeByIP(toSupplier.IP)
+
+	// Collect Metrics
 	mock.collector.APIRequestReceived(nodeIndex)
 
-	return node.StopLocalContainer(containerID)
+	return node.StopLocalContainer(ctx, containerID)
 }
 
-func (mock *RemoteClientMock) ObtainConfiguration(systemsNode *types.Node) (*configuration.Configuration, error) {
+func (mock *RemoteClientMock) ObtainConfiguration(_ context.Context, _ *types.Node) (*configuration.Configuration, error) {
 	// Do Nothing (Not necessary for the simulation)
 	return nil, nil
 }

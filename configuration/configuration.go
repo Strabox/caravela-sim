@@ -21,17 +21,23 @@ type Configuration struct {
 	NumberOfNodes     int      // Number of nodes used in the simulation.
 	TickInterval      duration // Interval between each simulator tick (in simulation time).
 	MaxTicks          int      // Maximum number of ticks done by the simulator.
+	Multithread       bool     // Used to leverage the multiple cores to speed up the simulation.
+	RequestFeeder     string   // Used to feed the simulator with a series of requests.
+	ResourceGenerator string   // Strategy used to generate the resources for each node.
 	OutDirectoryPath  string   // Path of the output's directory.
 	SimulatorLogLevel string   // Log's level of the simulator.
 	CaravelaLogLevel  string   // Log's level of the CARAVELA's system.
 }
 
-// Produces the configuration structure for a basic simulation.
+// Default creates the configuration structure for a basic/default simulation.
 func Default() *Configuration {
 	return &Configuration{
 		NumberOfNodes:     2500,
 		TickInterval:      duration{Duration: 10 * time.Second},
 		MaxTicks:          15,
+		Multithread:       true,
+		RequestFeeder:     "random",
+		ResourceGenerator: "partition-based",
 		OutDirectoryPath:  DefaultOutDirectoryPath,
 		SimulatorLogLevel: DefaultSimLogLevel,
 		CaravelaLogLevel:  "info",
@@ -97,6 +103,18 @@ func (config *Configuration) MaximumTicks() int {
 	return config.MaxTicks
 }
 
+func (config *Configuration) Multithreaded() bool {
+	return config.Multithread
+}
+
+func (config *Configuration) Feeder() string {
+	return config.RequestFeeder
+}
+
+func (config *Configuration) ResourceGen() string {
+	return config.ResourceGenerator
+}
+
 func (config *Configuration) OutputDirectoryPath() string {
 	return config.OutDirectoryPath
 }
@@ -118,6 +136,9 @@ func (config *Configuration) Print() {
 	util.Log.Infof("#Nodes:               %d", config.TotalNumberOfNodes())
 	util.Log.Infof("Tick Interval:        %s", config.TicksInterval().String())
 	util.Log.Infof("Max Ticks:            %d", config.MaximumTicks())
+	util.Log.Infof("Multithread:          %t", config.Multithreaded())
+	util.Log.Infof("Request Feeder:       %s", config.Feeder())
+	util.Log.Infof("Resource Generator:   %s", config.ResourceGen())
 	util.Log.Infof("Output directory:     %s", config.OutputDirectoryPath())
 	util.Log.Infof("Sim's log level:      %s", config.SimulatorLogsLevel())
 	util.Log.Infof("CARAVELA's log level: %s", config.CaravelaLogsLevel())

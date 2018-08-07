@@ -28,7 +28,7 @@ func Init(logLevel string) {
 // Configuration is a wrapper for obtaining the CARAVELA's configurations structure from the
 // default file.
 func Configuration() *caravelaConfig.Configuration {
-	caravelaConfigs, err := caravelaConfig.ReadFromFile(util.RandomIP())
+	caravelaConfigs, err := caravelaConfig.ReadFromFile(util.RandomIP(), caravelaConfig.DefaultFilePath)
 	if err != nil {
 		panic(errors.New("problem reading CARAVELA's config file, error: " + err.Error()))
 	}

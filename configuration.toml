@@ -1,6 +1,6 @@
 [Caravela]
 RefreshingInterval = "30s"
-OffersStrategy = "chordDefault"
+OffersStrategy = "chord-smart"
 Simulation = true
     # Cpu Cores Partitions
     [[Caravela.CpuCoresPartitions]]

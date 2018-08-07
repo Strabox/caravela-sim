@@ -2,19 +2,19 @@ package util
 
 import (
 	"github.com/Pallinder/go-randomdata"
+	caravelaUtil "github.com/strabox/caravela/util"
 	"math/rand"
-	"sync"
 	"time"
 )
 
-var randomGenerator = rand.New(rand.NewSource(time.Now().UnixNano()))
-var randomGeneratorMutex = sync.Mutex{}
+var randomGenerator = rand.New(caravelaUtil.NewSourceSafe(rand.NewSource(time.Now().UnixNano())))
 
 func RandomHash(id []byte) {
-	randomGeneratorMutex.Lock()
-	defer randomGeneratorMutex.Unlock()
-
 	randomGenerator.Read(id)
+}
+
+func init() {
+	randomdata.CustomRand(rand.New(caravelaUtil.NewSourceSafe(rand.NewSource(time.Now().UnixNano()))))
 }
 
 func RandomIP() string {

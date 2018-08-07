@@ -55,24 +55,28 @@ func (collector *Collector) APIRequestReceived(nodeIndex int) {
 	collector.activeGlobal().APIRequestReceived(nodeIndex)
 }
 
-func (collector *Collector) IncrMessagesTradedRequest(numMessages int) {
-	collector.activeGlobal().IncrMessagesTradedRequest(numMessages)
-}
-
 func (collector *Collector) SetAvailableNodeResources(nodeIndex int, res types.Resources) {
 	collector.activeGlobal().SetAvailableNodeResources(nodeIndex, res)
+}
+
+// CreateRunRequest creates a new run request in order to gather its metrics.
+func (collector *Collector) CreateRunRequest(nodeIndex int, requestID string, resources types.Resources,
+	currentTime time.Duration) {
+	collector.activeGlobal().CreateRunRequest(nodeIndex, requestID, resources, currentTime)
+}
+
+func (collector *Collector) IncrMessagesTradedRequest(requestID string, numMessages int) {
+	collector.activeGlobal().IncrMessagesTradedRequest(requestID, numMessages)
+}
+
+func (collector *Collector) ArchiveRunRequest(requestID string) {
+	collector.activeGlobal().ArchiveRunRequest(requestID)
 }
 
 // CreateNewGlobalSnapshot creates a snapshot of the system's current metrics and initialize a new one.
 func (collector *Collector) CreateNewGlobalSnapshot(currentTime time.Duration) {
 	collector.activeGlobal().SetEndTime(currentTime)
 	collector.snapshots = append(collector.snapshots, *NewGlobalNext(collector.numNodes, collector.activeGlobal()))
-}
-
-// CreateRunRequest creates a new run request in order to gather its metrics.
-func (collector *Collector) CreateRunRequest(nodeIndex int, resources types.Resources,
-	currentTime time.Duration) {
-	collector.activeGlobal().CreateRunRequest(nodeIndex, resources, currentTime)
 }
 
 func (collector *Collector) activeGlobal() *Global {
@@ -87,7 +91,7 @@ func (collector *Collector) Persist(currentTime time.Duration) {
 		if err != nil {
 			panic(errors.New("can't marshall the collector snapshot, error: " + err.Error()))
 		}
-		err = ioutil.WriteFile(collector.tmpDirFullPath+"\\"+global.StartTime.String()+".json", jsonBytes, 0644)
+		err = ioutil.WriteFile(collector.tmpDirFullPath+"\\"+global.Start.String()+".json", jsonBytes, 0644)
 		if err != nil {
 			panic(errors.New("can't write the collector snapshot to disk, error: " + err.Error()))
 		}
@@ -167,5 +171,5 @@ func (collector *Collector) Swap(i, j int) {
 }
 
 func (collector *Collector) Less(i, j int) bool {
-	return collector.snapshots[i].StartTimes() < collector.snapshots[j].StartTimes()
+	return collector.snapshots[i].StartTime() < collector.snapshots[j].StartTime()
 }

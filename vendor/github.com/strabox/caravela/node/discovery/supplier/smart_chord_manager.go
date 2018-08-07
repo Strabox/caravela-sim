@@ -1,6 +1,7 @@
 package supplier
 
 import (
+	"context"
 	"errors"
 	log "github.com/Sirupsen/logrus"
 	"github.com/strabox/caravela/api/types"
@@ -13,14 +14,20 @@ import (
 	"github.com/strabox/caravela/util"
 )
 
-type DefaultChordOffersManager struct {
+type SmartChordOffersManager struct {
 	configs          *configuration.Configuration
 	resourcesMapping *resources.Mapping
 	overlay          external.Overlay
 	remoteClient     external.Caravela
 }
 
-func (man *DefaultChordOffersManager) Init(resourcesMap *resources.Mapping, overlay external.Overlay,
+func newSmartChordManageOffers(config *configuration.Configuration) (OffersManager, error) {
+	return &SmartChordOffersManager{
+		configs: config,
+	}, nil
+}
+
+func (man *SmartChordOffersManager) Init(resourcesMap *resources.Mapping, overlay external.Overlay,
 	remoteClient external.Caravela) {
 
 	man.resourcesMapping = resourcesMap
@@ -28,7 +35,7 @@ func (man *DefaultChordOffersManager) Init(resourcesMap *resources.Mapping, over
 	man.remoteClient = remoteClient
 }
 
-func (man *DefaultChordOffersManager) FindOffers(targetResources resources.Resources) []types.AvailableOffer {
+func (man *SmartChordOffersManager) FindOffers(ctx context.Context, targetResources resources.Resources) []types.AvailableOffer {
 	var destinationGUID *guid.GUID = nil
 	findPhase := 0
 	for {
@@ -46,11 +53,12 @@ func (man *DefaultChordOffersManager) FindOffers(targetResources resources.Resou
 		res, _ := man.resourcesMapping.ResourcesByGUID(*destinationGUID)
 		log.Debugf(util.LogTag("SUPPLIER")+"FINDING OFFERS %s", res)
 
-		overlayNodes, _ := man.overlay.Lookup(destinationGUID.Bytes())
+		overlayNodes, _ := man.overlay.Lookup(ctx, destinationGUID.Bytes())
 		overlayNodes = man.removeNonTargetNodes(overlayNodes, *destinationGUID)
 
 		for _, node := range overlayNodes {
 			offers, err := man.remoteClient.GetOffers(
+				ctx,
 				&types.Node{GUID: ""},
 				&types.Node{IP: node.IP(), GUID: guid.NewGUIDBytes(node.GUID()).String()},
 				true,
@@ -64,17 +72,17 @@ func (man *DefaultChordOffersManager) FindOffers(targetResources resources.Resou
 	}
 }
 
-func (man *DefaultChordOffersManager) CreateOffer(newOfferID int64, availableResources resources.Resources) (*supplierOffer, error) {
+func (man *SmartChordOffersManager) CreateOffer(newOfferID int64, availableResources resources.Resources) (*supplierOffer, error) {
 	var err error
 	var overlayNodes []*overlayTypes.OverlayNode = nil
 	destinationGUID, _ := man.resourcesMapping.RandGUID(availableResources)
-	overlayNodes, _ = man.overlay.Lookup(destinationGUID.Bytes())
+	overlayNodes, _ = man.overlay.Lookup(context.Background(), destinationGUID.Bytes())
 	overlayNodes = man.removeNonTargetNodes(overlayNodes, *destinationGUID)
 
 	// .. try search nodes in the beginning of the original target resource range region
 	if len(overlayNodes) == 0 {
 		destinationGUID := man.resourcesMapping.FirstGUID(availableResources)
-		overlayNodes, _ = man.overlay.Lookup(destinationGUID.Bytes())
+		overlayNodes, _ = man.overlay.Lookup(context.Background(), destinationGUID.Bytes())
 		overlayNodes = man.removeNonTargetNodes(overlayNodes, *destinationGUID)
 	}
 
@@ -86,7 +94,7 @@ func (man *DefaultChordOffersManager) CreateOffer(newOfferID int64, availableRes
 				availableResources.String(), err)
 			return nil, errors.New("no nodes available to accept offer") // Wait fot the next tick to try supply resources
 		}
-		overlayNodes, _ = man.overlay.Lookup(destinationGUID.Bytes())
+		overlayNodes, _ = man.overlay.Lookup(context.Background(), destinationGUID.Bytes())
 		overlayNodes = man.removeNonTargetNodes(overlayNodes, *destinationGUID)
 	}
 
@@ -94,7 +102,7 @@ func (man *DefaultChordOffersManager) CreateOffer(newOfferID int64, availableRes
 	chosenNode := overlayNodes[0]
 	chosenNodeGUID := guid.NewGUIDBytes(chosenNode.GUID())
 
-	err = man.remoteClient.CreateOffer(
+	err = man.remoteClient.CreateOffer(context.Background(),
 		&types.Node{IP: man.configs.HostIP(), GUID: ""},
 		&types.Node{IP: chosenNode.IP(), GUID: chosenNodeGUID.String()},
 		&types.Offer{
@@ -112,7 +120,7 @@ func (man *DefaultChordOffersManager) CreateOffer(newOfferID int64, availableRes
 }
 
 // Remove nodes that do not belong to that target GUID partition. (Probably because we were target a frontier node)
-func (man *DefaultChordOffersManager) removeNonTargetNodes(remoteNodes []*overlayTypes.OverlayNode,
+func (man *SmartChordOffersManager) removeNonTargetNodes(remoteNodes []*overlayTypes.OverlayNode,
 	targetGuid guid.GUID) []*overlayTypes.OverlayNode {
 
 	resultNodes := make([]*overlayTypes.OverlayNode, 0)
