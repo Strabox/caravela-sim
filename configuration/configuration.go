@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"github.com/BurntSushi/toml"
 	"github.com/strabox/caravela-sim/util"
+	"github.com/strabox/caravela/api/types"
 	"time"
 )
 
@@ -18,26 +19,37 @@ const DefaultOutDirectoryPath = "out"
 
 // Configuration structure with initialization parameters for the simulator.
 type Configuration struct {
-	NumberOfNodes     int      // Number of nodes used in the simulation.
-	TickInterval      duration // Interval between each simulator tick (in simulation time).
-	MaxTicks          int      // Maximum number of ticks done by the simulator.
-	Multithread       bool     // Used to leverage the multiple cores to speed up the simulation.
-	RequestFeeder     string   // Used to feed the simulator with a series of requests.
-	ResourceGenerator string   // Strategy used to generate the resources for each node.
-	OutDirectoryPath  string   // Path of the output's directory.
-	SimulatorLogLevel string   // Log's level of the simulator.
-	CaravelaLogLevel  string   // Log's level of the CARAVELA's system.
+	NumberOfNodes      int                // Number of nodes used in the simulation.
+	TickInterval       duration           // Interval between each simulator tick (in simulation time).
+	MaxTicks           int                // Maximum number of ticks done by the simulator.
+	Multithread        bool               // Used to leverage the multiple cores to speed up the simulation.
+	RequestFeeder      string             // Used to feed the simulator with a series of requests.
+	ResourcesGenerator resourcesGenerator // Strategies used to generate the resources for each node.
+	OutDirectoryPath   string             // Path of the output's directory.
+	SimulatorLogLevel  string             // Log's level of the simulator.
+	CaravelaLogLevel   string             // Log's level of the CARAVELA's system.
+}
+
+type resourcesGenerator struct {
+	ResourceGenerator string
+	StaticResources   types.Resources
 }
 
 // Default creates the configuration structure for a basic/default simulation.
 func Default() *Configuration {
 	return &Configuration{
-		NumberOfNodes:     2500,
-		TickInterval:      duration{Duration: 10 * time.Second},
-		MaxTicks:          15,
-		Multithread:       true,
-		RequestFeeder:     "random",
-		ResourceGenerator: "partition-based",
+		NumberOfNodes: 2500,
+		TickInterval:  duration{Duration: 10 * time.Second},
+		MaxTicks:      15,
+		Multithread:   true,
+		RequestFeeder: "random",
+		ResourcesGenerator: resourcesGenerator{
+			ResourceGenerator: "partition-aware",
+			StaticResources: types.Resources{
+				CPUs: 4,
+				RAM:  4096,
+			},
+		},
 		OutDirectoryPath:  DefaultOutDirectoryPath,
 		SimulatorLogLevel: DefaultSimLogLevel,
 		CaravelaLogLevel:  "info",
@@ -112,7 +124,11 @@ func (config *Configuration) Feeder() string {
 }
 
 func (config *Configuration) ResourceGen() string {
-	return config.ResourceGenerator
+	return config.ResourcesGenerator.ResourceGenerator
+}
+
+func (config *Configuration) StaticGeneratorResources() types.Resources {
+	return config.ResourcesGenerator.StaticResources
 }
 
 func (config *Configuration) OutputDirectoryPath() string {
@@ -139,6 +155,7 @@ func (config *Configuration) Print() {
 	util.Log.Infof("Multithread:          %t", config.Multithreaded())
 	util.Log.Infof("Request Feeder:       %s", config.Feeder())
 	util.Log.Infof("Resource Generator:   %s", config.ResourceGen())
+	util.Log.Infof("Static Gen Resources: <%d;%d>", config.StaticGeneratorResources().CPUs, config.StaticGeneratorResources().RAM)
 	util.Log.Infof("Output directory:     %s", config.OutputDirectoryPath())
 	util.Log.Infof("Sim's log level:      %s", config.SimulatorLogsLevel())
 	util.Log.Infof("CARAVELA's log level: %s", config.CaravelaLogsLevel())

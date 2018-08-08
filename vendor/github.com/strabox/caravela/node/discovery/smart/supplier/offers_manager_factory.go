@@ -33,7 +33,7 @@ func RegisterOffersStrategy(strategyName string, factory ManageOffersFactory) {
 
 // CreateOffersStrategy is used to obtain an offers manager based on the configurations.
 func CreateOffersStrategy(config *configuration.Configuration) OffersManager {
-	configuredStrategy := config.OffersStrategy()
+	configuredStrategy := config.DiscoveryBackend()
 
 	strategyFactory, exist := manageOffers[configuredStrategy]
 	if !exist {

@@ -76,6 +76,7 @@
   version = "v0.8.0"
 
 [[projects]]
+  branch = "master"
   name = "github.com/strabox/caravela"
   packages = [
     "api",
@@ -94,17 +95,19 @@
     "node/common/resources",
     "node/containers",
     "node/discovery",
+    "node/discovery/backend",
     "node/discovery/common",
-    "node/discovery/supplier",
-    "node/discovery/trader",
+    "node/discovery/random",
+    "node/discovery/smart",
+    "node/discovery/smart/supplier",
+    "node/discovery/smart/trader",
     "node/external",
     "node/scheduler",
     "node/user",
     "overlay/types",
     "util"
   ]
-  revision = "312fce63252c5460bf306e88c438a6368994427e"
-  version = "v0.2.1"
+  revision = "812ddcceb8f3d3ad986e480d18679a2980de34f8"
 
 [[projects]]
   name = "github.com/urfave/cli"
@@ -116,13 +119,13 @@
   branch = "master"
   name = "golang.org/x/crypto"
   packages = ["ssh/terminal"]
-  revision = "56440b844dfe139a8ac053f4ecac0b20b79058f4"
+  revision = "de0752318171da717af4ce24d0a2e8626afaeb11"
 
 [[projects]]
   branch = "master"
   name = "golang.org/x/exp"
   packages = ["rand"]
-  revision = "14dda7b62fcdb381624aaca63b04df07203856d4"
+  revision = "3d87b88a115fa4e65fadcbf34e6a60e8040cec41"
 
 [[projects]]
   branch = "master"
@@ -144,7 +147,7 @@
     "unix",
     "windows"
   ]
-  revision = "0ffbfd41fbef8ffcf9b62b0b0aa3a5873ed7a4fe"
+  revision = "904bdc257025c7b3f43c19360ad3ab85783fad78"
 
 [[projects]]
   branch = "master"
@@ -182,11 +185,11 @@
     "vg/vgpdf",
     "vg/vgsvg"
   ]
-  revision = "e0f807cd86063a7a348b058594faafe8fb16fb00"
+  revision = "febd63424d7d867221c95650d21b5618b63f1c47"
 
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "a2e5f916b94c9f1564eb34e8f8c231bd14de72cf430f0c84af92b4b93cd3f597"
+  inputs-digest = "9aed39c939a09994e9db47bb88859deb887690b95741e10129f26a60711da999"
   solver-name = "gps-cdcl"
   solver-version = 1

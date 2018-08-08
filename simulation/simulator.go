@@ -58,8 +58,8 @@ func (sim *Simulator) Init() {
 	caravelaClientMock := caravela.NewRemoteClientMock(sim, sim.metricsCollector)
 	sim.overlayMock = chord.NewChordMock(sim.simulatorConfigs.TotalNumberOfNodes(),
 		sim.caravelaConfigs.ChordNumSuccessors(), sim.metricsCollector)
-	overlay.Init(sim.caravelaConfigs.ChordHashSizeBits() / 8)
 	sim.overlayMock.Init()
+	overlay.Init(sim.caravelaConfigs.ChordHashSizeBits() / 8)
 
 	// Create the CARAVELA's nodes for the simulation
 	util.Log.Info(util.LogTag(simLogTag) + "Initializing nodes...")

@@ -36,12 +36,11 @@ func (rf *RandomFeeder) Start(ticksChannel <-chan chan RequestTask) {
 		case newTickChan, more := <-ticksChannel: // Send all the requests for this tickChan
 			if more {
 				for i := 0; i < runReqPerTick; i++ {
-					newTickChan <- RequestTask(func(randNodeIndex int, randNode *node.Node, currentTime time.Duration) {
-						res := types.Resources{CPUs: 1, RAM: 256}
+					newTickChan <- func(randNodeIndex int, randNode *node.Node, currentTime time.Duration) {
+						res := types.Resources{CPUs: 4, RAM: 4096}
 
 						requestID := guid.NewGUIDRandom().String()
-						requestContext := context.WithValue(context.Background(), types.RequestCtxKey(util.SimRequestIDKey),
-							requestID)
+						requestContext := context.WithValue(context.Background(), types.RequestIDKey, requestID)
 						rf.collector.CreateRunRequest(randNodeIndex, requestID, res, currentTime)
 						err := randNode.SubmitContainers(
 							requestContext,
@@ -61,7 +60,7 @@ func (rf *RandomFeeder) Start(ticksChannel <-chan chan RequestTask) {
 							rf.collector.RunRequestSucceeded()
 						}
 						rf.collector.ArchiveRunRequest(requestID)
-					})
+					}
 				}
 				close(newTickChan) // No more requests for this tick
 			} else { // Simulator closed ticks channel

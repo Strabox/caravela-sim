@@ -24,6 +24,8 @@ type Supplier struct {
 	offersStrategy OffersManager                // Encapsulates the strategies to manage the offers in the system.
 	client         external.Caravela            // Client to collaborate with other CARAVELA's nodes
 
+	nodeGUID *guid.GUID
+
 	resourcesMap       *resources.Mapping                // The resources<->GUID mapping
 	maxResources       *resources.Resources              // The maximum resources that the Docker engine has available (Static value)
 	availableResources *resources.Resources              // CURRENT Available resources to offer
@@ -46,6 +48,8 @@ func NewSupplier(config *configuration.Configuration, overlay external.Overlay, 
 		config:         config,
 		offersStrategy: offersStrategy,
 		client:         client,
+
+		nodeGUID: nil,
 
 		resourcesMap:       resourcesMap,
 		maxResources:       maxResources.Copy(),
@@ -97,7 +101,7 @@ func (sup *Supplier) startSupplying() {
 
 // Find a list active Offers that best suit the target resources given.
 func (sup *Supplier) FindOffers(ctx context.Context, targetResources resources.Resources) []types.AvailableOffer {
-	if !sup.isWorking() {
+	if !sup.IsWorking() {
 		panic(errors.New("can't find offers, supplier not working"))
 	}
 
@@ -105,12 +109,15 @@ func (sup *Supplier) FindOffers(ctx context.Context, targetResources resources.R
 		targetResources = *sup.resourcesMap.LowestResources()
 	}
 
+	if sup.nodeGUID != nil {
+		ctx = context.WithValue(ctx, types.NodeGUIDKey, sup.nodeGUID.String())
+	}
 	return sup.offersStrategy.FindOffers(ctx, targetResources)
 }
 
 // Tries refresh an offer. Called when a refresh message was received.
 func (sup *Supplier) RefreshOffer(fromTrader *types.Node, refreshOffer *types.Offer) bool {
-	if !sup.isWorking() {
+	if !sup.IsWorking() {
 		panic(errors.New("can't refresh offer, supplier not working"))
 	}
 
@@ -137,7 +144,7 @@ func (sup *Supplier) RefreshOffer(fromTrader *types.Node, refreshOffer *types.Of
 // Tries to obtain a subset of the resources represented by the given offer in order to deploy  a container.
 // It updates the respective trader that manages the offer.
 func (sup *Supplier) ObtainResources(offerID int64, resourcesNecessary resources.Resources) bool {
-	if !sup.isWorking() {
+	if !sup.IsWorking() {
 		panic(errors.New("can't obtain resources, supplier not working"))
 	}
 
@@ -183,7 +190,7 @@ func (sup *Supplier) ObtainResources(offerID int64, resourcesNecessary resources
 
 // Release resources of an used offer into the supplier again in order to offer them again into the system.
 func (sup *Supplier) ReturnResources(releasedResources resources.Resources) {
-	if !sup.isWorking() {
+	if !sup.IsWorking() {
 		panic(errors.New("can't return resources, supplier not working"))
 	}
 
@@ -240,6 +247,13 @@ func (sup *Supplier) createOffer() {
 }
 
 // Simulation
+func (sup *Supplier) SetNodeGUID(GUID guid.GUID) {
+	if sup.nodeGUID == nil {
+		sup.nodeGUID = guid.NewGUIDBytes(GUID.Bytes())
+	}
+}
+
+// Simulation
 func (sup *Supplier) AvailableResources() types.Resources {
 	sup.offersMutex.Lock()
 	defer sup.offersMutex.Unlock()
@@ -287,6 +301,6 @@ func (sup *Supplier) Stop() {
 	})
 }
 
-func (sup *Supplier) isWorking() bool {
+func (sup *Supplier) IsWorking() bool {
 	return sup.Working()
 }

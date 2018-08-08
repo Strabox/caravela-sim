@@ -3,6 +3,7 @@ package overlay
 import (
 	"github.com/strabox/caravela-sim/util"
 	"math/big"
+	"math/bits"
 )
 
 var idSizeBytes = 16
@@ -16,7 +17,16 @@ type NodeMock struct {
 	id *big.Int
 }
 
-func NewNode(id []byte) *NodeMock {
+func NewNodeString(idString string) *NodeMock {
+	temp := big.NewInt(0)
+	temp.SetString(idString, 10)
+	return &NodeMock{
+		id: temp,
+		ip: "",
+	}
+}
+
+func NewNodeBytes(id []byte) *NodeMock {
 	temp := big.NewInt(0)
 	temp.SetBytes(id)
 	return &NodeMock{
@@ -64,4 +74,19 @@ func (node *NodeMock) Equals(nodeArg *NodeMock) bool {
 
 func (node *NodeMock) Smaller(nodeArg *NodeMock) bool {
 	return node.id.Cmp(nodeArg.id) < 0
+}
+
+func FingersToFollow(nodeID, key []byte) (acc int) {
+	acc = 0
+	tempKey := big.NewInt(0)
+	tempKey.SetBytes(key)
+	tempNodeID := big.NewInt(0)
+	tempNodeID.SetBytes(nodeID)
+
+	diff := tempKey.Sub(tempKey, tempNodeID)
+	diffBytes := diff.Bytes()
+	for i := 0; i < len(diffBytes); i++ {
+		acc += bits.OnesCount8(diffBytes[i])
+	}
+	return
 }

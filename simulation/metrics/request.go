@@ -2,6 +2,7 @@ package metrics
 
 import (
 	"github.com/strabox/caravela/api/types"
+	"sync/atomic"
 )
 
 // RunRequest represents a request, to deploy a container, that was submitted in the system.
@@ -23,7 +24,7 @@ func NewRunRequest(resources types.Resources) *RunRequest {
 
 // IncrMessagesTraded increments the number of messages necessary to handle the request.
 func (request *RunRequest) IncrMessagesTraded(numMessages int64) {
-	request.MessagesTraded += numMessages
+	atomic.AddInt64(&request.MessagesTraded, numMessages)
 }
 
 // ============================ Getters and Setters ========================================

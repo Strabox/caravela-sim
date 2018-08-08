@@ -3,7 +3,6 @@ package caravela
 import (
 	"context"
 	"github.com/strabox/caravela-sim/simulation/metrics"
-	"github.com/strabox/caravela-sim/util"
 	"github.com/strabox/caravela/api/types"
 	"github.com/strabox/caravela/configuration"
 )
@@ -30,7 +29,7 @@ func NewRemoteClientMock(nodeService NodeService, metricsCollector *metrics.Coll
 func (mock *RemoteClientMock) CreateOffer(ctx context.Context, fromSupp *types.Node, toTrader *types.Node,
 	offer *types.Offer) error {
 
-	node, nodeIndex := mock.nodeService.NodeByGUID(toTrader.GUID)
+	node, nodeIndex := mock.nodeService.NodeByIP(toTrader.IP)
 
 	// Collect Metrics
 	mock.collector.APIRequestReceived(nodeIndex)
@@ -49,7 +48,7 @@ func (mock *RemoteClientMock) RefreshOffer(ctx context.Context, fromTrader, toSu
 }
 
 func (mock *RemoteClientMock) RemoveOffer(ctx context.Context, fromSupp, toTrader *types.Node, offer *types.Offer) error {
-	node, nodeIndex := mock.nodeService.NodeByGUID(toTrader.GUID)
+	node, nodeIndex := mock.nodeService.NodeByIP(toTrader.IP)
 
 	// Collect Metrics
 	mock.collector.APIRequestReceived(nodeIndex)
@@ -59,10 +58,10 @@ func (mock *RemoteClientMock) RemoveOffer(ctx context.Context, fromSupp, toTrade
 }
 
 func (mock *RemoteClientMock) GetOffers(ctx context.Context, fromNode, toTrader *types.Node, relay bool) ([]types.AvailableOffer, error) {
-	node, nodeIndex := mock.nodeService.NodeByGUID(toTrader.GUID)
+	node, nodeIndex := mock.nodeService.NodeByIP(toTrader.IP)
 
 	// Collect Metrics
-	mock.collector.IncrMessagesTradedRequest(ctx.Value(types.RequestCtxKey(util.SimRequestIDKey)).(string), 1)
+	mock.collector.IncrMessagesTradedRequest(types.RequestID(ctx), 1)
 	mock.collector.APIRequestReceived(nodeIndex)
 
 	offers := node.GetOffers(ctx, fromNode, toTrader, relay)
@@ -70,7 +69,7 @@ func (mock *RemoteClientMock) GetOffers(ctx context.Context, fromNode, toTrader 
 }
 
 func (mock *RemoteClientMock) AdvertiseOffersNeighbor(ctx context.Context, fromTrader, toNeighborTrader, traderOffering *types.Node) error {
-	node, nodeIndex := mock.nodeService.NodeByGUID(toNeighborTrader.GUID)
+	node, nodeIndex := mock.nodeService.NodeByIP(toNeighborTrader.IP)
 
 	// Collect Metrics
 	mock.collector.APIRequestReceived(nodeIndex)
@@ -84,7 +83,7 @@ func (mock *RemoteClientMock) LaunchContainer(ctx context.Context, fromBuyer, to
 	node, nodeIndex := mock.nodeService.NodeByIP(toSupplier.IP)
 
 	// Collect Metrics
-	mock.collector.IncrMessagesTradedRequest(ctx.Value(types.RequestCtxKey(util.SimRequestIDKey)).(string), 1)
+	mock.collector.IncrMessagesTradedRequest(types.RequestID(ctx), 1)
 	mock.collector.APIRequestReceived(nodeIndex)
 
 	return node.LaunchContainers(ctx, fromBuyer, offer, containersConfigs)

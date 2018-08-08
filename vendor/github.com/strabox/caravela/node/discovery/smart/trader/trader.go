@@ -124,7 +124,7 @@ func (trader *Trader) start() {
 }
 
 // Returns all the offers that the trader is managing.
-func (trader *Trader) GetOffers(fromNode *types.Node, relay bool) []types.AvailableOffer {
+func (trader *Trader) GetOffers(ctx context.Context, fromNode *types.Node, relay bool) []types.AvailableOffer {
 	if trader.haveOffers() { // Trader has offers so return them immediately
 		trader.offersMutex.Lock()
 		defer trader.offersMutex.Unlock()
@@ -135,6 +135,11 @@ func (trader *Trader) GetOffers(fromNode *types.Node, relay bool) []types.Availa
 		for _, traderOffer := range trader.offers {
 			allOffers[index].SupplierIP = traderOffer.SupplierIP()
 			allOffers[index].ID = int64(traderOffer.ID())
+			allOffers[index].Amount = traderOffer.Amount()
+			allOffers[index].Resources = types.Resources{
+				CPUs: traderOffer.Resources().CPUs(),
+				RAM:  traderOffer.Resources().RAM(),
+			}
 			index++
 		}
 		return allOffers
@@ -148,7 +153,7 @@ func (trader *Trader) GetOffers(fromNode *types.Node, relay bool) []types.Availa
 			successorResourcesHandled, _ := trader.resourcesMap.ResourcesByGUID(*successor.GUID())
 			if trader.handledResources.Equals(*successorResourcesHandled) {
 				offers, err := trader.client.GetOffers(
-					context.Background(),
+					ctx,
 					&types.Node{
 						GUID: trader.guid.String(),
 					},
@@ -171,7 +176,7 @@ func (trader *Trader) GetOffers(fromNode *types.Node, relay bool) []types.Availa
 			predecessorResourcesHandled, _ := trader.resourcesMap.ResourcesByGUID(*predecessor.GUID())
 			if trader.handledResources.Equals(*predecessorResourcesHandled) {
 				offers, err := trader.client.GetOffers(
-					context.Background(),
+					ctx,
 					&types.Node{GUID: trader.guid.String()},
 					&types.Node{IP: predecessor.IP(), GUID: predecessor.GUID().String()},
 					false,
@@ -195,24 +200,27 @@ func (trader *Trader) CreateOffer(fromSupp *types.Node, newOffer *types.Offer) {
 	// Basically verify if the offer is bigger than the handled resources of the trader.
 	if resourcesOffered.Contains(*trader.handledResources) {
 		trader.offersMutex.Lock()
-		defer trader.offersMutex.Unlock()
 
 		offerKey := offerKey{supplierIP: fromSupp.IP, id: common.OfferID(newOffer.ID)}
 		offer := newTraderOffer(*guid.NewGUIDString(fromSupp.GUID), fromSupp.IP, common.OfferID(newOffer.ID),
 			newOffer.Amount, *resourcesOffered)
 
-		if len(trader.offers) == 0 { // If node had no offers, advertise it has now for all the neighbors
+		advertise := len(trader.offers) == 0
+
+		trader.offers[offerKey] = offer
+		log.Debugf(util.LogTag("TRADER")+"%s Offer CREATED %dX<%d;%d>, From: %s, Offer: %d",
+			trader.guid.Short(), newOffer.Amount, newOffer.Resources.CPUs, newOffer.Resources.RAM,
+			fromSupp.IP, newOffer.ID)
+
+		trader.offersMutex.Unlock()
+
+		if advertise { // If node had no offers, advertise it has now for all the neighbors
 			if trader.config.Simulation() {
 				trader.advertiseOffersToNeighbors(func(neighborGUID *guid.GUID) bool { return true })
 			} else {
 				go trader.advertiseOffersToNeighbors(func(neighborGUID *guid.GUID) bool { return true })
 			}
 		}
-
-		trader.offers[offerKey] = offer
-		log.Debugf(util.LogTag("TRADER")+"%s Offer CREATED %dX<%d;%d>, From: %s, Offer: %d",
-			trader.guid.Short(), newOffer.Amount, newOffer.Resources.CPUs, newOffer.Resources.RAM,
-			fromSupp.IP, newOffer.ID)
 	}
 }
 
@@ -363,6 +371,6 @@ func (trader *Trader) Stop() {
 	})
 }
 
-func (trader *Trader) isWorking() bool {
+func (trader *Trader) IsWorking() bool {
 	return trader.Working()
 }

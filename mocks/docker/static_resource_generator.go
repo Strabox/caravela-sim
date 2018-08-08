@@ -11,5 +11,5 @@ func newStaticResourceGen(_ *configuration.Configuration) (ResourcesGenerator, e
 }
 
 func (s *staticResourceGen) Generate() (int, int) {
-	return 2, 2048
+	return 2, 512
 }

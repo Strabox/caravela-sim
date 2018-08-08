@@ -1,34 +1,35 @@
 [Caravela]
-RefreshingInterval = "30s"
-OffersStrategy = "chord-smart"
 Simulation = true
     # Cpu Cores Partitions
     [[Caravela.CpuCoresPartitions]]
     Cores = 1
-    Percentage = 10
+    Percentage = 50
     [[Caravela.CpuCoresPartitions]]
     Cores = 2
-    Percentage = 40
-    [[Caravela.CpuCoresPartitions]]
-    Cores = 4
     Percentage = 30
     [[Caravela.CpuCoresPartitions]]
-    Cores = 8
+    Cores = 4
     Percentage = 20
     # Ram Partitions
     [[Caravela.RamPartitions]]
-    Ram = 128
-    Percentage = 25
-    [[Caravela.RamPartitions]]
-    Ram = 256
-    Percentage = 25
-    [[Caravela.RamPartitions]]
     Ram = 512
-    Percentage = 25
+    Percentage = 50
     [[Caravela.RamPartitions]]
     Ram = 1024
-    Percentage = 25
+    Percentage = 30
+    [[Caravela.RamPartitions]]
+    Ram = 2048
+    Percentage = 20
+    [Caravela.DiscoveryBackend]
+    Backend = "chord-smart"    # chord-random, chord-smart
+        [Caravela.DiscoveryBackend.SmartChordBackend]
+        SupplyingInterval = "30s"
+        SpreadOffersInterval = "30s"
+        RefreshingInterval = "30s"
+        [Caravela.DiscoveryBackend.RandomChordBackend]
+        RandBackendMaxRetries = 4
 
 [Overlay]
-ChordNumSuccessors = 3
-ChordHashSizeBits = 128
+    [Overlay.Chord]
+    NumSuccessors = 3
+    HashSizeBits = 128

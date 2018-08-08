@@ -2,6 +2,7 @@ package chord
 
 import (
 	"context"
+	"github.com/pkg/errors"
 	"github.com/strabox/caravela-sim/mocks/caravela"
 	overlayMock "github.com/strabox/caravela-sim/mocks/overlay"
 	"github.com/strabox/caravela-sim/simulation/metrics"
@@ -88,14 +89,29 @@ func (chord *Mock) GetNodeMockByIndex(index int) *overlayMock.NodeMock {
 	return &chord.fakeNodesRing[index]
 }
 
-func (chord *Mock) GetNodeMockByGUID(id string) (int, *overlayMock.NodeMock) {
-	index := chord.nodesIdIndexMap[id]
+func (chord *Mock) GetNodeMockByGUID(guid string) (int, *overlayMock.NodeMock) {
+	index := chord.nodesIdIndexMap[guid]
 	return index, &chord.fakeNodesRing[index]
 }
 
 func (chord *Mock) GetNodeMockByIP(ip string) (int, *overlayMock.NodeMock) {
-	index := chord.nodesIpIndexMap[ip]
+	index, exist := chord.nodesIpIndexMap[ip]
+	if !exist {
+		panic(errors.New("Node's IP does not exist"))
+	}
 	return index, &chord.fakeNodesRing[index]
+}
+
+func (chord *Mock) collectLookupMessages(ctx context.Context, targetNodeIndex int) {
+	fromNodeIndex, _ := chord.GetNodeMockByGUID(types.NodeGUID(ctx))
+	distance := (fromNodeIndex - targetNodeIndex) % chord.numNodes
+	if distance < 0 {
+		distance = -distance
+	}
+	//util.Log.Infof("IncrMsgs ReqID: %s, Dis: %d, Hops: %d", types.RequestID(ctx), distance, int(math.Log2(float64(distance)))/2)
+	if distance != 0 {
+		chord.collector.IncrMessagesTradedRequest(types.RequestID(ctx), int(math.Log2(float64(distance)))/2)
+	}
 }
 
 // ===============================================================================
@@ -113,11 +129,7 @@ func (chord *Mock) Join(_ context.Context, _ string, _ int, _ overlayTypes.Overl
 }
 
 func (chord *Mock) Lookup(ctx context.Context, key []byte) ([]*overlayTypes.OverlayNode, error) {
-	if requestID, ok := ctx.Value(types.RequestCtxKey(util.SimRequestIDKey)).(string); ok {
-		chord.collector.IncrMessagesTradedRequest(requestID, int(math.Log2(float64(chord.numNodes)))/2)
-	}
-
-	searchMockNode := overlayMock.NewNode(key)
+	searchMockNode := overlayMock.NewNodeBytes(key)
 
 	// Simulate the lookup using the chord with the array
 
@@ -140,29 +152,38 @@ func (chord *Mock) Lookup(ctx context.Context, key []byte) ([]*overlayTypes.Over
 	// Regular sequential search for the node in the fake ring section.
 	res := make([]*overlayTypes.OverlayNode, chord.numSuccessors)
 	resIndex := 0
+	targetNodeIndex := -1
 	for i := startSearchIndex; i < len(chord.fakeNodesRing); i++ {
 		currentNode := chord.fakeNodesRing[i]
 		if !currentNode.Smaller(searchMockNode) {
+			if targetNodeIndex == -1 {
+				targetNodeIndex = i
+			}
 			res[resIndex] = overlayTypes.NewOverlayNode(currentNode.IP(), caravela.FakePort, currentNode.Bytes())
 			resIndex++
 		}
 		if resIndex == chord.numSuccessors {
+			chord.collectLookupMessages(ctx, targetNodeIndex) // Collect metrics
 			return res, nil
 		}
 	}
 
 	startIndex := 0
 	for ; resIndex < chord.numSuccessors; resIndex++ {
+		if targetNodeIndex == -1 {
+			targetNodeIndex = startIndex
+		}
 		res[resIndex] = overlayTypes.NewOverlayNode(chord.fakeNodesRing[startIndex].IP(), caravela.FakePort, chord.fakeNodesRing[startIndex].Bytes())
 		startIndex++
 	}
 
+	chord.collectLookupMessages(ctx, targetNodeIndex) // Collect metrics
 	return res, nil
 }
 
 func (chord *Mock) Neighbors(_ context.Context, nodeID []byte) ([]*overlayTypes.OverlayNode, error) {
 	res := make([]*overlayTypes.OverlayNode, 2)
-	neighMockNode := overlayMock.NewNode(nodeID)
+	neighMockNode := overlayMock.NewNodeBytes(nodeID)
 	index := chord.nodesIdIndexMap[neighMockNode.String()]
 	if index == 0 {
 		res[0] = overlayTypes.NewOverlayNode(chord.fakeNodesRing[chord.numNodes-1].IP(), caravela.FakePort, chord.fakeNodesRing[chord.numNodes-1].Bytes())
@@ -174,7 +195,7 @@ func (chord *Mock) Neighbors(_ context.Context, nodeID []byte) ([]*overlayTypes.
 		res[0] = overlayTypes.NewOverlayNode(chord.fakeNodesRing[index-1].IP(), caravela.FakePort, chord.fakeNodesRing[index-1].Bytes())
 		res[1] = overlayTypes.NewOverlayNode(chord.fakeNodesRing[index+1].IP(), caravela.FakePort, chord.fakeNodesRing[index+1].Bytes())
 	}
-	return nil, nil
+	return res, nil
 }
 
 func (chord *Mock) NodeID(_ context.Context) ([]byte, error) {
