@@ -1,33 +1,35 @@
 [Caravela]
 Simulation = true
-    # Cpu Cores Partitions
-    [[Caravela.CpuCoresPartitions]]
-    Cores = 1
-    Percentage = 50
-    [[Caravela.CpuCoresPartitions]]
-    Cores = 2
-    Percentage = 30
-    [[Caravela.CpuCoresPartitions]]
-    Cores = 4
-    Percentage = 20
-    # Ram Partitions
-    [[Caravela.RamPartitions]]
-    Ram = 512
-    Percentage = 50
-    [[Caravela.RamPartitions]]
-    Ram = 1024
-    Percentage = 30
-    [[Caravela.RamPartitions]]
-    Ram = 2048
-    Percentage = 20
-    [Caravela.DiscoveryBackend]
-    Backend = "chord-smart"    # chord-random, chord-smart
-        [Caravela.DiscoveryBackend.SmartChordBackend]
-        SupplyingInterval = "30s"
-        SpreadOffersInterval = "30s"
-        RefreshingInterval = "30s"
-        [Caravela.DiscoveryBackend.RandomChordBackend]
-        RandBackendMaxRetries = 4
+[Caravela.DiscoveryBackend]
+Backend = "chord-smart"    # chord-random, chord-smart
+    [Caravela.DiscoveryBackend.SmartChordBackend]
+    SupplyingInterval = "30s"
+    SpreadOffersInterval = "30s"
+    RefreshingInterval = "30s"
+    [Caravela.DiscoveryBackend.RandomChordBackend]
+    RandBackendMaxRetries = 4
+[Caravela.Resources]
+    [[Caravela.Resources.CPUPowers]]
+    Value = 0
+    Percentage = 100
+        [[Caravela.Resources.CPUPowers.CPUCores]]
+        Value = 1
+        Percentage = 50
+            [[Caravela.Resources.CPUPowers.CPUCores.RAMs]]
+            Value = 256
+            Percentage = 50
+            [[Caravela.Resources.CPUPowers.CPUCores.RAMs]]
+            Value = 512
+            Percentage = 50
+        [[Caravela.Resources.CPUPowers.CPUCores]]
+        Value = 2
+        Percentage = 50
+            [[Caravela.Resources.CPUPowers.CPUCores.RAMs]]
+            Value = 256
+            Percentage = 50
+            [[Caravela.Resources.CPUPowers.CPUCores.RAMs]]
+            Value = 512
+            Percentage = 50
 
 [Overlay]
     [Overlay.Chord]
