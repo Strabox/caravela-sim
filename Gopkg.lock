@@ -97,17 +97,20 @@
     "node/discovery",
     "node/discovery/backend",
     "node/discovery/common",
+    "node/discovery/moffer",
+    "node/discovery/moffer/supplier",
+    "node/discovery/moffer/trader",
     "node/discovery/random",
-    "node/discovery/smart",
-    "node/discovery/smart/supplier",
-    "node/discovery/smart/trader",
+    "node/discovery/soffer",
+    "node/discovery/soffer/supplier",
+    "node/discovery/soffer/trader",
     "node/external",
     "node/scheduler",
     "node/user",
     "overlay/types",
     "util"
   ]
-  revision = "216b3d179879d452b5b60c0f7b17fb5def98bf44"
+  revision = "8a0925f712ea318687d56d504f1633df5f92f3c2"
 
 [[projects]]
   name = "github.com/urfave/cli"
@@ -185,11 +188,11 @@
     "vg/vgpdf",
     "vg/vgsvg"
   ]
-  revision = "febd63424d7d867221c95650d21b5618b63f1c47"
+  revision = "b07a7783ad1930a811bae55b55e26d919254c201"
 
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "9aed39c939a09994e9db47bb88859deb887690b95741e10129f26a60711da999"
+  inputs-digest = "6408faa68d3870720eac0c0ccafc92dfa682d5e421fa8a454cc07f3311215dd6"
   solver-name = "gps-cdcl"
   solver-version = 1

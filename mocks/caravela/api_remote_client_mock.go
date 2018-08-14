@@ -63,6 +63,9 @@ func (mock *RemoteClientMock) GetOffers(ctx context.Context, fromNode, toTrader 
 	// Collect Metrics
 	mock.collector.IncrMessagesTradedRequest(types.RequestID(ctx), 1)
 	mock.collector.APIRequestReceived(nodeIndex)
+	if !relay {
+		mock.collector.GetOfferRelayed(1)
+	}
 
 	offers := node.GetOffers(ctx, fromNode, toTrader, relay)
 	return offers, nil

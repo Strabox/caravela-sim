@@ -1,13 +1,13 @@
 NumberOfNodes = 50000
 TickInterval = "10s"
-MaxTicks = 35
+MaxTicks = 30
 Multithread = true
 RequestFeeder = "random"
 SimulatorLogLevel = "info"
 CaravelaLogLevel = "info"
 
 [ResourcesGenerator]
-ResourceGenerator = "real"       # static, real, partition-aware
+ResourceGenerator = "static"       # static, real, partition-aware
     [ResourcesGenerator.StaticResources]
-    CPUs = 2
-    RAM = 512
+    CPUs = 1
+    RAM = 256

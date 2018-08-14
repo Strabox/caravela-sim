@@ -12,6 +12,7 @@ type Global struct {
 	Start time.Duration `json:"StartTime"` // Start time of the collection.
 	End   time.Duration `json:"EndTime"`   // End time of the collection.
 
+	GetOffersRelayed     int64
 	RunRequestsSucceeded int64  `json:"RunRequestsSucceeded"` // Number of run requests that were successful deployed.
 	NodesMetrics         []Node `json:"NodesMetrics"`         // Metrics collected for each system's node.
 
@@ -25,6 +26,7 @@ func NewGlobalInitial(numNodes int, startTime time.Duration, nodesMaxRes []types
 	res := &Global{
 		Start: startTime,
 
+		GetOffersRelayed:     0,
 		RunRequestsSucceeded: 0,
 		NodesMetrics:         make([]Node, numNodes),
 
@@ -64,6 +66,10 @@ func NewGlobalNext(numNodes int, prevGlobal *Global) *Global {
 }
 
 // ========================= Metrics Collector Methods ====================================
+
+func (global *Global) GetOfferRelayed(amount int64) {
+	atomic.AddInt64(&global.GetOffersRelayed, amount)
+}
 
 func (global *Global) RunRequestSucceeded() {
 	atomic.AddInt64(&global.RunRequestsSucceeded, 1)
@@ -140,6 +146,10 @@ func (global *Global) EndTime() time.Duration {
 
 func (global *Global) SetEndTime(endTime time.Duration) {
 	global.End = endTime
+}
+
+func (global *Global) TotalGetOffersRelayed() int64 {
+	return global.GetOffersRelayed
 }
 
 func (global *Global) TotalRunRequestsSucceeded() int64 {

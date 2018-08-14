@@ -47,6 +47,10 @@ func (collector *Collector) Init(nodesMaxRes []types.Resources) {
 
 // ========================= Metrics Collector Methods ====================================
 
+func (collector *Collector) GetOfferRelayed(amount int64) {
+	collector.activeGlobal().GetOfferRelayed(amount)
+}
+
 func (collector *Collector) RunRequestSucceeded() {
 	collector.activeGlobal().RunRequestSucceeded()
 }
@@ -150,9 +154,11 @@ func (collector *Collector) Print() {
 }
 
 func (collector *Collector) plotGraphics() {
-	collector.plotRequestsSucceededOverTime()
-	collector.plotRequestsMessagesTradedOverTime()
-	collector.plotAvailableResourcesOverTime()
+	collector.plotRequestsSucceeded()
+	collector.plotRequestsMessagesTraded()
+	collector.plotAvailableResources()
+	collector.plotRelayedGetOfferMessages()
+	collector.plotResourceDistribution()
 }
 
 // Remove all the temporary files and resources used during the metrics gathering.

@@ -37,7 +37,7 @@ func (rf *RandomFeeder) Start(ticksChannel <-chan chan RequestTask) {
 			if more {
 				for i := 0; i < runReqPerTick; i++ {
 					newTickChan <- func(randNodeIndex int, randNode *node.Node, currentTime time.Duration) {
-						res := types.Resources{CPUs: 4, RAM: 4096}
+						res := types.Resources{CPUs: 1, RAM: 250}
 
 						requestID := guid.NewGUIDRandom().String()
 						requestContext := context.WithValue(context.Background(), types.RequestIDKey, requestID)
