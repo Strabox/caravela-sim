@@ -12,7 +12,7 @@ type Global struct {
 	Start time.Duration `json:"StartTime"` // Start time of the collection.
 	End   time.Duration `json:"EndTime"`   // End time of the collection.
 
-	GetOffersRelayed     int64
+	GetOffersRelayed     int64  `json:"GetOffersRelayed"`
 	RunRequestsSucceeded int64  `json:"RunRequestsSucceeded"` // Number of run requests that were successful deployed.
 	NodesMetrics         []Node `json:"NodesMetrics"`         // Metrics collected for each system's node.
 

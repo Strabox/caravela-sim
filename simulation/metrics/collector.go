@@ -11,103 +11,153 @@ import (
 	"time"
 )
 
-// Prefix name for the temp directory
+// metricsTempDirName is the prefix name for the metrics collections temporary directory.
 const metricsTempDirName = "metrics-"
+
+// simDirBaseName is the prefix name for the simulations output directories.
+const simulationDirBaseName = "sim-"
+
+// simulationDirSuffixFormat is the format for the suffix of the simulations output directories.
+const simulationDirSuffixFormat = "2006-01-02_15h04m05s"
 
 // Collector aggregates all the metrics information about the system during a simulation.
 type Collector struct {
-	numNodes  int      // Number of simulation nodes
-	snapshots []Global // Array of global metrics snapshots
+	numNodes  int      // Number of simulation nodes.
+	snapshots []Global // Array of global metrics snapshots.
 
-	outputDirPath  string // Output directory path
-	tmpDirFullPath string // Temp directory to store intermediate metrics
+	outputDirPath  string // Output directory path.
+	tmpDirFullPath string // Temp directory to store intermediate metrics.
 }
 
 // NewCollector creates a new metric's collector.
-func NewCollector(numNodes int, outputDirPath string) *Collector {
+func NewCollector(numNodes int, baseOutputDirPath string) *Collector {
 	return &Collector{
 		numNodes:      numNodes,
 		snapshots:     make([]Global, 1),
-		outputDirPath: outputDirPath,
+		outputDirPath: baseOutputDirPath + "\\" + simulationDirBaseName + time.Now().Format(simulationDirSuffixFormat),
 	}
 }
 
 // Init initialize the metric's collector.
-func (collector *Collector) Init(nodesMaxRes []types.Resources) {
+func (coll *Collector) Init(nodesMaxRes []types.Resources) {
 	dirFullPath, err := ioutil.TempDir("", metricsTempDirName)
 	if err != nil {
 		panic(errors.New("Temp directory can't be created, error: " + err.Error()))
 	}
-	collector.tmpDirFullPath = dirFullPath
+	coll.tmpDirFullPath = dirFullPath
 
-	os.Mkdir(collector.outputDirPath, 0644)
+	os.MkdirAll(coll.outputDirPath, 0644)
 
-	collector.snapshots[0] = *NewGlobalInitial(collector.numNodes, time.Duration(0), nodesMaxRes)
+	coll.snapshots[0] = *NewGlobalInitial(coll.numNodes, time.Duration(0), nodesMaxRes)
 }
 
-// ========================= Metrics Collector Methods ====================================
+// ================================= Metrics Collector Methods ====================================
 
-func (collector *Collector) GetOfferRelayed(amount int64) {
-	collector.activeGlobal().GetOfferRelayed(amount)
+// GetOfferRelayed increment the number of messages traded from type GetOffersRelayed.
+func (coll *Collector) GetOfferRelayed(amount int64) {
+	coll.activeGlobal().GetOfferRelayed(amount)
 }
 
-func (collector *Collector) RunRequestSucceeded() {
-	collector.activeGlobal().RunRequestSucceeded()
+// RunRequestSucceeded increments the number of run requests that were fulfilled with success.
+func (coll *Collector) RunRequestSucceeded() {
+	coll.activeGlobal().RunRequestSucceeded()
 }
 
-func (collector *Collector) APIRequestReceived(nodeIndex int) {
-	collector.activeGlobal().APIRequestReceived(nodeIndex)
+// APIRequestReceived increments the number of Caravela's API requests a node received.
+func (coll *Collector) APIRequestReceived(nodeIndex int) {
+	coll.activeGlobal().APIRequestReceived(nodeIndex)
 }
 
-func (collector *Collector) SetAvailableNodeResources(nodeIndex int, res types.Resources) {
-	collector.activeGlobal().SetAvailableNodeResources(nodeIndex, res)
+// SetAvailableNodeResources sets the available resources of a node.
+func (coll *Collector) SetAvailableNodeResources(nodeIndex int, res types.Resources) {
+	coll.activeGlobal().SetAvailableNodeResources(nodeIndex, res)
 }
 
 // CreateRunRequest creates a new run request in order to gather its metrics.
-func (collector *Collector) CreateRunRequest(nodeIndex int, requestID string, resources types.Resources,
+func (coll *Collector) CreateRunRequest(nodeIndex int, requestID string, resources types.Resources,
 	currentTime time.Duration) {
-	collector.activeGlobal().CreateRunRequest(nodeIndex, requestID, resources, currentTime)
+	coll.activeGlobal().CreateRunRequest(nodeIndex, requestID, resources, currentTime)
 }
 
-func (collector *Collector) IncrMessagesTradedRequest(requestID string, numMessages int) {
-	collector.activeGlobal().IncrMessagesTradedRequest(requestID, numMessages)
+// IncrMessagesTradedRequest increment the number of messages traded to fulfill a run request.
+func (coll *Collector) IncrMessagesTradedRequest(requestID string, numMessages int) {
+	coll.activeGlobal().IncrMessagesTradedRequest(requestID, numMessages)
 }
 
-func (collector *Collector) ArchiveRunRequest(requestID string) {
-	collector.activeGlobal().ArchiveRunRequest(requestID)
+// ArchiveRunRequest archives the metrics of request that was happening because it ended.
+func (coll *Collector) ArchiveRunRequest(requestID string) {
+	coll.activeGlobal().ArchiveRunRequest(requestID)
 }
+
+// ================================= Collector Management Methods ===================================
 
 // CreateNewGlobalSnapshot creates a snapshot of the system's current metrics and initialize a new one.
-func (collector *Collector) CreateNewGlobalSnapshot(currentTime time.Duration) {
-	collector.activeGlobal().SetEndTime(currentTime)
-	collector.snapshots = append(collector.snapshots, *NewGlobalNext(collector.numNodes, collector.activeGlobal()))
+func (coll *Collector) CreateNewGlobalSnapshot(currentTime time.Duration) {
+	coll.activeGlobal().SetEndTime(currentTime)
+	coll.snapshots = append(coll.snapshots, *NewGlobalNext(coll.numNodes, coll.activeGlobal()))
 }
 
-func (collector *Collector) activeGlobal() *Global {
-	return &collector.snapshots[len(collector.snapshots)-1]
-}
+// Persist is used to persist the in memory metrics into JSON files, in order to save memory.
+func (coll *Collector) Persist(currentTime time.Duration) {
+	coll.activeGlobal().SetEndTime(currentTime)
 
-func (collector *Collector) Persist(currentTime time.Duration) {
-	collector.activeGlobal().SetEndTime(currentTime)
-
-	for index, global := range collector.snapshots {
-		jsonBytes, err := json.Marshal(&collector.snapshots[index])
+	for index, global := range coll.snapshots {
+		jsonBytes, err := json.Marshal(&coll.snapshots[index])
 		if err != nil {
 			panic(errors.New("can't marshall the collector snapshot, error: " + err.Error()))
 		}
-		err = ioutil.WriteFile(collector.tmpDirFullPath+"\\"+global.Start.String()+".json", jsonBytes, 0644)
+		err = ioutil.WriteFile(coll.tmpDirFullPath+"\\"+global.Start.String()+".json", jsonBytes, 0644)
 		if err != nil {
 			panic(errors.New("can't write the collector snapshot to disk, error: " + err.Error()))
 		}
 	}
 
-	newGlobal := NewGlobalNext(collector.numNodes, collector.activeGlobal())
-	collector.snapshots = make([]Global, 1)
-	collector.snapshots[0] = *newGlobal
+	newGlobal := NewGlobalNext(coll.numNodes, coll.activeGlobal())
+	coll.snapshots = make([]Global, 1)
+	coll.snapshots[0] = *newGlobal
 }
 
-func (collector *Collector) loadAllMetrics() {
-	filesInfo, err := ioutil.ReadDir(collector.tmpDirFullPath)
+// Stop is called when the simulation stops and there is no need to gather more metrics.
+func (coll *Collector) End(endTime time.Duration) {
+	coll.activeGlobal().SetEndTime(endTime)
+}
+
+// Clear removes all the temporary files and resources used during the metrics gathering.
+func (coll *Collector) Clear() {
+	os.RemoveAll(coll.tmpDirFullPath) // clean up the simulation temp collector files
+}
+
+// Print is used to gather all the metrics of the simulation into memory, consolidating them
+// in order to produce results into the console and into the files.
+func (coll *Collector) Print() {
+	coll.loadAllMetrics() // Load all the intermediate snapshots in memory
+
+	totalRunRequests := int64(0)
+	totalRunRequestsSucceeded := int64(0)
+	for _, global := range coll.snapshots {
+		totalRunRequests += global.TotalRunRequests()
+		totalRunRequestsSucceeded += global.TotalRunRequestsSucceeded()
+	}
+
+	fmt.Printf("##################################################################\n")
+	fmt.Printf("#                    SIMULATION RESULT METRICS                   #\n")
+	fmt.Printf("##################################################################\n")
+	fmt.Printf("#Requests:               %d\n", totalRunRequests)
+	fmt.Printf("#Requests Succeeded:     %d\n", totalRunRequestsSucceeded)
+	fmt.Printf("#Requests Success Ratio: %.2f\n", float64(totalRunRequestsSucceeded)/float64(totalRunRequests))
+
+	coll.plotGraphics()
+}
+
+// activeGlobal returns the current global snapshot that is gathering metrics.
+func (coll *Collector) activeGlobal() *Global {
+	return &coll.snapshots[len(coll.snapshots)-1]
+}
+
+// loadAllMetrics is used to fill the collector with all the metrics that were persisted into disk,
+// in order to be analysed after that.
+func (coll *Collector) loadAllMetrics() {
+	filesInfo, err := ioutil.ReadDir(coll.tmpDirFullPath)
 	if err != nil {
 		panic(errors.New("can't find the collector snapshot files, error: " + err.Error()))
 	}
@@ -116,7 +166,7 @@ func (collector *Collector) loadAllMetrics() {
 		if !fileInfo.IsDir() {
 			var globalMetrics Global
 
-			fileContent, err := ioutil.ReadFile(collector.tmpDirFullPath + "\\" + fileInfo.Name())
+			fileContent, err := ioutil.ReadFile(coll.tmpDirFullPath + "\\" + fileInfo.Name())
 			if err != nil {
 				panic(errors.New("can't read the snapshot file, error: " + err.Error()))
 			}
@@ -126,56 +176,32 @@ func (collector *Collector) loadAllMetrics() {
 				panic(errors.New("can't unmarshal the snapshot file content, error: " + err.Error()))
 			}
 
-			collector.snapshots = append(collector.snapshots, globalMetrics)
+			coll.snapshots = append(coll.snapshots, globalMetrics)
 		}
 	}
 
-	sort.Sort(collector)
+	sort.Sort(coll) // Sort the global snapshots by the sim time of them.
 }
 
-func (collector *Collector) Print() {
-	collector.loadAllMetrics() // Load all the intermediate snapshots in memory
-
-	totalRunRequests := int64(0)
-	totalRunRequestsSucceeded := int64(0)
-	for _, global := range collector.snapshots {
-		totalRunRequests += global.TotalRunRequests()
-		totalRunRequestsSucceeded += global.TotalRunRequestsSucceeded()
-	}
-
-	fmt.Printf("##################################################################\n")
-	fmt.Printf("#                    SIMULATION RESULT METRICS                   #\n")
-	fmt.Printf("##################################################################\n")
-	fmt.Printf("Total Requests:         %d\n", totalRunRequests)
-	fmt.Printf("Requests Succeeded:     %d\n", totalRunRequestsSucceeded)
-	fmt.Printf("Request Success Ratio:  %.2f\n", float64(totalRunRequestsSucceeded)/float64(totalRunRequests))
-
-	collector.plotGraphics()
+// plotGraphics plots all the charts/plots based on the metrics collected.
+func (coll *Collector) plotGraphics() {
+	coll.plotRequestsSucceeded()
+	coll.plotRequestsMessagesTradedPerRequest()
+	coll.plotFreeResources()
+	coll.plotRelayedGetOfferMessages()
+	coll.plotResourceDistribution()
 }
 
-func (collector *Collector) plotGraphics() {
-	collector.plotRequestsSucceeded()
-	collector.plotRequestsMessagesTraded()
-	collector.plotAvailableResources()
-	collector.plotRelayedGetOfferMessages()
-	collector.plotResourceDistribution()
+// ===================================== Sort Interface =======================================
+
+func (coll *Collector) Len() int {
+	return len(coll.snapshots)
 }
 
-// Remove all the temporary files and resources used during the metrics gathering.
-func (collector *Collector) Clear() {
-	os.RemoveAll(collector.tmpDirFullPath) // clean up the simulation temp collector files
+func (coll *Collector) Swap(i, j int) {
+	coll.snapshots[i], coll.snapshots[j] = coll.snapshots[j], coll.snapshots[i]
 }
 
-// ================================ Sort Interface =================================
-
-func (collector *Collector) Len() int {
-	return len(collector.snapshots)
-}
-
-func (collector *Collector) Swap(i, j int) {
-	collector.snapshots[i], collector.snapshots[j] = collector.snapshots[j], collector.snapshots[i]
-}
-
-func (collector *Collector) Less(i, j int) bool {
-	return collector.snapshots[i].StartTime() < collector.snapshots[j].StartTime()
+func (coll *Collector) Less(i, j int) bool {
+	return coll.snapshots[i].StartTime() < coll.snapshots[j].StartTime()
 }

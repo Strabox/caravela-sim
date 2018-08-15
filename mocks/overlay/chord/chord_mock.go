@@ -13,10 +13,10 @@ import (
 	"sort"
 )
 
-// Chord's mock log tag.
+// chordLogTag chord's mock log tag.
 const chordLogTag = "SIM-CHORD"
 
-// Amount of nodes to speed up the simulation of a lookup request.
+// numSpeedupNodes amount of nodes to speed up the simulation of a lookup request.
 const numSpeedupNodes = 200
 
 // Mock mocks the interactions with a Chord overlay client simulating its functionality.
@@ -47,6 +47,7 @@ func NewChordMock(numNodes, numSuccessors int, metricsCollector *metrics.Collect
 	}
 }
 
+// Init initializes the chord's mock structure.
 func (chord *Mock) Init() {
 	for i := 0; i < chord.numNodes; i++ {
 		chord.fakeNodesRing[i] = *overlayMock.NewRandomNode()
@@ -108,7 +109,6 @@ func (chord *Mock) collectLookupMessages(ctx context.Context, targetNodeIndex in
 	if distance < 0 {
 		distance = -distance
 	}
-	//util.Log.Infof("IncrMsgs ReqID: %s, Dis: %d, Hops: %d", types.RequestID(ctx), distance, int(math.Log2(float64(distance)))/2)
 	if distance != 0 {
 		chord.collector.IncrMessagesTradedRequest(types.RequestID(ctx), int(math.Log2(float64(distance)))/2)
 	}

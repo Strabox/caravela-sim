@@ -1,13 +1,14 @@
 package docker
 
 import (
+	"github.com/strabox/caravela-sim/configuration"
 	"github.com/strabox/caravela-sim/util"
 	"github.com/strabox/caravela/api/types"
-	"github.com/strabox/caravela/configuration"
+	caravelaConfigs "github.com/strabox/caravela/configuration"
 )
 
 type realisticallyResourceGen struct {
-	caravelaConfigs *configuration.Configuration
+	caravelaConfigs *caravelaConfigs.Configuration
 }
 
 type nodeResourcesProfile struct {
@@ -15,7 +16,7 @@ type nodeResourcesProfile struct {
 	Resources  types.Resources
 }
 
-func newRealisticallyResourceGen(caravelaConfigs *configuration.Configuration) (ResourcesGenerator, error) {
+func newRealisticallyResourceGen(_ *configuration.Configuration, caravelaConfigs *caravelaConfigs.Configuration) (ResourcesGenerator, error) {
 	return &realisticallyResourceGen{
 		caravelaConfigs: caravelaConfigs,
 	}, nil

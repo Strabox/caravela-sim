@@ -1,15 +1,20 @@
 package docker
 
-import "github.com/strabox/caravela/configuration"
+import (
+	"github.com/strabox/caravela-sim/configuration"
+	caravelaConfigs "github.com/strabox/caravela/configuration"
+)
 
 type staticResourceGen struct {
-	// Nothing necessary
+	simConfigs *configuration.Configuration
 }
 
-func newStaticResourceGen(_ *configuration.Configuration) (ResourcesGenerator, error) {
-	return &staticResourceGen{}, nil
+func newStaticResourceGen(simConfigs *configuration.Configuration, _ *caravelaConfigs.Configuration) (ResourcesGenerator, error) {
+	return &staticResourceGen{
+		simConfigs: simConfigs,
+	}, nil
 }
 
 func (s *staticResourceGen) Generate() (int, int) {
-	return 2, 512
+	return s.simConfigs.StaticGeneratorResources().CPUs, s.simConfigs.StaticGeneratorResources().RAM
 }

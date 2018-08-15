@@ -30,14 +30,13 @@ func (rf *RandomFeeder) Init(metricsCollector *metrics.Collector) {
 
 func (rf *RandomFeeder) Start(ticksChannel <-chan chan RequestTask) {
 	runReqPerTick := int(float64(rf.simConfigs.NumberOfNodes) * float64(0.1)) // Send 10% of cluster size in requests per node
-
 	for {
 		select {
 		case newTickChan, more := <-ticksChannel: // Send all the requests for this tickChan
 			if more {
 				for i := 0; i < runReqPerTick; i++ {
 					newTickChan <- func(randNodeIndex int, randNode *node.Node, currentTime time.Duration) {
-						res := types.Resources{CPUs: 1, RAM: 250}
+						res := types.Resources{CPUs: 2, RAM: 750}
 
 						requestID := guid.NewGUIDRandom().String()
 						requestContext := context.WithValue(context.Background(), types.RequestIDKey, requestID)

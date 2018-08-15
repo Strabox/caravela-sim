@@ -13,66 +13,78 @@ import (
 	"gonum.org/v1/plot/vg/draw"
 	"gonum.org/v1/plot/vg/vgimg"
 	"log"
-	"os"
 )
 
-func (collector *Collector) plotRequestsSucceeded() {
-	plot := graphics.New("Requests success over time", "Time", "Request Succeeded")
+func (coll *Collector) plotRequestsSucceeded() {
+	plotRes := graphics.New("Deploy Requests Success", "Time (Seconds)", "Request Succeeded", true)
 
-	pts := make(plotter.XYs, len(collector.snapshots))
+	pts := make(plotter.XYs, len(coll.snapshots))
 	for i := range pts {
-		pts[i].X = collector.snapshots[i].StartTime().Seconds()
-		pts[i].Y = float64(collector.snapshots[i].TotalRunRequestsSucceeded())
+		pts[i].X = coll.snapshots[i].EndTime().Seconds()
+		pts[i].Y = float64(coll.snapshots[i].TotalRunRequestsSucceeded())
 	}
 
-	err := plotutil.AddLinePoints(plot, "Requests", pts)
+	err := plotutil.AddLinePoints(plotRes, "Requests", pts)
 	if err != nil {
 		panic(errors.New("Problem with plots, error: " + err.Error()))
 	}
 
-	// Save the graphics to a PNG file.
-	graphics.Save(plot, 22*vg.Centimeter, 15*vg.Centimeter,
-		collector.outputDirPath+"\\"+"RequestsSucceeded.png")
+	graphics.Save(plotRes, 25*vg.Centimeter, 17*vg.Centimeter, coll.outputDirPath+"\\"+"RequestsSucceeded.png")
 }
 
-func (collector *Collector) plotRequestsMessagesTraded() {
-	plot := graphics.New("Average Lookup Messages", "Time (Seconds)", "#Avg Messages")
+func (coll *Collector) plotRequestsMessagesTradedPerRequest() {
+	plotRes := graphics.New("Average Discover Messages", "Time (Seconds)", "#Avg Messages", true)
 
-	pts := make(plotter.XYs, len(collector.snapshots))
+	pts := make(plotter.XYs, len(coll.snapshots))
 	for i := range pts {
-		pts[i].X = collector.snapshots[i].StartTime().Seconds()
-		pts[i].Y = float64(collector.snapshots[i].RunRequestsAvgMessages())
+		pts[i].X = coll.snapshots[i].EndTime().Seconds()
+		pts[i].Y = float64(coll.snapshots[i].RunRequestsAvgMessages())
 	}
 
-	err := plotutil.AddLinePoints(plot, "Total Messages", pts)
+	err := plotutil.AddLinePoints(plotRes, "Total Messages", pts)
 	if err != nil {
 		panic(errors.New("Problem with plots, error: " + err.Error()))
 	}
 
-	graphics.Save(plot, 22*vg.Centimeter, 15*vg.Centimeter,
-		collector.outputDirPath+"\\"+"MessagesPerRequest.png")
+	graphics.Save(plotRes, 25*vg.Centimeter, 17*vg.Centimeter, coll.outputDirPath+"\\"+"MessagesPerRequest.png")
 }
 
-func (collector *Collector) plotAvailableResources() {
-	plot := graphics.New("Free Resources", "Time (Seconds)", "Resources Free %")
+func (coll *Collector) plotFreeResources() {
+	plotRes := graphics.New("Free Resources", "Time (Seconds)", "Resources Free %", true)
 
-	availableResPts := make(plotter.XYs, len(collector.snapshots))
-	requestsSucceeded := make(plotter.XYs, len(collector.snapshots))
+	availableResPts := make(plotter.XYs, len(coll.snapshots))
+	requestsSucceeded := make(plotter.XYs, len(coll.snapshots))
 	for i := range availableResPts {
-		availableResPts[i].X = collector.snapshots[i].StartTime().Seconds()
-		availableResPts[i].Y = float64(collector.snapshots[i].AllAvailableResourcesAvg())
-		requestsSucceeded[i].X = collector.snapshots[i].StartTime().Seconds()
-		requestsSucceeded[i].Y = collector.snapshots[i].RunRequestSuccessRatio()
+		availableResPts[i].X = coll.snapshots[i].EndTime().Seconds()
+		availableResPts[i].Y = float64(coll.snapshots[i].AllAvailableResourcesAvg())
+		requestsSucceeded[i].X = coll.snapshots[i].EndTime().Seconds()
+		requestsSucceeded[i].Y = coll.snapshots[i].RunRequestSuccessRatio()
 	}
 
-	err := plotutil.AddLinePoints(plot, "Free Resources", availableResPts,
+	err := plotutil.AddLinePoints(plotRes, "Free Resources", availableResPts,
 		"Requests Succeeded", requestsSucceeded)
 	if err != nil {
 		panic(errors.New("Problem with plots, error: " + err.Error()))
 	}
 
-	graphics.Save(plot, 22*vg.Centimeter, 15*vg.Centimeter,
-		collector.outputDirPath+"\\"+"FreeResources.png")
+	graphics.Save(plotRes, 25*vg.Centimeter, 17*vg.Centimeter, coll.outputDirPath+"\\"+"FreeResources.png")
+}
+
+func (coll *Collector) plotRelayedGetOfferMessages() {
+	plotRes := graphics.New("Total Relayed Get Offer", "Time (Seconds)", "#Relayed Get Offers", true)
+
+	relayedGetOffersPts := make(plotter.XYs, len(coll.snapshots))
+	for i := range relayedGetOffersPts {
+		relayedGetOffersPts[i].X = coll.snapshots[i].EndTime().Seconds()
+		relayedGetOffersPts[i].Y = float64(coll.snapshots[i].TotalGetOffersRelayed())
+	}
+
+	err := plotutil.AddLinePoints(plotRes, "Get Offers Relayed", relayedGetOffersPts)
+	if err != nil {
+		panic(errors.New("Problem with plots, error: " + err.Error()))
+	}
+
+	graphics.Save(plotRes, 25*vg.Centimeter, 17*vg.Centimeter, coll.outputDirPath+"\\"+"GetOffersRelayed.png")
 }
 
 type myGrid struct {
@@ -94,96 +106,81 @@ func (g *myGrid) Dims() (int, int) {
 }
 
 func (g *myGrid) Z(c, r int) float64 {
+	fmt.Println("HM")
 	return g.grid.At(c, r)
 }
 
 func (g *myGrid) X(c int) float64 {
-	return 2
+	return 5
 }
 
 func (g *myGrid) Y(r int) float64 {
-	return 6
+	return 10
 }
 
-func (collector *Collector) plotResourceDistribution() {
+func (coll *Collector) plotResourceDistribution() {
 	grid := NewMyGrid()
-	pal := palette.Heat(12, 1)
-	h := plotter.NewHeatMap(grid, pal)
+	palette := palette.Heat(12, 1)
+	heatMap := plotter.NewHeatMap(grid, palette)
 
-	p, err := plot.New()
+	plotRes, err := plot.New()
 	if err != nil {
 		log.Panic(err)
 	}
-	p.Title.Text = "Heat map"
+	plotRes.Title.Text = "Heat map"
+	plotRes.X.Tick.Marker = plot.DefaultTicks{}
+	plotRes.Y.Tick.Marker = plot.DefaultTicks{}
+	plotRes.Add(heatMap)
 
-	//p.X.Tick.Marker = integerTicks{}
-	//p.Y.Tick.Marker = integerTicks{}
-
-	p.Add(h)
-
-	// Create a legend.
-	l, err := plot.NewLegend()
+	legend, err := plot.NewLegend() // Create a legend.
 	if err != nil {
 		log.Panic(err)
 	}
-	thumbs := plotter.PaletteThumbnailers(pal)
+	thumbs := plotter.PaletteThumbnailers(palette)
 	for i := len(thumbs) - 1; i >= 0; i-- {
 		t := thumbs[i]
 		if i != 0 && i != len(thumbs)-1 {
-			l.Add("", t)
+			legend.Add("H", t)
 			continue
 		}
 		var val float64
 		switch i {
 		case 0:
-			val = h.Min
+			val = heatMap.Min
 		case len(thumbs) - 1:
-			val = h.Max
+			val = heatMap.Max
 		}
-		l.Add(fmt.Sprintf("%.2g", val), t)
+		legend.Add(fmt.Sprintf("%.2g", val), t)
 	}
 
-	p.X.Padding = 0
-	p.Y.Padding = 0
-	p.X.Max = 1.5
-	p.Y.Max = 1.5
+	plotRes.X.Padding = 0
+	plotRes.Y.Padding = 0
+	plotRes.X.Max = 1.5
+	plotRes.Y.Max = 1.5
 
-	img := vgimg.New(250, 175)
+	img := vgimg.New(650, 300)
 	dc := draw.New(img)
 
-	l.Top = true
+	legend.Top = true
 	// Calculate the width of the legend.
-	r := l.Rectangle(dc)
+	r := legend.Rectangle(dc)
 	legendWidth := r.Max.X - r.Min.X
-	l.YOffs = -p.Title.Font.Extents().Height // Adjust the legend down a little.
+	legend.YOffs = -plotRes.Title.Font.Extents().Height // Adjust the legend down a little.
 
-	l.Draw(dc)
+	legend.Draw(dc)
 	dc = draw.Crop(dc, 0, -legendWidth-vg.Millimeter, 0, 0) // Make space for the legend.
-	p.Draw(dc)
-	w, err := os.Create("out/heatMap.png")
-	if err != nil {
-		log.Panic(err)
-	}
-	png := vgimg.PngCanvas{Canvas: img}
-	if _, err = png.WriteTo(w); err != nil {
-		log.Panic(err)
-	}
-}
+	plotRes.Draw(dc)
 
-func (collector *Collector) plotRelayedGetOfferMessages() {
-	plot := graphics.New("Total Relayed Get Offer", "Time (Seconds)", "#Relayed Get Offers")
+	graphics.Save(plotRes, 25*vg.Centimeter, 17*vg.Centimeter, coll.outputDirPath+"\\"+"HeatMap.png")
 
-	relayedGetOffersPts := make(plotter.XYs, len(collector.snapshots))
-	for i := range relayedGetOffersPts {
-		relayedGetOffersPts[i].X = collector.snapshots[i].StartTime().Seconds()
-		relayedGetOffersPts[i].Y = float64(collector.snapshots[i].TotalGetOffersRelayed())
-	}
-
-	err := plotutil.AddLinePoints(plot, "Get Offers Relayed", relayedGetOffersPts)
-	if err != nil {
-		panic(errors.New("Problem with plots, error: " + err.Error()))
-	}
-
-	graphics.Save(plot, 22*vg.Centimeter, 15*vg.Centimeter,
-		collector.outputDirPath+"\\"+"GetOffersRelayed.png")
+	/*
+		w, err := os.Create(coll.outputDirPath + "\\" + "heatMap.png")
+		if err != nil {
+			log.Panic(err)
+		}
+		png := vgimg.PngCanvas{Canvas: img}
+		if _, err = png.WriteTo(w); err != nil {
+			log.Panic(err)
+		}
+	*/
 }

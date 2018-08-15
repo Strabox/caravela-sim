@@ -11,6 +11,7 @@ type APIServerMock struct {
 	// Nothing
 }
 
+// NewAPIServerMock creates a new APIServerMock structure.
 func NewAPIServerMock() *APIServerMock {
 	return &APIServerMock{}
 }

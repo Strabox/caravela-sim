@@ -1,20 +1,22 @@
 package docker
 
 import (
-	"github.com/strabox/caravela/configuration"
+	"github.com/strabox/caravela-sim/configuration"
+	caravelaConfigs "github.com/strabox/caravela/configuration"
 )
 
 type partitionAwareResourceGen struct {
-	caravelaConfigs *configuration.Configuration
+	caravelaConfigs *caravelaConfigs.Configuration
 }
 
-func newPartitionAwareResourceGen(caravelaConfigs *configuration.Configuration) (ResourcesGenerator, error) {
+func newPartitionAwareResourceGen(_ *configuration.Configuration, caravelaConfigs *caravelaConfigs.Configuration) (ResourcesGenerator, error) {
 	return &partitionAwareResourceGen{
 		caravelaConfigs: caravelaConfigs,
 	}, nil
 }
 
 func (p *partitionAwareResourceGen) Generate() (int, int) {
+
 	/*
 		coresPartitions := make([]configuration.CPUCoresPartition, len(p.caravelaConfigs.CPUCoresPartitions()))
 		ramPartitions := make([]configuration.RAMPartition, len(p.caravelaConfigs.RAMPartitions()))

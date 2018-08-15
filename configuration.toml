@@ -1,7 +1,7 @@
 [Caravela]
 Simulation = true
 [Caravela.DiscoveryBackend]
-Backend = "chord-random"    # chord-random, chord-single-offer, chord-multiple-offers
+Backend = "chord-single-offer"    # chord-random, chord-single-offer, chord-multiple-offers
     [Caravela.DiscoveryBackend.SmartChordBackend]
     SupplyingInterval = "30s"
     SpreadOffersInterval = "30s"
