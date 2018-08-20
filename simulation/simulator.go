@@ -1,6 +1,7 @@
 package simulation
 
 import (
+	"fmt"
 	"github.com/ivpusic/grpool"
 	"github.com/pkg/errors"
 	"github.com/strabox/caravela-sim/configuration"
@@ -35,7 +36,8 @@ type Simulator struct {
 }
 
 // NewSimulator creates a new simulator instance based on the configurations of the caravela and its own.
-func NewSimulator(simConfig *configuration.Configuration, caravelaConfigurations *caravelaConfig.Configuration) *Simulator {
+func NewSimulator(metricsCollector *metrics.Collector, simConfig *configuration.Configuration,
+	caravelaConfigurations *caravelaConfig.Configuration) *Simulator {
 	maxWorkers := 1
 	if simConfig.Multithreaded() {
 		maxWorkers = runtime.NumCPU() * 2
@@ -43,7 +45,7 @@ func NewSimulator(simConfig *configuration.Configuration, caravelaConfigurations
 
 	return &Simulator{
 		isInit:           false,
-		metricsCollector: metrics.NewCollector(simConfig.TotalNumberOfNodes(), simConfig.OutputDirectoryPath()),
+		metricsCollector: metricsCollector,
 		nodes:            make([]*caravelaNode.Node, simConfig.TotalNumberOfNodes()),
 		overlayMock:      nil,
 		workersPool:      grpool.NewPool(maxWorkers, maxWorkers*6),
@@ -72,7 +74,10 @@ func (sim *Simulator) Init() {
 	util.Log.Info(util.LogTag(simLogTag) + "Initializing nodes...")
 	for i := 0; i < sim.simulatorConfigs.NumberOfNodes; i++ {
 		overlayNodeMock := sim.overlayMock.GetNodeMockByIndex(i)
-		nodeConfig, _ := caravelaConfig.ObtainExternal(overlayNodeMock.IP(), sim.caravelaConfigs)
+		nodeConfig, err := caravelaConfig.ObtainExternal(overlayNodeMock.IP(), sim.caravelaConfigs)
+		if err != nil {
+			panic(fmt.Errorf("can't make caravela configurations, error: %s", err))
+		}
 		sim.nodes[i] = caravelaNode.NewNode(nodeConfig, sim.overlayMock, caravelaClientMock, dockerClientMock,
 			apiServerMock)
 		sim.nodes[i].AddTrader(overlayNodeMock.Bytes())
@@ -89,13 +94,17 @@ func (sim *Simulator) Init() {
 	for i := range maxNodesResources {
 		maxNodesResources[i] = sim.nodes[i].MaximumResourcesSim()
 	}
-	sim.metricsCollector.Init(maxNodesResources)
+	sim.metricsCollector.InitNewSimulation(sim.caravelaConfigs.DiscoveryBackend(), maxNodesResources)
 
 	// Init request feeder.
 	sim.feeder.Init(sim.metricsCollector)
 
 	sim.isInit = true
 	util.Log.Info(util.LogTag(simLogTag) + "Initialized")
+}
+
+func (sim *Simulator) Simulate() {
+
 }
 
 // Start starts the simulator.
@@ -107,7 +116,7 @@ func (sim *Simulator) Start() {
 	const ticksPerPersist = 1
 	util.Log.Info(util.LogTag(simLogTag) + "Simulation started...")
 	realStartTime := time.Now()
-	simCurrentTime, simLastTimeRefreshes, numTicks := 0*time.Second, 0*time.Second, 0
+	simCurrentTime, simLastTimeRefreshes, simLastTimeSpread, numTicks := 0*time.Second, 0*time.Second, 0*time.Second, 0
 	ticksChan := make(chan chan feeder.RequestTask)
 
 	go sim.feeder.Start(ticksChan) // Start request feeder.
@@ -120,7 +129,7 @@ func (sim *Simulator) Start() {
 		sim.acceptRequests(ticksChan, simCurrentTime)
 
 		// 2nd. Do the actions dependent on time (e.g. actions fired by timers).
-		simLastTimeRefreshes = sim.fireTimerActions(simCurrentTime, simLastTimeRefreshes)
+		simLastTimeRefreshes, simLastTimeSpread = sim.fireTimerActions(simCurrentTime, simLastTimeRefreshes, simLastTimeSpread)
 
 		// 3rd. Update metrics with system's current information.
 		sim.updateMetrics()
@@ -139,12 +148,12 @@ func (sim *Simulator) Start() {
 		sim.metricsCollector.CreateNewGlobalSnapshot(simCurrentTime)
 	}
 
-	sim.metricsCollector.End(simCurrentTime)
+	sim.metricsCollector.EndSimulation(simCurrentTime)
 
 	util.Log.Info(util.LogTag(simLogTag) + "Simulation Ended")
 	util.Log.Infof("Duration: Hours: %.2fh | Min: %.2fm | Sec: %.2fs", (time.Now().Sub(realStartTime)).Hours(),
 		(time.Now().Sub(realStartTime)).Minutes(), (time.Now().Sub(realStartTime)).Seconds())
-	sim.finished()
+	sim.release()
 }
 
 // acceptRequests receives requests from the feeder to be injected in the simulated caravela.
@@ -162,7 +171,7 @@ func (sim *Simulator) acceptRequests(ticksChan chan<- chan feeder.RequestTask, c
 				sim.workersPool.WaitCount(1)
 				sim.workersPool.JobQueue <- func() {
 					defer sim.workersPool.JobDone()
-					nodeIndex, node := sim.randomNode()
+					nodeIndex, node := sim.randomNode() // Inject the request in a random node of the system!!
 					requestTask(nodeIndex, node, currentTime)
 				}
 			} else {
@@ -173,7 +182,7 @@ func (sim *Simulator) acceptRequests(ticksChan chan<- chan feeder.RequestTask, c
 }
 
 // fireTimerActions runs the real time dependent actions.
-func (sim *Simulator) fireTimerActions(currentTime, lastTimeRefreshes time.Duration) time.Duration {
+func (sim *Simulator) fireTimerActions(currentTime, lastTimeRefreshes, lastTimeSpreadOffers time.Duration) (time.Duration, time.Duration) {
 	defer sim.workersPool.WaitAll()
 
 	// 1. Refresh offers
@@ -195,10 +204,28 @@ func (sim *Simulator) fireTimerActions(currentTime, lastTimeRefreshes time.Durat
 		lastTimeRefreshes = currentTime
 	}
 
-	// 2. TODO: Spread offers ??
+	// 2. Spread offers
+	if (currentTime - lastTimeSpreadOffers) >= sim.caravelaConfigs.SpreadOffersInterval() {
+		// Necessary because the tick interval can be greater than the spread offers interval.
+		timesToSpread := int((currentTime - lastTimeSpreadOffers) / sim.caravelaConfigs.SpreadOffersInterval())
+
+		for _, node := range sim.nodes {
+			tempNode := node
+			sim.workersPool.WaitCount(1)
+			sim.workersPool.JobQueue <- func() {
+				defer sim.workersPool.JobDone()
+				for i := 0; i < timesToSpread; i++ {
+					tempNode.SpreadOffersSim()
+				}
+			}
+		}
+
+		lastTimeSpreadOffers = currentTime
+	}
+
 	// 3. TODO: Advertise resources offers ??
 
-	return lastTimeRefreshes
+	return lastTimeRefreshes, lastTimeSpreadOffers
 }
 
 // updateMetrics updates all the collector metrics.
@@ -217,24 +244,16 @@ func (sim *Simulator) updateMetrics() {
 	}
 }
 
-// finished is called when the simulation ends/stops, in order to release resources and compute results.
-func (sim *Simulator) finished() {
-	util.Log.Info(util.LogTag(simLogTag) + "Clearing simulation objects...")
-	sim.release() // Clear all the simulation nodes (release all the memory) ...
-	util.Log.Info(util.LogTag(simLogTag) + "Crushing simulation results...")
-	sim.metricsCollector.Print() // Print the metricsCollector results and outputs the graphics.
-	sim.metricsCollector.Clear() // Clear all the temporary metric files
-	util.Log.Info(util.LogTag(simLogTag) + "FINISHED")
-}
-
 // release releases all the memory of the simulation structures, nodes, etc.
 func (sim *Simulator) release() {
+	util.Log.Info(util.LogTag(simLogTag) + "Clearing simulation objects...")
 	sim.workersPool.Release()
 	sim.feeder = nil
 	sim.workersPool = nil
 	sim.nodes = nil
 	sim.overlayMock = nil
 	runtime.GC() // Force the GC to run in order to release the memory
+	util.Log.Info(util.LogTag(simLogTag) + "FINISHED")
 }
 
 // NodeByIP returns the caravela node and index given the node's IP address.

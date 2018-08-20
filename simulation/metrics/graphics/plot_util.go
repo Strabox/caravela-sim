@@ -6,7 +6,7 @@ import (
 	"gonum.org/v1/plot/vg"
 )
 
-func New(title, xLabel, yLabel string, grid bool) *plot.Plot {
+func NewPlot(title, xLabel, yLabel string, grid bool) *plot.Plot {
 	p, err := plot.New()
 	if err != nil {
 		panic(err)

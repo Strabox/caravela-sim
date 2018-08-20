@@ -1,7 +1,9 @@
 package docker
 
 import (
+	"github.com/pkg/errors"
 	"github.com/strabox/caravela-sim/configuration"
+	"github.com/strabox/caravela-sim/util"
 	caravelaConfigs "github.com/strabox/caravela/configuration"
 )
 
@@ -16,47 +18,60 @@ func newPartitionAwareResourceGen(_ *configuration.Configuration, caravelaConfig
 }
 
 func (p *partitionAwareResourceGen) Generate() (int, int) {
-
-	/*
-		coresPartitions := make([]configuration.CPUCoresPartition, len(p.caravelaConfigs.CPUCoresPartitions()))
-		ramPartitions := make([]configuration.RAMPartition, len(p.caravelaConfigs.RAMPartitions()))
-		copy(coresPartitions, p.caravelaConfigs.CPUCoresPartitions())
-		copy(ramPartitions, p.caravelaConfigs.RAMPartitions())
-
-		acc := 0
-		for i := range coresPartitions {
-			currentPercentage := coresPartitions[i].Percentage
-			coresPartitions[i].Percentage += acc
-			acc += currentPercentage
-		}
-
-		acc = 0
-		for i := range ramPartitions {
-			currentPercentage := ramPartitions[i].Percentage
-			ramPartitions[i].Percentage += acc
-			acc += currentPercentage
-		}
-
-		randInt := util.RandomInteger(1, 100)
-		prevCores := coresPartitions[0].Cores
-		for i := range coresPartitions {
-			if randInt <= coresPartitions[i].Percentage {
-				prevCores = coresPartitions[i].Cores
-				break
+	copyPartitions := caravelaConfigs.ResourcesPartitions{}
+	copyPartitions.CPUPowers = make([]caravelaConfigs.CPUPowerPartition, len(p.caravelaConfigs.ResourcesPartitions().CPUPowers))
+	for cp, power := range p.caravelaConfigs.ResourcesPartitions().CPUPowers {
+		copyPartitions.CPUPowers[cp].Value = power.Value
+		copyPartitions.CPUPowers[cp].Percentage = power.Percentage
+		copyPartitions.CPUPowers[cp].CPUCores = make([]caravelaConfigs.CPUCoresPartition, len(power.CPUCores))
+		for cc, cores := range power.CPUCores {
+			copyPartitions.CPUPowers[cp].CPUCores[cc].Value = cores.Value
+			copyPartitions.CPUPowers[cp].CPUCores[cc].Percentage = cores.Percentage
+			copyPartitions.CPUPowers[cp].CPUCores[cc].RAMs = make([]caravelaConfigs.RAMPartition, len(cores.RAMs))
+			for r, ram := range cores.RAMs {
+				copyPartitions.CPUPowers[cp].CPUCores[cc].RAMs[r].Value = ram.Value
+				copyPartitions.CPUPowers[cp].CPUCores[cc].RAMs[r].Percentage = ram.Percentage
 			}
 		}
+	}
 
-		randInt = util.RandomInteger(1, 100)
-		prevRAM := ramPartitions[0].RAM
-		for i := range ramPartitions {
-			if randInt <= ramPartitions[i].Percentage {
-				prevRAM = ramPartitions[i].RAM
-				break
+	cpAcc := 0
+	for cp, power := range copyPartitions.CPUPowers {
+		currentCPPercentage := power.Percentage
+		copyPartitions.CPUPowers[cp].Percentage += cpAcc
+		cpAcc += currentCPPercentage
+
+		ccAcc := 0
+		for cc, cores := range copyPartitions.CPUPowers[cp].CPUCores {
+			currentCCPercentage := cores.Percentage
+			copyPartitions.CPUPowers[cp].CPUCores[cc].Percentage += ccAcc
+			ccAcc += currentCCPercentage
+
+			ramAcc := 0
+			for r, ram := range copyPartitions.CPUPowers[cp].CPUCores[cc].RAMs {
+				currentRAMPercentage := ram.Percentage
+				copyPartitions.CPUPowers[cp].CPUCores[cc].RAMs[r].Percentage += ramAcc
+				ramAcc += currentRAMPercentage
 			}
 		}
+	}
 
-		util.Log.Debugf(util.LogTag("ResGen")+"MaxRes: <%d;%d>", prevCores, prevRAM)
-		return prevCores, prevRAM
-	*/
-	return 0, 0
+	cpuPowerRand := util.RandomInteger(1, 100)
+	for cp, power := range copyPartitions.CPUPowers {
+		if cpuPowerRand <= power.Percentage {
+			cpuCoresRand := util.RandomInteger(1, 100)
+			for cc, cores := range copyPartitions.CPUPowers[cp].CPUCores {
+				if cpuCoresRand <= cores.Percentage {
+					ramRand := util.RandomInteger(1, 100)
+					for _, ram := range copyPartitions.CPUPowers[cp].CPUCores[cc].RAMs {
+						if ramRand <= ram.Percentage {
+							return cores.Value, ram.Value
+						}
+					}
+				}
+			}
+		}
+	}
+
+	panic(errors.New("partition-fit error generating resources"))
 }

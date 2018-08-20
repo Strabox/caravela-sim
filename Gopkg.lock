@@ -67,7 +67,7 @@
     "draw2dbase",
     "draw2dimg"
   ]
-  revision = "274031cf2abe8acd15c4a911e1f7f1295fc4830c"
+  revision = "587a55234ca2511a49e93d5910343ca96665f1a0"
 
 [[projects]]
   name = "github.com/pkg/errors"
@@ -80,15 +80,16 @@
   name = "github.com/strabox/caravela"
   packages = [
     "api",
-    "api/rest",
     "api/rest/configuration",
     "api/rest/containers",
     "api/rest/discovery",
     "api/rest/scheduling",
     "api/rest/user",
+    "api/rest/util",
     "api/types",
     "configuration",
     "docker/container",
+    "docker/events",
     "node",
     "node/common",
     "node/common/guid",
@@ -110,7 +111,7 @@
     "overlay/types",
     "util"
   ]
-  revision = "b0e911c13fac6fe0e88b64b9904d9768aaf99072"
+  revision = "630d82c5b2a64eb232223251e8493e6039614021"
 
 [[projects]]
   name = "github.com/urfave/cli"
@@ -122,7 +123,7 @@
   branch = "master"
   name = "golang.org/x/crypto"
   packages = ["ssh/terminal"]
-  revision = "de0752318171da717af4ce24d0a2e8626afaeb11"
+  revision = "614d502a4dac94afa3a6ce146bd1736da82514c6"
 
 [[projects]]
   branch = "master"
@@ -150,7 +151,7 @@
     "unix",
     "windows"
   ]
-  revision = "14742f9018cd6651ec7364dc6ee08af0baaa1031"
+  revision = "1a700e749ce29638d0bbcb531cce1094ea096bd3"
 
 [[projects]]
   branch = "master"
@@ -169,7 +170,7 @@
     "lapack/lapack64",
     "mat"
   ]
-  revision = "f4b55da7eefa5a4b5c8521a05c554392f71816f6"
+  revision = "929014505bf4717eb082c9bbe164eb280cf47895"
 
 [[projects]]
   branch = "master"
@@ -193,6 +194,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "6408faa68d3870720eac0c0ccafc92dfa682d5e421fa8a454cc07f3311215dd6"
+  inputs-digest = "0214e2fe285874158a40f9476245466cae9a95994539c76bd273ed0ed8ff7ac2"
   solver-name = "gps-cdcl"
   solver-version = 1

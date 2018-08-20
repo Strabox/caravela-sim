@@ -24,6 +24,7 @@ type Configuration struct {
 	MaxTicks           int                // Maximum number of ticks done by the simulator.
 	Multithread        bool               // Used to leverage the multiple cores to speed up the simulation.
 	RequestFeeder      string             // Used to feed the simulator with a series of requests.
+	DiscoveryBackends  []string           // The discovery backends to simulate
 	ResourcesGenerator resourcesGenerator // Strategies used to generate the resources for each node.
 	OutDirectoryPath   string             // Path of the output's directory.
 	SimulatorLogLevel  string             // Log's level of the simulator.
@@ -38,13 +39,13 @@ type resourcesGenerator struct {
 // Default creates the configuration structure for a basic/default simulation.
 func Default() *Configuration {
 	return &Configuration{
-		NumberOfNodes: 2500,
-		TickInterval:  duration{Duration: 10 * time.Second},
-		MaxTicks:      15,
+		NumberOfNodes: 10000,
+		TickInterval:  duration{Duration: 20 * time.Second},
+		MaxTicks:      20,
 		Multithread:   true,
 		RequestFeeder: "random",
 		ResourcesGenerator: resourcesGenerator{
-			ResourceGenerator: "partition-aware",
+			ResourceGenerator: "partition-fit",
 			StaticResources: types.Resources{
 				CPUs: 4,
 				RAM:  4096,
@@ -119,6 +120,10 @@ func (config *Configuration) Multithreaded() bool {
 	return config.Multithread
 }
 
+func (config *Configuration) CaravelaDiscoveryBackends() []string {
+	return config.DiscoveryBackends
+}
+
 func (config *Configuration) Feeder() string {
 	return config.RequestFeeder
 }
@@ -153,6 +158,7 @@ func (config *Configuration) Print() {
 	util.Log.Infof("Tick Interval:        %s", config.TicksInterval().String())
 	util.Log.Infof("Max Ticks:            %d", config.MaximumTicks())
 	util.Log.Infof("Multithread:          %t", config.Multithreaded())
+	util.Log.Infof("Discovery Backends:   %v", config.CaravelaDiscoveryBackends())
 	util.Log.Infof("Request Feeder:       %s", config.Feeder())
 	util.Log.Infof("Resource Generator:   %s", config.ResourceGen())
 	util.Log.Infof("Static Gen Resources: <%d;%d>", config.StaticGeneratorResources().CPUs, config.StaticGeneratorResources().RAM)

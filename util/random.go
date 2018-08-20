@@ -7,12 +7,6 @@ import (
 	"time"
 )
 
-var randomGenerator = rand.New(caravelaUtil.NewSourceSafe(rand.NewSource(time.Now().UnixNano())))
-
-func RandomHash(id []byte) {
-	randomGenerator.Read(id)
-}
-
 func init() {
 	randomdata.CustomRand(rand.New(caravelaUtil.NewSourceSafe(rand.NewSource(time.Now().UnixNano()))))
 }
@@ -30,5 +24,5 @@ func RandomString(size int) string {
 }
 
 func RandomInteger(min, max int) int {
-	return randomdata.Number(min, max)
+	return randomdata.Number(min, max+1)
 }

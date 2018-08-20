@@ -67,40 +67,40 @@ func NewGlobalNext(numNodes int, prevGlobal *Global) *Global {
 
 // ========================= Metrics Collector Methods ====================================
 
-func (global *Global) GetOfferRelayed(amount int64) {
-	atomic.AddInt64(&global.GetOffersRelayed, amount)
+func (g *Global) GetOfferRelayed(amount int64) {
+	atomic.AddInt64(&g.GetOffersRelayed, amount)
 }
 
-func (global *Global) RunRequestSucceeded() {
-	atomic.AddInt64(&global.RunRequestsSucceeded, 1)
+func (g *Global) RunRequestSucceeded() {
+	atomic.AddInt64(&g.RunRequestsSucceeded, 1)
 }
 
-func (global *Global) CreateRunRequest(nodeIndex int, requestID string, resources types.Resources,
+func (g *Global) CreateRunRequest(nodeIndex int, requestID string, resources types.Resources,
 	currentTime time.Duration) {
 
 	newRunRequest := NewRunRequest(resources)
 	newRunRequest.IncrMessagesTraded(1)
-	global.RunRequestsAggregator.Store(requestID, newRunRequest)
+	g.RunRequestsAggregator.Store(requestID, newRunRequest)
 
-	global.NodesMetrics[nodeIndex].RunRequestSubmitted()
+	g.NodesMetrics[nodeIndex].RunRequestSubmitted()
 }
 
-func (global *Global) IncrMessagesTradedRequest(requestID string, numMessages int) {
-	if req, exist := global.RunRequestsAggregator.Load(requestID); exist {
+func (g *Global) IncrMessagesTradedRequest(requestID string, numMessages int) {
+	if req, exist := g.RunRequestsAggregator.Load(requestID); exist {
 		if request, ok := req.(*RunRequest); ok {
 			request.IncrMessagesTraded(int64(numMessages))
 		}
 	}
 }
 
-func (global *Global) ArchiveRunRequest(requestID string) {
-	if req, exist := global.RunRequestsAggregator.Load(requestID); exist {
+func (g *Global) ArchiveRunRequest(requestID string) {
+	if req, exist := g.RunRequestsAggregator.Load(requestID); exist {
 		if request, ok := req.(*RunRequest); ok {
-			global.RunRequestsAggregator.Delete(requestID)
+			g.RunRequestsAggregator.Delete(requestID)
 
-			global.requestsCompletedMutex.Lock()
-			defer global.requestsCompletedMutex.Unlock()
-			global.RunRequestsCompleted = append(global.RunRequestsCompleted, *request)
+			g.requestsCompletedMutex.Lock()
+			defer g.requestsCompletedMutex.Unlock()
+			g.RunRequestsCompleted = append(g.RunRequestsCompleted, *request)
 		}
 	}
 }
@@ -108,64 +108,106 @@ func (global *Global) ArchiveRunRequest(requestID string) {
 // ========================= Derived/Calculated Metrics ====================================
 
 // RunRequestSuccessRatio returns the request success ratio for all the requests during this collection.
-func (global *Global) RunRequestSuccessRatio() float64 {
-	return float64(global.RunRequestsSucceeded) / float64(global.TotalRunRequests())
+func (g *Global) RunRequestSuccessRatio() float64 {
+	return float64(g.RunRequestsSucceeded) / float64(g.TotalRunRequests())
 }
 
-func (global *Global) RunRequestsAvgMessages() float64 {
+func (g *Global) RunRequestsAvgMessages() float64 {
 	accMsgsTrader := int64(0)
-	for _, runRequest := range global.RunRequestsCompleted {
+	for _, runRequest := range g.RunRequestsCompleted {
 		accMsgsTrader += runRequest.TotalMessagesTraded()
 	}
-	return float64(accMsgsTrader) / float64(len(global.RunRequestsCompleted))
+	return float64(accMsgsTrader) / float64(len(g.RunRequestsCompleted))
 }
 
-func (global *Global) AllAvailableResourcesAvg() float64 {
-	maxCPUsAvailable, maxRAMAvailable, CPUsAvailable, RAMAvailable := 0, 0, 0, 0
-	for _, nodeMetrics := range global.NodesMetrics {
-		maxCPUsAvailable += nodeMetrics.MaximumResources().CPUs
-		maxRAMAvailable += nodeMetrics.MaximumResources().RAM
-		CPUsAvailable += nodeMetrics.AvailableResources().CPUs
-		RAMAvailable += nodeMetrics.AvailableResources().RAM
+func (g *Global) AllAvailableResourcesAvg() float64 {
+	result := float64(0)
+	numOfNodesCalculated := float64(0)
+	for _, nodeMetrics := range g.NodesMetrics {
+		numOfNodesCalculated++
+		if numOfNodesCalculated == 0 {
+			result = nodeMetrics.RatioResourcesAvailable()
+		} else {
+			result = (result*(numOfNodesCalculated-1) + nodeMetrics.RatioResourcesAvailable()) / numOfNodesCalculated
+		}
 	}
-
-	percentageCPUAvailable := float64(CPUsAvailable) / float64(maxCPUsAvailable)
-	percentageRAMAvailable := float64(RAMAvailable) / float64(maxRAMAvailable)
-	return (percentageCPUAvailable + percentageRAMAvailable) / 2
+	return result
 }
 
-// ============================ Getters and Setters ========================================
-
-func (global *Global) StartTime() time.Duration {
-	return global.Start
-}
-
-func (global *Global) EndTime() time.Duration {
-	return global.End
-}
-
-func (global *Global) SetEndTime(endTime time.Duration) {
-	global.End = endTime
-}
-
-func (global *Global) TotalGetOffersRelayed() int64 {
-	return global.GetOffersRelayed
-}
-
-func (global *Global) TotalRunRequestsSucceeded() int64 {
-	return global.RunRequestsSucceeded
-}
-
-func (global *Global) TotalRunRequests() int64 {
-	return int64(len(global.RunRequestsCompleted))
-}
-
-func (global *Global) SetAvailableNodeResources(nodeIndex int, res types.Resources) {
-	global.NodesMetrics[nodeIndex].SetAvailableResources(res)
-}
-
-func (global *Global) APIRequestReceived(nodeIndex int) {
-	if len(global.NodesMetrics) > nodeIndex {
-		global.NodesMetrics[nodeIndex].APIRequestReceived()
+func (g *Global) RequestsMessagesExchanged() []float64 {
+	resTotalMessages := make([]float64, len(g.RunRequestsCompleted))
+	for i := range resTotalMessages {
+		resTotalMessages[i] = float64(g.RunRequestsCompleted[i].MessagesTraded)
 	}
+	return resTotalMessages
+}
+
+func (g *Global) ResourcesUsedNodeRatio() []float64 {
+	res := make([]float64, len(g.NodesMetrics))
+	for i, nodeMetric := range g.NodesMetrics {
+		res[i] = nodeMetric.RatioResourcesUsed()
+	}
+	return res
+}
+
+// ================================= Getters and Setters =================================
+
+func (g *Global) StartTime() time.Duration {
+	return g.Start
+}
+
+func (g *Global) EndTime() time.Duration {
+	return g.End
+}
+
+func (g *Global) SetEndTime(endTime time.Duration) {
+	g.End = endTime
+}
+
+func (g *Global) TotalGetOffersRelayed() int64 {
+	return g.GetOffersRelayed
+}
+
+func (g *Global) TotalRunRequestsSucceeded() int64 {
+	return g.RunRequestsSucceeded
+}
+
+func (g *Global) TotalRunRequests() int64 {
+	return int64(len(g.RunRequestsCompleted))
+}
+
+func (g *Global) SetAvailableNodeResources(nodeIndex int, res types.Resources) {
+	g.NodesMetrics[nodeIndex].SetAvailableResources(res)
+}
+
+func (g *Global) APIRequestReceived(nodeIndex int) {
+	if len(g.NodesMetrics) > nodeIndex {
+		g.NodesMetrics[nodeIndex].APIRequestReceived()
+	}
+}
+
+// ===================================== Sort Interface =======================================
+// Order the node's metrics by ascending Maximum Resources.
+
+func (g *Global) Len() int {
+	return len(g.NodesMetrics)
+}
+
+func (g *Global) Swap(i, j int) {
+	g.NodesMetrics[i], g.NodesMetrics[j] = g.NodesMetrics[j], g.NodesMetrics[i]
+}
+
+func (g *Global) Less(i, j int) bool {
+	iMaxRes := g.NodesMetrics[i].MaxResources
+	jMaxRes := g.NodesMetrics[j].MaxResources
+
+	if iMaxRes.CPUs < jMaxRes.CPUs {
+		return true
+	} else if iMaxRes.CPUs == jMaxRes.CPUs {
+		if iMaxRes.RAM <= jMaxRes.RAM {
+			return true
+		}
+		return false
+	}
+	return false
 }

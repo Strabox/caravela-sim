@@ -4,8 +4,8 @@ Simulation = true
 Backend = "chord-single-offer"    # chord-random, chord-single-offer, chord-multiple-offers
     [Caravela.DiscoveryBackend.SmartChordBackend]
     SupplyingInterval = "30s"
-    SpreadOffersInterval = "30s"
-    RefreshingInterval = "30s"
+    SpreadOffersInterval = "1m30s"
+    RefreshingInterval = "1m30s"
     [Caravela.DiscoveryBackend.RandomChordBackend]
     RandBackendMaxRetries = 3
 [Caravela.Resources]
@@ -23,16 +23,25 @@ Backend = "chord-single-offer"    # chord-random, chord-single-offer, chord-mult
             Percentage = 50
         [[Caravela.Resources.CPUPowers.CPUCores]]
         Value = 2
-        Percentage = 50
-            [[Caravela.Resources.CPUPowers.CPUCores.RAMs]]
-            Value = 256
-            Percentage = 25
+        Percentage = 30
             [[Caravela.Resources.CPUPowers.CPUCores.RAMs]]
             Value = 512
-            Percentage = 25
+            Percentage = 50
             [[Caravela.Resources.CPUPowers.CPUCores.RAMs]]
             Value = 1024
             Percentage = 50
+        [[Caravela.Resources.CPUPowers.CPUCores]]
+        Value = 4
+        Percentage = 20
+            [[Caravela.Resources.CPUPowers.CPUCores.RAMs]]
+            Value = 1024
+            Percentage = 25
+            [[Caravela.Resources.CPUPowers.CPUCores.RAMs]]
+            Value = 2048
+            Percentage = 50
+            [[Caravela.Resources.CPUPowers.CPUCores.RAMs]]
+            Value = 4096
+            Percentage = 25
 
 [Overlay]
     [Overlay.Chord]

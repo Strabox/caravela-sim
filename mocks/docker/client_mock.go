@@ -4,6 +4,7 @@ import (
 	"github.com/strabox/caravela-sim/util"
 	"github.com/strabox/caravela/api/types"
 	myContainer "github.com/strabox/caravela/docker/container"
+	"github.com/strabox/caravela/docker/events"
 	"sync"
 	"sync/atomic"
 )
@@ -44,6 +45,11 @@ func (cliMock *ClientMock) MaxResourcesAvailable() (int, int) {
 // =						   DockerClient Interface                            =
 // ===============================================================================
 
+func (cliMock *ClientMock) Start() <-chan *events.Event {
+	// Do Nothing (Not necessary for the simulation)
+	return nil
+}
+
 func (cliMock *ClientMock) GetDockerCPUAndRAM() (int, int) {
 	cpus, ram := cliMock.resourcesGenerator.Generate()
 	cliMock.maxCPUS += cpus
@@ -51,7 +57,7 @@ func (cliMock *ClientMock) GetDockerCPUAndRAM() (int, int) {
 	return cpus, ram
 }
 
-func (cliMock *ClientMock) CheckContainerStatus(containerID string) (myContainer.ContainerStatus, error) {
+func (cliMock *ClientMock) CheckContainerStatus(containerID string) (myContainer.Status, error) {
 	_, exist := cliMock.containersRunning.Load(containerID)
 	if exist {
 		return myContainer.NewContainerStatus(myContainer.Running), nil

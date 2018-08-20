@@ -19,7 +19,7 @@ var generators = make(map[string]ResourceGenFactory)
 // init initializes our predefined resource generators.
 func init() {
 	RegisterResourceGen("static", newStaticResourceGen)
-	RegisterResourceGen("partition-aware", newPartitionAwareResourceGen)
+	RegisterResourceGen("partition-fit", newPartitionAwareResourceGen)
 	RegisterResourceGen("real", newRealisticallyResourceGen)
 }
 

@@ -152,14 +152,10 @@ func (sup *Supplier) ObtainResources(offerID int64, resourcesNecessary resources
 	defer sup.offersMutex.Unlock()
 
 	supOffer, exist := sup.activeOffers[common.OfferID(offerID)]
-	// Offer does not exist in the supplier OR asking more resources than the offer has available
-	if !exist || !supOffer.Resources().Contains(resourcesNecessary) {
+	if !exist || !supOffer.Resources().Contains(resourcesNecessary) || !sup.availableResources.Contains(resourcesNecessary) { // Offer does not exist in the supplier OR asking more resources than the offer has available
 		return false
 	} else {
-		remainingResources := supOffer.Resources().Copy()
-		remainingResources.Sub(resourcesNecessary)
-
-		sup.availableResources.Add(*remainingResources)
+		sup.availableResources.Sub(resourcesNecessary)
 
 		delete(sup.activeOffers, common.OfferID(offerID))
 
@@ -210,14 +206,11 @@ func (sup *Supplier) ReturnResources(releasedResources resources.Resources) {
 }
 
 func (sup *Supplier) createOffer() {
+	sup.checkResourcesInvariant() // Runtime resources assertion!!!
 	if sup.availableResources.IsValid() {
-		fullAvailableResources := *sup.availableResources
-		for _, offer := range sup.activeOffers {
-			fullAvailableResources.Add(*offer.Resources())
-		}
-
-		lowerPartitions, _ := sup.resourcesMap.LowerPartitionsOffer(fullAvailableResources)
+		lowerPartitions, _ := sup.resourcesMap.LowerPartitionsOffer(*sup.availableResources)
 		offersToRemove := make([]*supplierOffer, 0)
+
 	OfferLoop:
 		for _, offer := range sup.activeOffers {
 			offerPartition := sup.resourcesMap.ResourcesByGUID(*offer.ResponsibleTraderGUID())
@@ -249,6 +242,15 @@ func (sup *Supplier) createOffer() {
 	}
 }
 
+func (sup *Supplier) checkResourcesInvariant() {
+	if sup.availableResources.IsNegative() {
+		panic(errors.New("there are negative resources available :|"))
+	}
+	if !sup.maxResources.Contains(*sup.availableResources) {
+		panic(errors.New("there are more resources than the maximum available :|"))
+	}
+}
+
 // Simulation
 func (sup *Supplier) SetNodeGUID(GUID guid.GUID) {
 	if sup.nodeGUID == nil {
@@ -261,17 +263,10 @@ func (sup *Supplier) AvailableResources() types.Resources {
 	sup.offersMutex.Lock()
 	defer sup.offersMutex.Unlock()
 
-	res := types.Resources{
+	return types.Resources{
 		CPUs: sup.availableResources.CPUs(),
 		RAM:  sup.availableResources.RAM(),
 	}
-
-	for _, offer := range sup.activeOffers {
-		res.CPUs += offer.Resources().CPUs()
-		res.RAM += offer.Resources().RAM()
-	}
-
-	return res
 }
 
 // Simulation

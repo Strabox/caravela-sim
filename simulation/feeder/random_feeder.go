@@ -2,6 +2,8 @@ package feeder
 
 import (
 	"context"
+	"fmt"
+	"github.com/pkg/errors"
 	"github.com/strabox/caravela-sim/configuration"
 	"github.com/strabox/caravela-sim/mocks/caravela"
 	"github.com/strabox/caravela-sim/simulation/metrics"
@@ -29,18 +31,17 @@ func (rf *RandomFeeder) Init(metricsCollector *metrics.Collector) {
 }
 
 func (rf *RandomFeeder) Start(ticksChannel <-chan chan RequestTask) {
-	runReqPerTick := int(float64(rf.simConfigs.NumberOfNodes) * float64(0.1)) // Send 10% of cluster size in requests per node
+	runReqPerTick := int(float64(rf.simConfigs.NumberOfNodes) * float64(0.025)) // Send 2.5% of cluster size in requests per node
 	for {
 		select {
 		case newTickChan, more := <-ticksChannel: // Send all the requests for this tickChan
 			if more {
 				for i := 0; i < runReqPerTick; i++ {
 					newTickChan <- func(randNodeIndex int, randNode *node.Node, currentTime time.Duration) {
-						res := types.Resources{CPUs: 2, RAM: 750}
-
-						requestID := guid.NewGUIDRandom().String()
+						resources := rf.generateResourcesProfile() // Generate the resources necessary for the request.
+						requestID := guid.NewGUIDRandom().String() // Generate a UUID for tracking the request inside Caravela.
 						requestContext := context.WithValue(context.Background(), types.RequestIDKey, requestID)
-						rf.collector.CreateRunRequest(randNodeIndex, requestID, res, currentTime)
+						rf.collector.CreateRunRequest(randNodeIndex, requestID, resources, currentTime)
 						err := randNode.SubmitContainers(
 							requestContext,
 							[]types.ContainerConfig{
@@ -49,10 +50,7 @@ func (rf *RandomFeeder) Start(ticksChannel <-chan chan RequestTask) {
 									Name:         util.RandomName(),
 									PortMappings: caravela.EmptyPortMappings(),
 									Args:         caravela.EmptyContainerArgs(),
-									Resources: types.Resources{
-										CPUs: res.CPUs,
-										RAM:  res.RAM,
-									},
+									Resources:    resources,
 								},
 							})
 						if err == nil {
@@ -67,4 +65,63 @@ func (rf *RandomFeeder) Start(ticksChannel <-chan chan RequestTask) {
 			}
 		}
 	}
+}
+
+func (rf *RandomFeeder) generateResourcesProfile() types.Resources {
+	copyRequestProfiles := make([]requestProfile, len(requestProfiles))
+	copy(copyRequestProfiles, requestProfiles)
+
+	acc := 0
+	for i, profile := range copyRequestProfiles {
+		currentPercentage := profile.Percentage
+		copyRequestProfiles[i].Percentage += acc
+		acc += currentPercentage
+	}
+	if acc != 100 {
+		panic(errors.New("random feeder profiles probability does not sum 100%"))
+	}
+
+	randProfile := util.RandomInteger(1, 100)
+	for _, profile := range copyRequestProfiles {
+		if randProfile <= profile.Percentage {
+			return profile.Resources
+		}
+	}
+	panic(fmt.Errorf("random feeder problem generating resources, rand profile: %d", randProfile))
+}
+
+type requestProfile struct {
+	Resources  types.Resources
+	Percentage int
+}
+
+var requestProfiles = []requestProfile{
+	{
+		Resources: types.Resources{
+			CPUs: 1,
+			RAM:  256,
+		},
+		Percentage: 50,
+	},
+	{
+		Resources: types.Resources{
+			CPUs: 2,
+			RAM:  800,
+		},
+		Percentage: 35,
+	},
+	{
+		Resources: types.Resources{
+			CPUs: 3,
+			RAM:  1500,
+		},
+		Percentage: 10,
+	},
+	{
+		Resources: types.Resources{
+			CPUs: 3,
+			RAM:  2500,
+		},
+		Percentage: 5,
+	},
 }

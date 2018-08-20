@@ -5,6 +5,7 @@ import (
 	"github.com/strabox/caravela-sim/configuration"
 	"github.com/strabox/caravela-sim/mocks/caravela"
 	"github.com/strabox/caravela-sim/simulation"
+	"github.com/strabox/caravela-sim/simulation/metrics"
 	"github.com/strabox/caravela-sim/util"
 	"github.com/urfave/cli"
 )
@@ -19,23 +20,30 @@ func start(c *cli.Context) {
 		simulatorConfig = configuration.Default()
 	}
 
-	overrideFileConfigs(c, simulatorConfig)
-
+	overrideSimFileConfigs(c, simulatorConfig)
 	simulatorConfig.Print()
 
-	caravelaConfigs := caravela.Configuration()
-	mySimulator := simulation.NewSimulator(simulatorConfig, caravelaConfigs)
+	metricsCollector := metrics.NewCollector(simulatorConfig.TotalNumberOfNodes(), simulatorConfig.OutDirectoryPath)
 
-	fmt.Println("Initializing simulation...")
-	mySimulator.Init()
+	for _, str := range simulatorConfig.CaravelaDiscoveryBackends() {
+		caravelaConfigs := caravela.Configuration()
+		caravelaConfigs.Caravela.DiscoveryBackend.Backend = str
 
-	fmt.Println("Starting simulation...")
-	mySimulator.Start()
+		mySimulator := simulation.NewSimulator(metricsCollector, simulatorConfig, caravelaConfigs)
+		fmt.Println("Initializing simulation...")
+		mySimulator.Init()
 
-	fmt.Println("Simulation ended")
+		fmt.Println("Starting simulation...")
+		mySimulator.Start()
+		fmt.Println("Simulation ended")
+	}
+
+	fmt.Println("Crushing simulation results...")
+	metricsCollector.Print() // Print the metricsCollector results and outputs the graphics.
+	metricsCollector.Clear() // Clear all the temporary metric files
 }
 
 // Overrides file configurations with CLI arguments passed
-func overrideFileConfigs(c *cli.Context, config *configuration.Configuration) {
+func overrideSimFileConfigs(c *cli.Context, config *configuration.Configuration) {
 	config.SimulatorLogLevel = c.GlobalString("log")
 }

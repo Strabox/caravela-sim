@@ -5,182 +5,143 @@ import (
 	"fmt"
 	"github.com/strabox/caravela-sim/simulation/metrics/graphics"
 	"gonum.org/v1/gonum/mat"
-	"gonum.org/v1/plot"
-	"gonum.org/v1/plot/palette"
 	"gonum.org/v1/plot/plotter"
 	"gonum.org/v1/plot/plotutil"
 	"gonum.org/v1/plot/vg"
-	"gonum.org/v1/plot/vg/draw"
-	"gonum.org/v1/plot/vg/vgimg"
-	"log"
+	"math"
+	"sort"
 )
 
 func (coll *Collector) plotRequestsSucceeded() {
-	plotRes := graphics.New("Deploy Requests Success", "Time (Seconds)", "Request Succeeded", true)
+	plotRes := graphics.NewPlot("Deploy Containers Requests Success", "Time (Seconds)", "Requests Succeeded", true)
 
-	pts := make(plotter.XYs, len(coll.snapshots))
-	for i := range pts {
-		pts[i].X = coll.snapshots[i].EndTime().Seconds()
-		pts[i].Y = float64(coll.snapshots[i].TotalRunRequestsSucceeded())
+	dataPoints := make([]interface{}, 0)
+	for simLabel, simData := range coll.simulations {
+		pts := make(plotter.XYs, len(simData.snapshots))
+		for i := range pts {
+			pts[i].X = simData.snapshots[i].EndTime().Seconds()
+			pts[i].Y = float64(simData.snapshots[i].TotalRunRequestsSucceeded())
+		}
+		dataPoints = append(dataPoints, simLabel, pts)
 	}
 
-	err := plotutil.AddLinePoints(plotRes, "Requests", pts)
+	err := plotutil.AddLinePoints(plotRes, dataPoints...)
 	if err != nil {
 		panic(errors.New("Problem with plots, error: " + err.Error()))
 	}
 
-	graphics.Save(plotRes, 25*vg.Centimeter, 17*vg.Centimeter, coll.outputDirPath+"\\"+"RequestsSucceeded.png")
+	graphics.Save(plotRes, 25*vg.Centimeter, 17*vg.Centimeter, generatePNGFileName(coll.outputDirPath+"\\"+"RequestsSucceeded"))
 }
 
 func (coll *Collector) plotRequestsMessagesTradedPerRequest() {
-	plotRes := graphics.New("Average Discover Messages", "Time (Seconds)", "#Avg Messages", true)
+	plotRes := graphics.NewPlot("Average Discover Messages", "Time (Seconds)", "#Avg Messages", true)
 
-	pts := make(plotter.XYs, len(coll.snapshots))
-	for i := range pts {
-		pts[i].X = coll.snapshots[i].EndTime().Seconds()
-		pts[i].Y = float64(coll.snapshots[i].RunRequestsAvgMessages())
+	dataPoints := make([]interface{}, 0)
+	for simLabel, simData := range coll.simulations {
+		pts := make(plotter.XYs, len(simData.snapshots))
+		for i := range pts {
+			pts[i].X = simData.snapshots[i].EndTime().Seconds()
+			pts[i].Y = float64(simData.snapshots[i].RunRequestsAvgMessages())
+		}
+		dataPoints = append(dataPoints, simLabel, pts)
 	}
 
-	err := plotutil.AddLinePoints(plotRes, "Total Messages", pts)
+	err := plotutil.AddLinePoints(plotRes, dataPoints...)
 	if err != nil {
 		panic(errors.New("Problem with plots, error: " + err.Error()))
 	}
 
-	graphics.Save(plotRes, 25*vg.Centimeter, 17*vg.Centimeter, coll.outputDirPath+"\\"+"MessagesPerRequest.png")
+	graphics.Save(plotRes, 25*vg.Centimeter, 17*vg.Centimeter, generatePNGFileName(coll.outputDirPath+"\\"+"MessagesPerRequest"))
 }
 
 func (coll *Collector) plotFreeResources() {
-	plotRes := graphics.New("Free Resources", "Time (Seconds)", "Resources Free %", true)
+	for simLabel, simData := range coll.simulations {
+		plotRes := graphics.NewPlot(fmt.Sprintf("Free Resources (%s)", simLabel), "Time (Seconds)",
+			"Resources Free %", true)
+		availableResPts := make(plotter.XYs, len(simData.snapshots))
+		requestsSucceeded := make(plotter.XYs, len(simData.snapshots))
+		for i := range availableResPts {
+			availableResPts[i].X = simData.snapshots[i].EndTime().Seconds()
+			availableResPts[i].Y = float64(simData.snapshots[i].AllAvailableResourcesAvg())
+			requestsSucceeded[i].X = simData.snapshots[i].EndTime().Seconds()
+			requestsSucceeded[i].Y = simData.snapshots[i].RunRequestSuccessRatio()
+		}
 
-	availableResPts := make(plotter.XYs, len(coll.snapshots))
-	requestsSucceeded := make(plotter.XYs, len(coll.snapshots))
-	for i := range availableResPts {
-		availableResPts[i].X = coll.snapshots[i].EndTime().Seconds()
-		availableResPts[i].Y = float64(coll.snapshots[i].AllAvailableResourcesAvg())
-		requestsSucceeded[i].X = coll.snapshots[i].EndTime().Seconds()
-		requestsSucceeded[i].Y = coll.snapshots[i].RunRequestSuccessRatio()
+		err := plotutil.AddLinePoints(plotRes, "Free Resources", availableResPts,
+			"Requests Succeeded", requestsSucceeded)
+		if err != nil {
+			panic(errors.New("Problem with plots, error: " + err.Error()))
+		}
+
+		graphics.Save(plotRes, 25*vg.Centimeter, 17*vg.Centimeter, generatePNGFileName(coll.outputDirPath+"\\"+"FreeResources_"+simLabel))
 	}
-
-	err := plotutil.AddLinePoints(plotRes, "Free Resources", availableResPts,
-		"Requests Succeeded", requestsSucceeded)
-	if err != nil {
-		panic(errors.New("Problem with plots, error: " + err.Error()))
-	}
-
-	graphics.Save(plotRes, 25*vg.Centimeter, 17*vg.Centimeter, coll.outputDirPath+"\\"+"FreeResources.png")
 }
 
 func (coll *Collector) plotRelayedGetOfferMessages() {
-	plotRes := graphics.New("Total Relayed Get Offer", "Time (Seconds)", "#Relayed Get Offers", true)
+	plotRes := graphics.NewPlot("Total Relayed Get Offer", "Time (Seconds)", "#Relayed Get Offers", true)
 
-	relayedGetOffersPts := make(plotter.XYs, len(coll.snapshots))
-	for i := range relayedGetOffersPts {
-		relayedGetOffersPts[i].X = coll.snapshots[i].EndTime().Seconds()
-		relayedGetOffersPts[i].Y = float64(coll.snapshots[i].TotalGetOffersRelayed())
+	dataPoints := make([]interface{}, 0)
+	for simLabel, simData := range coll.simulations {
+		relayedGetOffersPts := make(plotter.XYs, len(simData.snapshots))
+		for i := range relayedGetOffersPts {
+			relayedGetOffersPts[i].X = simData.snapshots[i].EndTime().Seconds()
+			relayedGetOffersPts[i].Y = float64(simData.snapshots[i].TotalGetOffersRelayed())
+		}
+		dataPoints = append(dataPoints, simLabel, relayedGetOffersPts)
 	}
 
-	err := plotutil.AddLinePoints(plotRes, "Get Offers Relayed", relayedGetOffersPts)
+	err := plotutil.AddLinePoints(plotRes, dataPoints...)
 	if err != nil {
 		panic(errors.New("Problem with plots, error: " + err.Error()))
 	}
 
-	graphics.Save(plotRes, 25*vg.Centimeter, 17*vg.Centimeter, coll.outputDirPath+"\\"+"GetOffersRelayed.png")
+	graphics.Save(plotRes, 25*vg.Centimeter, 17*vg.Centimeter, generatePNGFileName(coll.outputDirPath+"\\"+"GetOffersRelayed"))
 }
 
-type myGrid struct {
-	grid *mat.Dense
-}
+func (coll *Collector) plotLookupMessagesPercentiles() {
+	plotRes := graphics.NewPlot("Lookup Messages Traded Distribution", "", "#Messages", false)
 
-func NewMyGrid() *myGrid {
-	return &myGrid{
-		grid: mat.NewDense(3, 4, []float64{
-			1, 2, 3, 4,
-			5, 6, 7, 8,
-			9, 10, 11, 12,
-		}),
+	dataPoints := make([]interface{}, 0)
+	for simLabel, simData := range coll.simulations {
+		boxPoints := make(plotter.Values, 0)
+		for _, snapshot := range simData.snapshots {
+			boxPoints = append(boxPoints, snapshot.RequestsMessagesExchanged()...)
+		}
+		dataPoints = append(dataPoints, simLabel, boxPoints)
 	}
-}
 
-func (g *myGrid) Dims() (int, int) {
-	return 3, 4
-}
+	err := plotutil.AddBoxPlots(plotRes, vg.Points(55), dataPoints...)
+	if err != nil {
+		panic(errors.New("Problem with plots, error: " + err.Error()))
+	}
 
-func (g *myGrid) Z(c, r int) float64 {
-	fmt.Println("HM")
-	return g.grid.At(c, r)
-}
-
-func (g *myGrid) X(c int) float64 {
-	return 5
-}
-
-func (g *myGrid) Y(r int) float64 {
-	return 10
+	graphics.Save(plotRes, 15*vg.Centimeter, 15*vg.Centimeter, generatePNGFileName(coll.outputDirPath+"\\"+"MessagesDistribution"))
 }
 
 func (coll *Collector) plotResourceDistribution() {
-	grid := NewMyGrid()
-	palette := palette.Heat(12, 1)
-	heatMap := plotter.NewHeatMap(grid, palette)
+	for simLabel, simData := range coll.simulations {
+		data := make([]float64, len(simData.snapshots)*coll.numNodes)
+		lower := 0
+		upper := coll.numNodes
+		yTicks := make([]int, len(simData.snapshots)+1)
+		for i, snapshot := range simData.snapshots {
+			yTicks[i] = int(snapshot.EndTime().Seconds())
+			sort.Sort(&snapshot) // Sort the snapshot's node's metric by the Max Resources
+			copy(data[lower:upper], snapshot.ResourcesUsedNodeRatio())
+			lower += coll.numNodes
+			upper += coll.numNodes
+		}
 
-	plotRes, err := plot.New()
-	if err != nil {
-		log.Panic(err)
+		yTicks[len(yTicks)-1] = math.MaxInt64
+		sort.Sort(sort.Reverse(sort.IntSlice(yTicks)))
+
+		dataGrid := &graphics.UnitGrid{Data: mat.NewDense(len(simData.snapshots), coll.numNodes, data)}
+
+		graphics.NewHeatMap(generatePNGFileName("ResourceDistribution_"+simLabel), fmt.Sprintf("Resources Distribution (%s)", simLabel),
+			"Nodes", "Time (Seconds)", coll.outputDirPath, yTicks, dataGrid)
 	}
-	plotRes.Title.Text = "Heat map"
-	plotRes.X.Tick.Marker = plot.DefaultTicks{}
-	plotRes.Y.Tick.Marker = plot.DefaultTicks{}
-	plotRes.Add(heatMap)
+}
 
-	legend, err := plot.NewLegend() // Create a legend.
-	if err != nil {
-		log.Panic(err)
-	}
-	thumbs := plotter.PaletteThumbnailers(palette)
-	for i := len(thumbs) - 1; i >= 0; i-- {
-		t := thumbs[i]
-		if i != 0 && i != len(thumbs)-1 {
-			legend.Add("H", t)
-			continue
-		}
-		var val float64
-		switch i {
-		case 0:
-			val = heatMap.Min
-		case len(thumbs) - 1:
-			val = heatMap.Max
-		}
-		legend.Add(fmt.Sprintf("%.2g", val), t)
-	}
-
-	plotRes.X.Padding = 0
-	plotRes.Y.Padding = 0
-	plotRes.X.Max = 1.5
-	plotRes.Y.Max = 1.5
-
-	img := vgimg.New(650, 300)
-	dc := draw.New(img)
-
-	legend.Top = true
-	// Calculate the width of the legend.
-	r := legend.Rectangle(dc)
-	legendWidth := r.Max.X - r.Min.X
-	legend.YOffs = -plotRes.Title.Font.Extents().Height // Adjust the legend down a little.
-
-	legend.Draw(dc)
-	dc = draw.Crop(dc, 0, -legendWidth-vg.Millimeter, 0, 0) // Make space for the legend.
-	plotRes.Draw(dc)
-
-	graphics.Save(plotRes, 25*vg.Centimeter, 17*vg.Centimeter, coll.outputDirPath+"\\"+"HeatMap.png")
-
-	/*
-		w, err := os.Create(coll.outputDirPath + "\\" + "heatMap.png")
-		if err != nil {
-			log.Panic(err)
-		}
-		png := vgimg.PngCanvas{Canvas: img}
-		if _, err = png.WriteTo(w); err != nil {
-			log.Panic(err)
-		}
-	*/
+func generatePNGFileName(fileName string) string {
+	return fileName + ".png"
 }
