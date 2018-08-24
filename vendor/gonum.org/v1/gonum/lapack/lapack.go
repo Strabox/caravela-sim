@@ -8,10 +8,6 @@ import "gonum.org/v1/gonum/blas"
 
 const None = 'N'
 
-type Job byte
-
-type Comp byte
-
 // Complex128 defines the public complex128 LAPACK API supported by gonum/lapack.
 type Complex128 interface{}
 
@@ -141,49 +137,62 @@ const (
 	UpdateSchur EVComp = 'V'
 )
 
-// Job types for computation of eigenvectors.
-type (
-	EVJob      byte
-	LeftEVJob  byte
-	RightEVJob byte
-)
+// EVJob specifies whether eigenvectors are computed in Dsyev.
+type EVJob byte
 
-// Job constants for computation of eigenvectors.
 const (
-	ComputeEV      EVJob      = 'V' // Compute eigenvectors in Dsyev.
-	ComputeLeftEV  LeftEVJob  = 'V' // Compute left eigenvectors.
-	ComputeRightEV RightEVJob = 'V' // Compute right eigenvectors.
+	EVCompute EVJob = 'V' // Eigenvectors are computed.
+	EVNone    EVJob = 'N' // Eigenvectors are not computed.
 )
 
-// Jobs for Dgebal.
+// LeftEVJob specifies whether left eigenvectors are computed in Dgeev.
+type LeftEVJob byte
+
 const (
-	Permute      Job = 'P'
-	Scale        Job = 'S'
-	PermuteScale Job = 'B'
+	LeftEVCompute LeftEVJob = 'V' // Left eigenvectors are computed.
+	LeftEVNone    LeftEVJob = 'N' // Left eigenvectors are not computed.
 )
 
-// Job constants for Dhseqr.
+// RightEVJob specifies whether right eigenvectors are computed in Dgeev.
+type RightEVJob byte
+
 const (
-	EigenvaluesOnly     EVJob = 'E'
-	EigenvaluesAndSchur EVJob = 'S'
+	RightEVCompute RightEVJob = 'V' // Right eigenvectors are computed.
+	RightEVNone    RightEVJob = 'N' // Right eigenvectors are not computed.
 )
 
-// EVSide specifies what eigenvectors will be computed.
+// BalanceJob specifies matrix balancing operation.
+type BalanceJob byte
+
+const (
+	Permute      BalanceJob = 'P'
+	Scale        BalanceJob = 'S'
+	PermuteScale BalanceJob = 'B'
+	BalanceNone  BalanceJob = 'N'
+)
+
+// SchurJob specifies whether the Schur form is computed in Dhseqr.
+type SchurJob byte
+
+const (
+	EigenvaluesOnly     SchurJob = 'E'
+	EigenvaluesAndSchur SchurJob = 'S'
+)
+
+// EVSide specifies what eigenvectors are computed in Dtrevc3.
 type EVSide byte
 
-// EVSide constants for Dtrevc3.
 const (
-	RightEV     EVSide = 'R' // Compute right eigenvectors only.
-	LeftEV      EVSide = 'L' // Compute left eigenvectors only.
-	RightLeftEV EVSide = 'B' // Compute both right and left eigenvectors.
+	EVRight     EVSide = 'R' // Only right eigenvectors are computed.
+	EVLeft      EVSide = 'L' // Only left eigenvectors are computed.
+	EVRightLeft EVSide = 'B' // Both right and left eigenvectors are computed.
 )
 
-// HowMany specifies which eigenvectors will be computed.
-type HowMany byte
+// EVHowMany specifies which eigenvectors are computed in Dtrevc3 and how.
+type EVHowMany byte
 
-// HowMany constants for Dhseqr.
 const (
-	AllEV      HowMany = 'A' // Compute all right and/or left eigenvectors.
-	AllEVMulQ  HowMany = 'B' // Compute all right and/or left eigenvectors multiplied by an input matrix.
-	SelectedEV HowMany = 'S' // Compute selected right and/or left eigenvectors.
+	EVAll      EVHowMany = 'A' // Compute all right and/or left eigenvectors.
+	EVAllMulQ  EVHowMany = 'B' // Compute all right and/or left eigenvectors multiplied by an input matrix.
+	EVSelected EVHowMany = 'S' // Compute selected right and/or left eigenvectors.
 )

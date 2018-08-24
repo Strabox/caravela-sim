@@ -18,12 +18,12 @@ import (
 	"time"
 )
 
-// simLogTag log's tag of the simulator.
-const simLogTag = "SIMULATOR"
+// engineLogTag log's tag of the simulator.
+const engineLogTag = "ENGINE"
 
-// Simulator represents an instance of a Caravela's simulator.
+// Engine represents an instance of a Caravela's simulator.
 // It holds all the structures to control, feed and analyse a simulation.
-type Simulator struct {
+type Engine struct {
 	isInit           bool                 // Used to verify if the simulator is initialized.
 	metricsCollector *metrics.Collector   // Metric's collector.
 	nodes            []*caravelaNode.Node // Array with all the nodes for the simulation.
@@ -32,18 +32,18 @@ type Simulator struct {
 	workersPool      *grpool.Pool         // Pool of Goroutines to run the simulation.
 
 	caravelaConfigs  *caravelaConfig.Configuration // Caravela's configurations.
-	simulatorConfigs *configuration.Configuration  // Simulator's configurations.
+	simulatorConfigs *configuration.Configuration  // Engine's configurations.
 }
 
-// NewSimulator creates a new simulator instance based on the configurations of the caravela and its own.
-func NewSimulator(metricsCollector *metrics.Collector, simConfig *configuration.Configuration,
-	caravelaConfigurations *caravelaConfig.Configuration) *Simulator {
+// NewEngine creates a new simulator instance based on the configurations of the caravela and its own.
+func NewEngine(metricsCollector *metrics.Collector, simConfig *configuration.Configuration,
+	caravelaConfigurations *caravelaConfig.Configuration) *Engine {
 	maxWorkers := 1
 	if simConfig.Multithreaded() {
 		maxWorkers = runtime.NumCPU() * 2
 	}
 
-	return &Simulator{
+	return &Engine{
 		isInit:           false,
 		metricsCollector: metricsCollector,
 		nodes:            make([]*caravelaNode.Node, simConfig.TotalNumberOfNodes()),
@@ -56,8 +56,8 @@ func NewSimulator(metricsCollector *metrics.Collector, simConfig *configuration.
 }
 
 // Init initializes all the components making it ready to start the simulation.
-func (sim *Simulator) Init() {
-	util.Log.Info(util.LogTag(simLogTag) + "Initializing...")
+func (sim *Engine) Init() {
+	util.Log.Info(util.LogTag(engineLogTag) + "Initializing...")
 
 	// Init CARAVELA's packages structures.
 	caravela.Init(sim.simulatorConfigs.CaravelaLogsLevel())
@@ -71,7 +71,7 @@ func (sim *Simulator) Init() {
 	sim.overlayMock.Init()
 
 	// Create the CARAVELA's nodes for the simulation.
-	util.Log.Info(util.LogTag(simLogTag) + "Initializing nodes...")
+	util.Log.Info(util.LogTag(engineLogTag) + "Initializing nodes...")
 	for i := 0; i < sim.simulatorConfigs.NumberOfNodes; i++ {
 		overlayNodeMock := sim.overlayMock.GetNodeMockByIndex(i)
 		nodeConfig, err := caravelaConfig.ObtainExternal(overlayNodeMock.IP(), sim.caravelaConfigs)
@@ -84,7 +84,7 @@ func (sim *Simulator) Init() {
 	}
 
 	// Start all the CARAVELA's nodes.
-	util.Log.Info(util.LogTag(simLogTag) + "Starting nodes functions...")
+	util.Log.Info(util.LogTag(engineLogTag) + "Starting nodes functions...")
 	for i := 0; i < sim.simulatorConfigs.TotalNumberOfNodes(); i++ {
 		sim.nodes[i].Start(true, util.RandomIP())
 	}
@@ -100,21 +100,17 @@ func (sim *Simulator) Init() {
 	sim.feeder.Init(sim.metricsCollector)
 
 	sim.isInit = true
-	util.Log.Info(util.LogTag(simLogTag) + "Initialized")
+	util.Log.Info(util.LogTag(engineLogTag) + "Initialized")
 }
 
-func (sim *Simulator) Simulate() {
-
-}
-
-// Start starts the simulator.
-func (sim *Simulator) Start() {
+// Start starts the simulator engine.
+func (sim *Engine) Start() {
 	if !sim.isInit {
 		panic(errors.New("simulator is not initialized"))
 	}
 
 	const ticksPerPersist = 1
-	util.Log.Info(util.LogTag(simLogTag) + "Simulation started...")
+	util.Log.Info(util.LogTag(engineLogTag) + "Simulation started...")
 	realStartTime := time.Now()
 	simCurrentTime, simLastTimeRefreshes, simLastTimeSpread, numTicks := 0*time.Second, 0*time.Second, 0*time.Second, 0
 	ticksChan := make(chan chan feeder.RequestTask)
@@ -122,7 +118,7 @@ func (sim *Simulator) Start() {
 	go sim.feeder.Start(ticksChan) // Start request feeder.
 
 	for {
-		util.Log.Infof(util.LogTag(simLogTag)+"Sim Time: %.2f, Tick: %d, Ticks Remaining: %d",
+		util.Log.Infof(util.LogTag(engineLogTag)+"Sim Time: %.2f, Tick: %d, Ticks Remaining: %d",
 			simCurrentTime.Seconds(), numTicks, sim.simulatorConfigs.MaximumTicks()-numTicks)
 
 		// 1st. Inject the requests in the nodes, introducing the liveness.
@@ -150,14 +146,14 @@ func (sim *Simulator) Start() {
 
 	sim.metricsCollector.EndSimulation(simCurrentTime)
 
-	util.Log.Info(util.LogTag(simLogTag) + "Simulation Ended")
-	util.Log.Infof("Duration: Hours: %.2fh | Min: %.2fm | Sec: %.2fs", (time.Now().Sub(realStartTime)).Hours(),
-		(time.Now().Sub(realStartTime)).Minutes(), (time.Now().Sub(realStartTime)).Seconds())
+	util.Log.Info(util.LogTag(engineLogTag) + "Simulation Ended")
+	util.Log.Infof(util.LogTag(engineLogTag)+"Duration: Hours: %.2fh | Min: %.2fm | Sec: %.2fs",
+		(time.Now().Sub(realStartTime)).Hours(), (time.Now().Sub(realStartTime)).Minutes(), (time.Now().Sub(realStartTime)).Seconds())
 	sim.release()
 }
 
 // acceptRequests receives requests from the feeder to be injected in the simulated caravela.
-func (sim *Simulator) acceptRequests(ticksChan chan<- chan feeder.RequestTask, currentTime time.Duration) {
+func (sim *Engine) acceptRequests(ticksChan chan<- chan feeder.RequestTask, currentTime time.Duration) {
 	const requestChanSize = 30
 	defer sim.workersPool.WaitAll()
 
@@ -182,7 +178,7 @@ func (sim *Simulator) acceptRequests(ticksChan chan<- chan feeder.RequestTask, c
 }
 
 // fireTimerActions runs the real time dependent actions.
-func (sim *Simulator) fireTimerActions(currentTime, lastTimeRefreshes, lastTimeSpreadOffers time.Duration) (time.Duration, time.Duration) {
+func (sim *Engine) fireTimerActions(currentTime, lastTimeRefreshes, lastTimeSpreadOffers time.Duration) (time.Duration, time.Duration) {
 	defer sim.workersPool.WaitAll()
 
 	// 1. Refresh offers
@@ -229,7 +225,7 @@ func (sim *Simulator) fireTimerActions(currentTime, lastTimeRefreshes, lastTimeS
 }
 
 // updateMetrics updates all the collector metrics.
-func (sim *Simulator) updateMetrics() {
+func (sim *Engine) updateMetrics() {
 	defer sim.workersPool.WaitAll()
 
 	for i, node := range sim.nodes {
@@ -245,31 +241,31 @@ func (sim *Simulator) updateMetrics() {
 }
 
 // release releases all the memory of the simulation structures, nodes, etc.
-func (sim *Simulator) release() {
-	util.Log.Info(util.LogTag(simLogTag) + "Clearing simulation objects...")
+func (sim *Engine) release() {
+	util.Log.Info(util.LogTag(engineLogTag) + "Clearing simulation objects...")
 	sim.workersPool.Release()
 	sim.feeder = nil
 	sim.workersPool = nil
 	sim.nodes = nil
 	sim.overlayMock = nil
 	runtime.GC() // Force the GC to run in order to release the memory
-	util.Log.Info(util.LogTag(simLogTag) + "FINISHED")
+	util.Log.Info(util.LogTag(engineLogTag) + "FINISHED")
 }
 
 // NodeByIP returns the caravela node and index given the node's IP address.
-func (sim *Simulator) NodeByIP(ip string) (*caravelaNode.Node, int) {
+func (sim *Engine) NodeByIP(ip string) (*caravelaNode.Node, int) {
 	index, _ := sim.overlayMock.GetNodeMockByIP(ip)
 	return sim.nodes[index], index
 }
 
 // NodeByGUID returns the caravela node and index given the node's GUID.
-func (sim *Simulator) NodeByGUID(guid string) (*caravelaNode.Node, int) {
+func (sim *Engine) NodeByGUID(guid string) (*caravelaNode.Node, int) {
 	index, _ := sim.overlayMock.GetNodeMockByGUID(guid)
 	return sim.nodes[index], index
 }
 
 // randomNode returns a random node from the simulated active nodes.
-func (sim *Simulator) randomNode() (int, *caravelaNode.Node) {
+func (sim *Engine) randomNode() (int, *caravelaNode.Node) {
 	randIndex := util.RandomInteger(0, len(sim.nodes)-1)
 	return randIndex, sim.nodes[randIndex]
 }

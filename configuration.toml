@@ -3,11 +3,11 @@ Simulation = true
 [Caravela.DiscoveryBackend]
 Backend = "chord-single-offer"    # chord-random, chord-single-offer, chord-multiple-offers
     [Caravela.DiscoveryBackend.SmartChordBackend]
-    SupplyingInterval = "30s"
-    SpreadOffersInterval = "1m30s"
-    RefreshingInterval = "1m30s"
+    SupplyingInterval = "1m"
+    SpreadOffersInterval = "1m"
+    RefreshingInterval = "5m"
     [Caravela.DiscoveryBackend.RandomChordBackend]
-    RandBackendMaxRetries = 3
+    RandBackendMaxRetries = 10
 [Caravela.Resources]
     [[Caravela.Resources.CPUPowers]]
     Value = 0

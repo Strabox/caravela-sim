@@ -1,6 +1,7 @@
 package docker
 
 import (
+	"github.com/pkg/errors"
 	"github.com/strabox/caravela-sim/util"
 	"github.com/strabox/caravela/api/types"
 	myContainer "github.com/strabox/caravela/docker/container"
@@ -9,7 +10,7 @@ import (
 	"sync/atomic"
 )
 
-// Size of the container's IDs.
+// containerIDSize is the size of the container's IDs.
 const containerIDSize = 64
 
 // ClientMock mocks the interactions with the docker daemon.
@@ -69,7 +70,7 @@ func (cliMock *ClientMock) CheckContainerStatus(containerID string) (myContainer
 func (cliMock *ClientMock) RunContainer(contConfig types.ContainerConfig) (*types.ContainerStatus, error) {
 	// Generate a random ID for the container and store it in an HashMap
 	randomContainerID := util.RandomString(containerIDSize)
-	cliMock.containersRunning.Store(randomContainerID, nil)
+	cliMock.containersRunning.Store(randomContainerID, true)
 	atomic.AddInt64(&cliMock.numOfContainers, 1)
 
 	return &types.ContainerStatus{
@@ -83,6 +84,7 @@ func (cliMock *ClientMock) RemoveContainer(containerID string) error {
 	if _, exist := cliMock.containersRunning.Load(containerID); exist {
 		cliMock.containersRunning.Delete(containerID)
 		atomic.AddInt64(&cliMock.numOfContainers, -1)
+		return nil
 	}
-	return nil
+	return errors.New("container does not exist in the docker engine")
 }

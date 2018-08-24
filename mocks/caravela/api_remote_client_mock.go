@@ -60,14 +60,17 @@ func (mock *RemoteClientMock) RemoveOffer(ctx context.Context, fromSupp, toTrade
 func (mock *RemoteClientMock) GetOffers(ctx context.Context, fromNode, toTrader *types.Node, relay bool) ([]types.AvailableOffer, error) {
 	node, nodeIndex := mock.nodeService.NodeByIP(toTrader.IP)
 
+	offers := node.GetOffers(ctx, fromNode, toTrader, relay)
+
 	// Collect Metrics
 	mock.collector.IncrMessagesTradedRequest(types.RequestID(ctx), 1)
 	mock.collector.APIRequestReceived(nodeIndex)
 	if !relay {
 		mock.collector.GetOfferRelayed(1)
 	}
-
-	offers := node.GetOffers(ctx, fromNode, toTrader, relay)
+	if len(offers) == 0 {
+		mock.collector.EmptyGetOfferMessage(1)
+	}
 	return offers, nil
 }
 

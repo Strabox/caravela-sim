@@ -36,21 +36,21 @@ func NewManager(config *configuration.Configuration, localScheduler localSchedul
 	}
 }
 
-func (man *Manager) SubmitContainers(ctx context.Context, containerConfigs []types.ContainerConfig) error {
+func (man *Manager) SubmitContainers(ctx context.Context, containerConfigs []types.ContainerConfig) ([]types.ContainerStatus, error) {
 	// Validate request
 	for i, contConfig := range containerConfigs {
 		if contConfig.Resources.RAM == 0 && contConfig.Resources.CPUs == 0 {
 			containerConfigs[i].Resources.CPUs = man.minRequestResources.CPUs()
 			containerConfigs[i].Resources.RAM = man.minRequestResources.RAM()
 		} else if contConfig.Resources.RAM == 0 || contConfig.Resources.CPUs == 0 {
-			return fmt.Errorf("invalid resources resquest")
+			return nil, fmt.Errorf("invalid resources resquest")
 		}
 	}
 
 	// Contact local scheduler to submit the request into the system
 	containersStatus, err := man.localScheduler.SubmitContainers(ctx, containerConfigs)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	// Update internals
@@ -62,14 +62,14 @@ func (man *Manager) SubmitContainers(ctx context.Context, containerConfigs []typ
 		man.containers.Store(container.ShortID(), container)
 	}
 
-	return nil
+	return containersStatus, nil
 }
 
 func (man *Manager) StopContainers(ctx context.Context, containerIDs []string) error {
 	errMsg := "Failed to stop:"
 	fail := false
 	for _, contID := range containerIDs {
-		contTmp, contExist := man.containers.Load(contID)
+		contTmp, contExist := man.containers.Load(contID[:common.ContainerShortIDSize])
 		container, ok := contTmp.(*deployedContainer)
 		if contExist && ok {
 			if err := man.userRemoteCli.StopLocalContainer(ctx, &types.Node{IP: container.supplierIP()}, container.ID()); err == nil {
@@ -93,7 +93,7 @@ func (man *Manager) StopContainers(ctx context.Context, containerIDs []string) e
 func (man *Manager) ListContainers() []types.ContainerStatus {
 	res := make([]types.ContainerStatus, 0)
 
-	man.containers.Range(func(key, value interface{}) bool {
+	man.containers.Range(func(_, value interface{}) bool {
 		if container, ok := value.(*deployedContainer); ok {
 			res = append(res,
 				types.ContainerStatus{

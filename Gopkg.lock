@@ -98,20 +98,17 @@
     "node/discovery",
     "node/discovery/backend",
     "node/discovery/common",
-    "node/discovery/moffer",
-    "node/discovery/moffer/supplier",
-    "node/discovery/moffer/trader",
+    "node/discovery/offering",
+    "node/discovery/offering/supplier",
+    "node/discovery/offering/trader",
     "node/discovery/random",
-    "node/discovery/soffer",
-    "node/discovery/soffer/supplier",
-    "node/discovery/soffer/trader",
     "node/external",
     "node/scheduler",
     "node/user",
     "overlay/types",
     "util"
   ]
-  revision = "630d82c5b2a64eb232223251e8493e6039614021"
+  revision = "427af1d01a8441a807cc797a587e2d4924df83f6"
 
 [[projects]]
   name = "github.com/urfave/cli"
@@ -151,7 +148,7 @@
     "unix",
     "windows"
   ]
-  revision = "1a700e749ce29638d0bbcb531cce1094ea096bd3"
+  revision = "4910a1d54f876d7b22162a85f4d066d3ee649450"
 
 [[projects]]
   branch = "master"
@@ -170,7 +167,7 @@
     "lapack/lapack64",
     "mat"
   ]
-  revision = "929014505bf4717eb082c9bbe164eb280cf47895"
+  revision = "3092bd257723f63c63ed3eb9c0b993692270cf48"
 
 [[projects]]
   branch = "master"

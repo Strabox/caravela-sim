@@ -139,7 +139,7 @@ func (node *Node) Configuration(c context.Context) *configuration.Configuration 
 
 // =========================== User Component Interface (USER API) ==============================
 
-func (node *Node) SubmitContainers(ctx context.Context, containerConfigs []types.ContainerConfig) error {
+func (node *Node) SubmitContainers(ctx context.Context, containerConfigs []types.ContainerConfig) ([]types.ContainerStatus, error) {
 	return node.userManagerComp.SubmitContainers(ctx, containerConfigs)
 }
 
@@ -164,23 +164,38 @@ func (node *Node) AddTrader(guidBytes []byte) {
 
 // =============================== Discovery Component Interface =================================
 
-func (node *Node) CreateOffer(_ context.Context, fromNode *types.Node, toNode *types.Node, offer *types.Offer) {
+func (node *Node) CreateOffer(ctx context.Context, fromNode *types.Node, toNode *types.Node, offer *types.Offer) {
+	if partitionsState := types.SysPartitionsState(ctx); partitionsState != nil {
+		node.discoveryComp.UpdatePartitionsState(partitionsState)
+	}
 	node.discoveryComp.CreateOffer(fromNode, toNode, offer)
 }
 
-func (node *Node) RefreshOffer(_ context.Context, fromTrader *types.Node, offer *types.Offer) bool {
+func (node *Node) RefreshOffer(ctx context.Context, fromTrader *types.Node, offer *types.Offer) bool {
+	if partitionsState := types.SysPartitionsState(ctx); partitionsState != nil {
+		node.discoveryComp.UpdatePartitionsState(partitionsState)
+	}
 	return node.discoveryComp.RefreshOffer(fromTrader, offer)
 }
 
-func (node *Node) RemoveOffer(_ context.Context, fromSupp *types.Node, toTrader *types.Node, offer *types.Offer) {
+func (node *Node) RemoveOffer(ctx context.Context, fromSupp *types.Node, toTrader *types.Node, offer *types.Offer) {
+	if partitionsState := types.SysPartitionsState(ctx); partitionsState != nil {
+		node.discoveryComp.UpdatePartitionsState(partitionsState)
+	}
 	node.discoveryComp.RemoveOffer(fromSupp, toTrader, offer)
 }
 
 func (node *Node) GetOffers(ctx context.Context, fromNode, toTrader *types.Node, relay bool) []types.AvailableOffer {
+	if partitionsState := types.SysPartitionsState(ctx); partitionsState != nil {
+		node.discoveryComp.UpdatePartitionsState(partitionsState)
+	}
 	return node.discoveryComp.GetOffers(ctx, fromNode, toTrader, relay)
 }
 
-func (node *Node) AdvertiseOffersNeighbor(_ context.Context, fromTrader, toNeighborTrader, traderOffering *types.Node) {
+func (node *Node) AdvertiseOffersNeighbor(ctx context.Context, fromTrader, toNeighborTrader, traderOffering *types.Node) {
+	if partitionsState := types.SysPartitionsState(ctx); partitionsState != nil {
+		node.discoveryComp.UpdatePartitionsState(partitionsState)
+	}
 	node.discoveryComp.AdvertiseNeighborOffers(fromTrader, toNeighborTrader, traderOffering)
 }
 

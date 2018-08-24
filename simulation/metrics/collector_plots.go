@@ -77,27 +77,6 @@ func (coll *Collector) plotFreeResources() {
 	}
 }
 
-func (coll *Collector) plotRelayedGetOfferMessages() {
-	plotRes := graphics.NewPlot("Total Relayed Get Offer", "Time (Seconds)", "#Relayed Get Offers", true)
-
-	dataPoints := make([]interface{}, 0)
-	for simLabel, simData := range coll.simulations {
-		relayedGetOffersPts := make(plotter.XYs, len(simData.snapshots))
-		for i := range relayedGetOffersPts {
-			relayedGetOffersPts[i].X = simData.snapshots[i].EndTime().Seconds()
-			relayedGetOffersPts[i].Y = float64(simData.snapshots[i].TotalGetOffersRelayed())
-		}
-		dataPoints = append(dataPoints, simLabel, relayedGetOffersPts)
-	}
-
-	err := plotutil.AddLinePoints(plotRes, dataPoints...)
-	if err != nil {
-		panic(errors.New("Problem with plots, error: " + err.Error()))
-	}
-
-	graphics.Save(plotRes, 25*vg.Centimeter, 17*vg.Centimeter, generatePNGFileName(coll.outputDirPath+"\\"+"GetOffersRelayed"))
-}
-
 func (coll *Collector) plotLookupMessagesPercentiles() {
 	plotRes := graphics.NewPlot("Lookup Messages Traded Distribution", "", "#Messages", false)
 
@@ -141,6 +120,52 @@ func (coll *Collector) plotResourceDistribution() {
 			"Nodes", "Time (Seconds)", coll.outputDirPath, yTicks, dataGrid)
 	}
 }
+
+// ======================================= Debug Performance Plots ===============================
+
+func (coll *Collector) plotRelayedGetOfferMessages() {
+	plotRes := graphics.NewPlot("Total Relayed Get Offer", "Time (Seconds)", "#Relayed Get Offers", true)
+
+	dataPoints := make([]interface{}, 0)
+	for simLabel, simData := range coll.simulations {
+		relayedGetOffersPts := make(plotter.XYs, len(simData.snapshots))
+		for i := range relayedGetOffersPts {
+			relayedGetOffersPts[i].X = simData.snapshots[i].EndTime().Seconds()
+			relayedGetOffersPts[i].Y = float64(simData.snapshots[i].TotalGetOffersRelayed())
+		}
+		dataPoints = append(dataPoints, simLabel, relayedGetOffersPts)
+	}
+
+	err := plotutil.AddLinePoints(plotRes, dataPoints...)
+	if err != nil {
+		panic(errors.New("Problem with plots, error: " + err.Error()))
+	}
+
+	graphics.Save(plotRes, 25*vg.Centimeter, 17*vg.Centimeter, generatePNGFileName(coll.outputDirPath+"\\"+"Debug_GetOffersRelayed"))
+}
+
+func (coll *Collector) plotEmptyGetOfferMessages() {
+	plotRes := graphics.NewPlot("Empty Get Offer Messages", "Time (Seconds)", "#Empty Get Offer", true)
+
+	dataPoints := make([]interface{}, 0)
+	for simLabel, simData := range coll.simulations {
+		emptyGetOffersPts := make(plotter.XYs, len(simData.snapshots))
+		for i := range emptyGetOffersPts {
+			emptyGetOffersPts[i].X = simData.snapshots[i].EndTime().Seconds()
+			emptyGetOffersPts[i].Y = float64(simData.snapshots[i].TotalEmptyGetOfferMessages())
+		}
+		dataPoints = append(dataPoints, simLabel, emptyGetOffersPts)
+	}
+
+	err := plotutil.AddLinePoints(plotRes, dataPoints...)
+	if err != nil {
+		panic(errors.New("Problem with plots, error: " + err.Error()))
+	}
+
+	graphics.Save(plotRes, 25*vg.Centimeter, 17*vg.Centimeter, generatePNGFileName(coll.outputDirPath+"\\"+"Debug_EmptyGetOffer"))
+}
+
+// ============================================== Auxiliary =========================================
 
 func generatePNGFileName(fileName string) string {
 	return fileName + ".png"

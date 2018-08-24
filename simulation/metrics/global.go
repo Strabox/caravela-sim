@@ -12,13 +12,16 @@ type Global struct {
 	Start time.Duration `json:"StartTime"` // Start time of the collection.
 	End   time.Duration `json:"EndTime"`   // End time of the collection.
 
-	GetOffersRelayed     int64  `json:"GetOffersRelayed"`
 	RunRequestsSucceeded int64  `json:"RunRequestsSucceeded"` // Number of run requests that were successful deployed.
 	NodesMetrics         []Node `json:"NodesMetrics"`         // Metrics collected for each system's node.
 
 	RunRequestsAggregator  sync.Map     `json:"-"`
 	RunRequestsCompleted   []RunRequest `json:"RunRequestsCompleted"`
 	requestsCompletedMutex sync.Mutex   `json:"-"`
+
+	// Debug Performance Metrics
+	GetOffersRelayed       int64 `json:"GetOffersRelayed"`
+	EmptyGetOffersMessages int64 `json:"EmptyGetOffersMessages"`
 }
 
 // NewGlobalInitial returns a structure to hold the first collection of metrics.
@@ -71,6 +74,10 @@ func (g *Global) GetOfferRelayed(amount int64) {
 	atomic.AddInt64(&g.GetOffersRelayed, amount)
 }
 
+func (g *Global) EmptyGetOfferMessages(amount int64) {
+	atomic.AddInt64(&g.EmptyGetOffersMessages, amount)
+}
+
 func (g *Global) RunRequestSucceeded() {
 	atomic.AddInt64(&g.RunRequestsSucceeded, 1)
 }
@@ -109,15 +116,21 @@ func (g *Global) ArchiveRunRequest(requestID string) {
 
 // RunRequestSuccessRatio returns the request success ratio for all the requests during this collection.
 func (g *Global) RunRequestSuccessRatio() float64 {
+	if g.TotalRunRequests() == 0 {
+		return 1
+	}
 	return float64(g.RunRequestsSucceeded) / float64(g.TotalRunRequests())
 }
 
 func (g *Global) RunRequestsAvgMessages() float64 {
-	accMsgsTrader := int64(0)
-	for _, runRequest := range g.RunRequestsCompleted {
-		accMsgsTrader += runRequest.TotalMessagesTraded()
+	if len(g.RunRequestsCompleted) == 0 {
+		return 0
 	}
-	return float64(accMsgsTrader) / float64(len(g.RunRequestsCompleted))
+	accMessages := int64(0)
+	for _, runRequest := range g.RunRequestsCompleted {
+		accMessages += runRequest.TotalMessagesTraded()
+	}
+	return float64(accMessages) / float64(len(g.RunRequestsCompleted))
 }
 
 func (g *Global) AllAvailableResourcesAvg() float64 {
@@ -166,6 +179,10 @@ func (g *Global) SetEndTime(endTime time.Duration) {
 
 func (g *Global) TotalGetOffersRelayed() int64 {
 	return g.GetOffersRelayed
+}
+
+func (g *Global) TotalEmptyGetOfferMessages() int64 {
+	return g.EmptyGetOffersMessages
 }
 
 func (g *Global) TotalRunRequestsSucceeded() int64 {

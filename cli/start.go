@@ -29,7 +29,7 @@ func start(c *cli.Context) {
 		caravelaConfigs := caravela.Configuration()
 		caravelaConfigs.Caravela.DiscoveryBackend.Backend = str
 
-		mySimulator := simulation.NewSimulator(metricsCollector, simulatorConfig, caravelaConfigs)
+		mySimulator := simulation.NewEngine(metricsCollector, simulatorConfig, caravelaConfigs)
 		fmt.Println("Initializing simulation...")
 		mySimulator.Init()
 

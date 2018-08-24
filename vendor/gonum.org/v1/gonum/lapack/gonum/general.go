@@ -15,7 +15,7 @@ type Implementation struct{}
 
 var _ lapack.Float64 = Implementation{}
 
-// This list is duplicated in lapack/cgo. Keep in sync.
+// This list is duplicated in netlib/lapack/netlib. Keep in sync.
 const (
 	absIncNotOne    = "lapack: increment not one or negative one"
 	badAlpha        = "lapack: bad alpha length"
@@ -28,14 +28,14 @@ const (
 	badDirect       = "lapack: bad direct"
 	badE            = "lapack: e has insufficient length"
 	badEVComp       = "lapack: bad EVComp"
+	badEVHowMany    = "lapack: bad EVHowMany"
 	badEVJob        = "lapack: bad EVJob"
 	badEVSide       = "lapack: bad EVSide"
 	badGSVDJob      = "lapack: bad GSVDJob"
-	badHowMany      = "lapack: bad HowMany"
 	badIlo          = "lapack: ilo out of range"
 	badIhi          = "lapack: ihi out of range"
 	badIpiv         = "lapack: bad permutation length"
-	badJob          = "lapack: bad Job"
+	badBalanceJob   = "lapack: bad BalanceJob"
 	badK1           = "lapack: k1 out of range"
 	badK2           = "lapack: k2 out of range"
 	badKperm        = "lapack: incorrect permutation length"
@@ -44,6 +44,7 @@ const (
 	badNorm         = "lapack: bad norm"
 	badPivot        = "lapack: bad pivot"
 	badS            = "lapack: s has insufficient length"
+	badSchurJob     = "lapack: bad SchurJob"
 	badShifts       = "lapack: bad shifts"
 	badSide         = "lapack: bad side"
 	badSlice        = "lapack: bad input slice length"
@@ -61,6 +62,7 @@ const (
 	kGTM            = "lapack: k > m"
 	kGTN            = "lapack: k > n"
 	kLT0            = "lapack: k < 0"
+	mLT0            = "lapack: m < 0"
 	mLTN            = "lapack: m < n"
 	nanScale        = "lapack: NaN scale factor"
 	negDimension    = "lapack: negative matrix dimension"

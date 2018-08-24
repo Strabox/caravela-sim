@@ -11,18 +11,24 @@ import (
 	"github.com/strabox/caravela/api/types"
 	"github.com/strabox/caravela/node"
 	"github.com/strabox/caravela/node/common/guid"
+	"sync"
 	"time"
 )
 
+const logFeederTag = "FEEDER"
+
 type RandomFeeder struct {
-	collector  *metrics.Collector
+	collector        *metrics.Collector
+	reqInjectionNode sync.Map
+
 	simConfigs *configuration.Configuration
 }
 
 func newRandomFeeder(simConfigs *configuration.Configuration) (Feeder, error) {
 	return &RandomFeeder{
-		collector:  nil,
-		simConfigs: simConfigs,
+		collector:        nil,
+		reqInjectionNode: sync.Map{},
+		simConfigs:       simConfigs,
 	}, nil
 }
 
@@ -32,38 +38,61 @@ func (rf *RandomFeeder) Init(metricsCollector *metrics.Collector) {
 
 func (rf *RandomFeeder) Start(ticksChannel <-chan chan RequestTask) {
 	runReqPerTick := int(float64(rf.simConfigs.NumberOfNodes) * float64(0.025)) // Send 2.5% of cluster size in requests per node
+	stopReqPerTick := int(float64(rf.simConfigs.NumberOfNodes) * float64(0.017))
+	tick := 0
 	for {
 		select {
 		case newTickChan, more := <-ticksChannel: // Send all the requests for this tickChan
 			if more {
-				for i := 0; i < runReqPerTick; i++ {
-					newTickChan <- func(randNodeIndex int, randNode *node.Node, currentTime time.Duration) {
-						resources := rf.generateResourcesProfile() // Generate the resources necessary for the request.
-						requestID := guid.NewGUIDRandom().String() // Generate a UUID for tracking the request inside Caravela.
-						requestContext := context.WithValue(context.Background(), types.RequestIDKey, requestID)
-						rf.collector.CreateRunRequest(randNodeIndex, requestID, resources, currentTime)
-						err := randNode.SubmitContainers(
-							requestContext,
-							[]types.ContainerConfig{
-								{
-									ImageKey:     util.RandomName(),
-									Name:         util.RandomName(),
-									PortMappings: caravela.EmptyPortMappings(),
-									Args:         caravela.EmptyContainerArgs(),
-									Resources:    resources,
-								},
-							})
-						if err == nil {
-							rf.collector.RunRequestSucceeded()
-						}
-						rf.collector.ArchiveRunRequest(requestID)
+				if tick > 10 && tick < 20 {
+					for s := 0; s < stopReqPerTick; s++ { // Stop Containers Requests
+						rf.reqInjectionNode.Range(func(key, value interface{}) bool {
+							containerID, _ := key.(string)
+							injectionNode, _ := value.(*node.Node)
+							newTickChan <- func(_ int, _ *node.Node, _ time.Duration) {
+								err := injectionNode.StopContainers(context.Background(), []string{containerID})
+								if err != nil {
+									//util.Log.Infof(util.LogTag(logFeederTag)+"Stop container FAILED, err: %s", err)
+								}
+								rf.reqInjectionNode.Delete(containerID)
+							}
+							return false
+						})
 					}
 				}
-				close(newTickChan) // No more requests for this tick
+
+				if tick <= 10 || tick >= 20 {
+					for r := 0; r < runReqPerTick; r++ { // Run Container Requests
+						newTickChan <- func(randNodeIndex int, randNode *node.Node, currentTime time.Duration) {
+							resources := rf.generateResourcesProfile() // Generate the resources necessary for the request.
+							requestID := guid.NewGUIDRandom().String() // Generate a GUID for tracking the request inside Caravela.
+							requestContext := context.WithValue(context.Background(), types.RequestIDKey, requestID)
+							rf.collector.CreateRunRequest(randNodeIndex, requestID, resources, currentTime)
+							contStatus, err := randNode.SubmitContainers(
+								requestContext,
+								[]types.ContainerConfig{
+									{
+										ImageKey:     util.RandomName(),
+										Name:         util.RandomName(),
+										PortMappings: caravela.EmptyPortMappings(),
+										Args:         caravela.EmptyContainerArgs(),
+										Resources:    resources,
+									}})
+							if err == nil {
+								rf.reqInjectionNode.Store(contStatus[0].ContainerID, randNode)
+								rf.collector.RunRequestSucceeded()
+							}
+							rf.collector.ArchiveRunRequest(requestID)
+						}
+					}
+				}
+
+				close(newTickChan) // No more user requests for this tick
 			} else { // Simulator closed ticks channel
 				return // Stop feeding simulation
 			}
 		}
+		tick++
 	}
 }
 

@@ -73,6 +73,12 @@ func (coll *Collector) GetOfferRelayed(amount int64) {
 	}
 }
 
+func (coll *Collector) EmptyGetOfferMessage(amount int64) {
+	if activeGlobal, err := coll.activeGlobal(); err == nil {
+		activeGlobal.EmptyGetOfferMessages(amount)
+	}
+}
+
 // RunRequestSucceeded increments the number of run requests that were fulfilled with success.
 func (coll *Collector) RunRequestSucceeded() {
 	if activeGlobal, err := coll.activeGlobal(); err == nil {
@@ -232,9 +238,11 @@ func (coll *Collector) plotGraphics() {
 	coll.plotRequestsSucceeded()
 	coll.plotRequestsMessagesTradedPerRequest()
 	coll.plotFreeResources()
-	coll.plotRelayedGetOfferMessages()
 	coll.plotResourceDistribution()
 	coll.plotLookupMessagesPercentiles()
+	// Debug Performance Metrics Plots
+	coll.plotRelayedGetOfferMessages()
+	coll.plotEmptyGetOfferMessages()
 }
 
 // ===================================== Sort Interface =======================================
