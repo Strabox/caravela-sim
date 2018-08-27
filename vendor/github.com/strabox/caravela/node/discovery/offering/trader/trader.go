@@ -9,7 +9,6 @@ import (
 	"github.com/strabox/caravela/node/common/guid"
 	"github.com/strabox/caravela/node/common/resources"
 	"github.com/strabox/caravela/node/discovery/common"
-	"github.com/strabox/caravela/node/discovery/offering/supplier"
 	"github.com/strabox/caravela/node/external"
 	overlayTypes "github.com/strabox/caravela/overlay/types"
 	"github.com/strabox/caravela/util"
@@ -21,7 +20,6 @@ import (
 // The resources combination that the trader can handle is described by its GUID.
 type Trader struct {
 	nodeCommon.NodeComponent // Base component
-	suppTest                 *supplier.Supplier
 
 	config  *configuration.Configuration // System's configurations
 	overlay external.Overlay             // Node overlay to efficient route messages to specific nodes.
@@ -31,7 +29,7 @@ type Trader struct {
 	resourcesMap     *resources.Mapping   // GUID<->Resources mapping
 	handledResources *resources.Resources // Combination of resources that its responsible for managing (FIXED)
 
-	nearbyTradersOffering *NearbyTradersOffering    // Nearby traders that might have offers available
+	nearbyTradersOffering *nearbyTradersOffering    // Nearby traders that might have offers available
 	offers                map[offerKey]*traderOffer // Map with all the offers that the trader is managing
 	offersMutex           *sync.Mutex               // Mutex for managing the offers
 
@@ -42,13 +40,11 @@ type Trader struct {
 
 // NewTrader creates a new "virtual" trader.
 func NewTrader(config *configuration.Configuration, overlay external.Overlay, client external.Caravela,
-	guid guid.GUID, resourcesMapping *resources.Mapping, suppTest *supplier.Supplier) *Trader {
+	guid guid.GUID, resourcesMapping *resources.Mapping) *Trader {
 
 	handledResources := resourcesMapping.ResourcesByGUID(guid)
 
 	return &Trader{
-		suppTest: suppTest,
-
 		config:           config,
 		overlay:          overlay,
 		client:           client,
@@ -56,7 +52,7 @@ func NewTrader(config *configuration.Configuration, overlay external.Overlay, cl
 		resourcesMap:     resourcesMapping,
 		handledResources: handledResources,
 
-		nearbyTradersOffering: NewNeighborTradersOffering(),
+		nearbyTradersOffering: newNeighborTradersOffering(),
 		offers:                make(map[offerKey]*traderOffer),
 		offersMutex:           &sync.Mutex{},
 
@@ -77,7 +73,7 @@ func (t *Trader) start() {
 				if offer.Refresh() {
 					go func(offer *traderOffer) {
 						refreshed, err := t.client.RefreshOffer(
-							context.WithValue(context.Background(), types.PartitionsStateKey, t.suppTest.PartitionsState()),
+							context.Background(),
 							&types.Node{GUID: t.guid.String()},
 							&types.Node{IP: offer.supplierIP},
 							&types.Offer{ID: int64(offer.ID())})
@@ -127,69 +123,6 @@ func (t *Trader) start() {
 	}
 }
 
-// Returns all the offers that the trader is managing.
-func (t *Trader) GetOffers(ctx context.Context, _ *types.Node, relay bool) []types.AvailableOffer {
-	if t.haveOffers() || !relay { // Trader has offers so return them immediately or we are not relaying
-		t.offersMutex.Lock()
-		defer t.offersMutex.Unlock()
-
-		availableOffers := len(t.offers)
-		allOffers := make([]types.AvailableOffer, availableOffers)
-		index := 0
-		for _, traderOffer := range t.offers {
-			allOffers[index].SupplierIP = traderOffer.SupplierIP()
-			allOffers[index].ID = int64(traderOffer.ID())
-			allOffers[index].Amount = traderOffer.Amount()
-			allOffers[index].Resources = types.Resources{
-				CPUs: traderOffer.Resources().CPUs(),
-				RAM:  traderOffer.Resources().RAM(),
-			}
-			index++
-		}
-		return allOffers
-	} else { // Ask for offers in the nearby neighbors that we think they have offers (via offer advertise relaying)
-		resOffers := make([]types.AvailableOffer, 0)
-
-		// Ask the successor (higher GUID)
-		if successor := t.nearbyTradersOffering.Successor(); successor != nil {
-			successorResourcesHandled := t.resourcesMap.ResourcesByGUID(*successor.GUID())
-			if t.handledResources.Equals(*successorResourcesHandled) {
-				offers, err := t.client.GetOffers( // Sends the get offers message
-					context.WithValue(ctx, types.PartitionsStateKey, t.suppTest.PartitionsState()),
-					&types.Node{GUID: t.guid.String()},
-					&types.Node{IP: successor.IP(), GUID: successor.GUID().String()},
-					false)
-				if err == nil && len(offers) != 0 {
-					resOffers = append(resOffers, offers...)
-				} else if err == nil && len(offers) == 0 {
-					t.nearbyTradersOffering.SetSuccessor(nil)
-				}
-			}
-
-		}
-
-		// Ask the predecessor (lower GUID)
-		if predecessor := t.nearbyTradersOffering.Predecessor(); predecessor != nil {
-			predecessorResourcesHandled := t.resourcesMap.ResourcesByGUID(*predecessor.GUID())
-			if t.handledResources.Equals(*predecessorResourcesHandled) {
-				offers, err := t.client.GetOffers( // Sends the get offers message
-					context.WithValue(ctx, types.PartitionsStateKey, t.suppTest.PartitionsState()),
-					&types.Node{GUID: t.guid.String()},
-					&types.Node{IP: predecessor.IP(), GUID: predecessor.GUID().String()},
-					false)
-				if err == nil && len(offers) != 0 {
-					resOffers = append(resOffers, offers...)
-				} else if err == nil && len(offers) == 0 {
-					t.nearbyTradersOffering.SetPredecessor(nil)
-				}
-			}
-
-		}
-		// TRY: OPTIONAl make the calls in parallel (2 goroutines) and wait here for both, then join the results.
-		return resOffers
-	}
-}
-
 // Receives a resource offer from other node (supplier) of the system
 func (t *Trader) CreateOffer(fromSupp *types.Node, newOffer *types.Offer) {
 	resourcesOffered := resources.NewResources(newOffer.Resources.CPUs, newOffer.Resources.RAM)
@@ -221,6 +154,78 @@ func (t *Trader) CreateOffer(fromSupp *types.Node, newOffer *types.Offer) {
 					&types.Node{GUID: t.guid.String(), IP: t.config.HostIP()})
 			}
 		}
+	}
+}
+
+func (t *Trader) UpdateOffer(fromSupp *types.Node, offer *types.Offer) {
+	t.offersMutex.Lock()
+	defer t.offersMutex.Unlock()
+
+	if traderOffer, exist := t.offers[offerKey{id: common.OfferID(offer.ID), supplierIP: fromSupp.IP}]; exist {
+		traderOffer.UpdateResources(*resources.NewResources(offer.Resources.CPUs, offer.Resources.RAM), offer.Amount)
+	}
+}
+
+// Returns all the offers that the trader is managing.
+func (t *Trader) GetOffers(ctx context.Context, _ *types.Node, relay bool) []types.AvailableOffer {
+	if t.haveOffers() || !relay { // Trader has offers so return them immediately or we are not relaying
+		t.offersMutex.Lock()
+		defer t.offersMutex.Unlock()
+
+		availableOffers := len(t.offers)
+		allOffers := make([]types.AvailableOffer, availableOffers)
+		index := 0
+		for _, traderOffer := range t.offers {
+			allOffers[index].SupplierIP = traderOffer.SupplierIP()
+			allOffers[index].ID = int64(traderOffer.ID())
+			allOffers[index].Amount = traderOffer.Amount()
+			allOffers[index].Resources = types.Resources{
+				CPUs: traderOffer.Resources().CPUs(),
+				RAM:  traderOffer.Resources().RAM(),
+			}
+			index++
+		}
+		return allOffers
+	} else { // Ask for offers in the nearby neighbors that we think they have offers (via offer advertise relaying)
+		resOffers := make([]types.AvailableOffer, 0)
+
+		// Ask the successor (higher GUID)
+		if successor := t.nearbyTradersOffering.Successor(); successor != nil {
+			successorResourcesHandled := t.resourcesMap.ResourcesByGUID(*successor.GUID())
+			if t.handledResources.Equals(*successorResourcesHandled) {
+				offers, err := t.client.GetOffers( // Sends the get offers message
+					ctx,
+					&types.Node{GUID: t.guid.String()},
+					&types.Node{IP: successor.IP(), GUID: successor.GUID().String()},
+					false)
+				if err == nil && len(offers) != 0 {
+					resOffers = append(resOffers, offers...)
+				} else if err == nil && len(offers) == 0 {
+					t.nearbyTradersOffering.SetSuccessor(nil)
+				}
+			}
+
+		}
+
+		// Ask the predecessor (lower GUID)
+		if predecessor := t.nearbyTradersOffering.Predecessor(); predecessor != nil {
+			predecessorResourcesHandled := t.resourcesMap.ResourcesByGUID(*predecessor.GUID())
+			if t.handledResources.Equals(*predecessorResourcesHandled) {
+				offers, err := t.client.GetOffers( // Sends the get offers message
+					ctx,
+					&types.Node{GUID: t.guid.String()},
+					&types.Node{IP: predecessor.IP(), GUID: predecessor.GUID().String()},
+					false)
+				if err == nil && len(offers) != 0 {
+					resOffers = append(resOffers, offers...)
+				} else if err == nil && len(offers) == 0 {
+					t.nearbyTradersOffering.SetPredecessor(nil)
+				}
+			}
+
+		}
+		// TRY: OPTIONAl make the calls in parallel (2 goroutines) and wait here for both, then join the results.
+		return resOffers
 	}
 }
 
@@ -287,7 +292,7 @@ func (t *Trader) advertiseOffersToNeighbors(isValidNeighbor func(neighborGUID *g
 
 			if isValidNeighbor(nodeGUID) && t.handledResources.Equals(*nodeResourcesHandled) {
 				t.client.AdvertiseOffersNeighbor( // Sends advertise local offers message
-					context.WithValue(context.Background(), types.PartitionsStateKey, t.suppTest.PartitionsState()),
+					context.Background(),
 					&types.Node{GUID: t.guid.String()},
 					&types.Node{IP: overlayNeighbor.IP(), GUID: nodeGUID.String()},
 					traderOffering)
@@ -312,7 +317,7 @@ func (t *Trader) RefreshOffersSim() {
 	for _, offer := range t.offers {
 		if offer.Refresh() {
 			refreshed, err := t.client.RefreshOffer(
-				context.WithValue(context.Background(), types.PartitionsStateKey, t.suppTest.PartitionsState()),
+				context.Background(),
 				&types.Node{GUID: t.guid.String()},
 				&types.Node{IP: offer.supplierIP},
 				&types.Offer{ID: int64(offer.ID())},

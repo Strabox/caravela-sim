@@ -20,14 +20,22 @@ func NewOffer(id OfferID, amount int, res resources.Resources) *Offer {
 	return offer
 }
 
-func (offer *Offer) ID() OfferID {
-	return offer.id
+func (o *Offer) ID() OfferID {
+	return o.id
 }
 
-func (offer *Offer) Amount() int {
-	return offer.amount
+func (o *Offer) Amount() int {
+	return o.amount
 }
 
-func (offer *Offer) Resources() *resources.Resources {
-	return offer.resources.Copy()
+func (o *Offer) SetAmount(newAmount int) {
+	o.amount = newAmount
+}
+
+func (o *Offer) Resources() *resources.Resources {
+	return o.resources.Copy()
+}
+
+func (o *Offer) SetResources(res resources.Resources) {
+	o.resources = &res
 }

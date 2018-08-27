@@ -1,6 +1,6 @@
 NumberOfNodes = 50000
 TickInterval = "20s"
-MaxTicks = 45
+MaxTicks = 63
 Multithread = true
 DiscoveryBackends = ["chord-single-offer", "chord-multiple-offer", "chord-random"]
 RequestFeeder = "random"            # random
@@ -11,4 +11,4 @@ CaravelaLogLevel = "info"
 ResourceGenerator = "partition-fit" # static, real, partition-fit
     [ResourcesGenerator.StaticResources]
     CPUs = 2
-    RAM = 1024
+    RAM = 2048

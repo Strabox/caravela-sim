@@ -67,7 +67,7 @@
     "draw2dbase",
     "draw2dimg"
   ]
-  revision = "587a55234ca2511a49e93d5910343ca96665f1a0"
+  revision = "f52c8a71aff06ab8df41843d33ab167b36c971cd"
 
 [[projects]]
   name = "github.com/pkg/errors"
@@ -99,6 +99,7 @@
     "node/discovery/backend",
     "node/discovery/common",
     "node/discovery/offering",
+    "node/discovery/offering/partitions",
     "node/discovery/offering/supplier",
     "node/discovery/offering/trader",
     "node/discovery/random",
@@ -108,7 +109,7 @@
     "overlay/types",
     "util"
   ]
-  revision = "427af1d01a8441a807cc797a587e2d4924df83f6"
+  revision = "cfe6b7f64eaeaec392a74e91e311d8a0cf562a7f"
 
 [[projects]]
   name = "github.com/urfave/cli"
@@ -167,7 +168,7 @@
     "lapack/lapack64",
     "mat"
   ]
-  revision = "3092bd257723f63c63ed3eb9c0b993692270cf48"
+  revision = "95e9db9a70fd50632d7723641395d92a1f134d06"
 
 [[projects]]
   branch = "master"
@@ -186,7 +187,7 @@
     "vg/vgpdf",
     "vg/vgsvg"
   ]
-  revision = "b07a7783ad1930a811bae55b55e26d919254c201"
+  revision = "f52aaf5deade9478d2b8f14ed4cf0e2c16e6dc6d"
 
 [solve-meta]
   analyzer-name = "dep"

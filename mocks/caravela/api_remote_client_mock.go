@@ -47,6 +47,16 @@ func (mock *RemoteClientMock) RefreshOffer(ctx context.Context, fromTrader, toSu
 	return node.RefreshOffer(ctx, fromTrader, offer), nil
 }
 
+func (mock *RemoteClientMock) UpdateOffer(ctx context.Context, fromSupplier, toTrader *types.Node, offer *types.Offer) error {
+	node, nodeIndex := mock.nodeService.NodeByIP(toTrader.IP)
+
+	// Collect Metrics
+	mock.collector.APIRequestReceived(nodeIndex)
+
+	node.UpdateOffer(ctx, fromSupplier, toTrader, offer)
+	return nil
+}
+
 func (mock *RemoteClientMock) RemoveOffer(ctx context.Context, fromSupp, toTrader *types.Node, offer *types.Offer) error {
 	node, nodeIndex := mock.nodeService.NodeByIP(toTrader.IP)
 

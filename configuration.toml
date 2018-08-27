@@ -7,7 +7,7 @@ Backend = "chord-single-offer"    # chord-random, chord-single-offer, chord-mult
     SpreadOffersInterval = "1m"
     RefreshingInterval = "5m"
     [Caravela.DiscoveryBackend.RandomChordBackend]
-    RandBackendMaxRetries = 10
+    RandBackendMaxRetries = 1
 [Caravela.Resources]
     [[Caravela.Resources.CPUPowers]]
     Value = 0

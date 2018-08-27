@@ -130,27 +130,27 @@ var requestProfiles = []requestProfile{
 			CPUs: 1,
 			RAM:  256,
 		},
-		Percentage: 50,
+		Percentage: 40,
 	},
 	{
 		Resources: types.Resources{
 			CPUs: 2,
 			RAM:  800,
 		},
-		Percentage: 35,
+		Percentage: 30,
 	},
 	{
 		Resources: types.Resources{
 			CPUs: 3,
 			RAM:  1500,
 		},
-		Percentage: 10,
+		Percentage: 20,
 	},
 	{
 		Resources: types.Resources{
 			CPUs: 3,
 			RAM:  2500,
 		},
-		Percentage: 5,
+		Percentage: 10,
 	},
 }
