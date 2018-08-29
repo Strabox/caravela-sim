@@ -109,7 +109,7 @@
     "overlay/types",
     "util"
   ]
-  revision = "cfe6b7f64eaeaec392a74e91e311d8a0cf562a7f"
+  revision = "9ed324a42b75aadd61ecc95a82f8debffd6c49e8"
 
 [[projects]]
   name = "github.com/urfave/cli"
@@ -149,7 +149,7 @@
     "unix",
     "windows"
   ]
-  revision = "4910a1d54f876d7b22162a85f4d066d3ee649450"
+  revision = "d99a578cf41bfccdeaf48b0845c823a4b8b0ad5e"
 
 [[projects]]
   branch = "master"
