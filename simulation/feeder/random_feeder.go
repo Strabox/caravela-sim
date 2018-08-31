@@ -127,29 +127,33 @@ type requestProfile struct {
 var requestProfiles = []requestProfile{
 	{
 		Resources: types.Resources{
-			CPUs: 1,
-			RAM:  256,
+			CPUClass: 1,
+			CPUs:     1,
+			RAM:      256,
 		},
 		Percentage: 40,
 	},
 	{
 		Resources: types.Resources{
-			CPUs: 2,
-			RAM:  800,
+			CPUClass: 1,
+			CPUs:     2,
+			RAM:      800,
 		},
 		Percentage: 30,
 	},
 	{
 		Resources: types.Resources{
-			CPUs: 3,
-			RAM:  1500,
+			CPUClass: 1,
+			CPUs:     3,
+			RAM:      1500,
 		},
 		Percentage: 20,
 	},
 	{
 		Resources: types.Resources{
-			CPUs: 3,
-			RAM:  2500,
+			CPUClass: 1,
+			CPUs:     3,
+			RAM:      2500,
 		},
 		Percentage: 10,
 	},

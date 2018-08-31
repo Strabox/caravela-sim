@@ -1,5 +1,5 @@
 package docker
 
 type ResourcesGenerator interface {
-	Generate() (int, int)
+	Generate() (int, int, int)
 }

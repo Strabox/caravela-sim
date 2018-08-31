@@ -47,8 +47,9 @@ func Default() *Configuration {
 		ResourcesGenerator: resourcesGenerator{
 			ResourceGenerator: "partition-fit",
 			StaticResources: types.Resources{
-				CPUs: 4,
-				RAM:  4096,
+				CPUClass: 1,
+				CPUs:     4,
+				RAM:      4096,
 			},
 		},
 		OutDirectoryPath:  DefaultOutDirectoryPath,

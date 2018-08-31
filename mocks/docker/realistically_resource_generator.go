@@ -22,7 +22,7 @@ func newRealisticallyResourceGen(_ *configuration.Configuration, caravelaConfigs
 	}, nil
 }
 
-func (e *realisticallyResourceGen) Generate() (int, int) {
+func (e *realisticallyResourceGen) Generate() (int, int, int) {
 	nodesProfiles := []nodeResourcesProfile{
 		{
 			Percentage: 50,
@@ -70,5 +70,5 @@ func (e *realisticallyResourceGen) Generate() (int, int) {
 		}
 	}
 
-	return prevResourcesProfile.CPUs, prevResourcesProfile.RAM
+	return 1, prevResourcesProfile.CPUs, prevResourcesProfile.RAM // TODO: Dehardcode the CPUClass
 }

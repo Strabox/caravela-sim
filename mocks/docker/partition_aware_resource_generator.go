@@ -17,55 +17,55 @@ func newPartitionAwareResourceGen(_ *configuration.Configuration, caravelaConfig
 	}, nil
 }
 
-func (p *partitionAwareResourceGen) Generate() (int, int) {
+func (p *partitionAwareResourceGen) Generate() (int, int, int) {
 	copyPartitions := caravelaConfigs.ResourcesPartitions{}
-	copyPartitions.CPUPowers = make([]caravelaConfigs.CPUPowerPartition, len(p.caravelaConfigs.ResourcesPartitions().CPUPowers))
-	for cp, power := range p.caravelaConfigs.ResourcesPartitions().CPUPowers {
-		copyPartitions.CPUPowers[cp].Value = power.Value
-		copyPartitions.CPUPowers[cp].Percentage = power.Percentage
-		copyPartitions.CPUPowers[cp].CPUCores = make([]caravelaConfigs.CPUCoresPartition, len(power.CPUCores))
-		for cc, cores := range power.CPUCores {
-			copyPartitions.CPUPowers[cp].CPUCores[cc].Value = cores.Value
-			copyPartitions.CPUPowers[cp].CPUCores[cc].Percentage = cores.Percentage
-			copyPartitions.CPUPowers[cp].CPUCores[cc].RAMs = make([]caravelaConfigs.RAMPartition, len(cores.RAMs))
+	copyPartitions.CPUClasses = make([]caravelaConfigs.CPUClassPartition, len(p.caravelaConfigs.ResourcesPartitions().CPUClasses))
+	for cp, class := range p.caravelaConfigs.ResourcesPartitions().CPUClasses {
+		copyPartitions.CPUClasses[cp].Value = class.Value
+		copyPartitions.CPUClasses[cp].Percentage = class.Percentage
+		copyPartitions.CPUClasses[cp].CPUCores = make([]caravelaConfigs.CPUCoresPartition, len(class.CPUCores))
+		for cc, cores := range class.CPUCores {
+			copyPartitions.CPUClasses[cp].CPUCores[cc].Value = cores.Value
+			copyPartitions.CPUClasses[cp].CPUCores[cc].Percentage = cores.Percentage
+			copyPartitions.CPUClasses[cp].CPUCores[cc].RAMs = make([]caravelaConfigs.RAMPartition, len(cores.RAMs))
 			for r, ram := range cores.RAMs {
-				copyPartitions.CPUPowers[cp].CPUCores[cc].RAMs[r].Value = ram.Value
-				copyPartitions.CPUPowers[cp].CPUCores[cc].RAMs[r].Percentage = ram.Percentage
+				copyPartitions.CPUClasses[cp].CPUCores[cc].RAMs[r].Value = ram.Value
+				copyPartitions.CPUClasses[cp].CPUCores[cc].RAMs[r].Percentage = ram.Percentage
 			}
 		}
 	}
 
 	cpAcc := 0
-	for cp, power := range copyPartitions.CPUPowers {
-		currentCPPercentage := power.Percentage
-		copyPartitions.CPUPowers[cp].Percentage += cpAcc
+	for cp, cpuClass := range copyPartitions.CPUClasses {
+		currentCPPercentage := cpuClass.Percentage
+		copyPartitions.CPUClasses[cp].Percentage += cpAcc
 		cpAcc += currentCPPercentage
 
 		ccAcc := 0
-		for cc, cores := range copyPartitions.CPUPowers[cp].CPUCores {
+		for cc, cores := range copyPartitions.CPUClasses[cp].CPUCores {
 			currentCCPercentage := cores.Percentage
-			copyPartitions.CPUPowers[cp].CPUCores[cc].Percentage += ccAcc
+			copyPartitions.CPUClasses[cp].CPUCores[cc].Percentage += ccAcc
 			ccAcc += currentCCPercentage
 
 			ramAcc := 0
-			for r, ram := range copyPartitions.CPUPowers[cp].CPUCores[cc].RAMs {
+			for r, ram := range copyPartitions.CPUClasses[cp].CPUCores[cc].RAMs {
 				currentRAMPercentage := ram.Percentage
-				copyPartitions.CPUPowers[cp].CPUCores[cc].RAMs[r].Percentage += ramAcc
+				copyPartitions.CPUClasses[cp].CPUCores[cc].RAMs[r].Percentage += ramAcc
 				ramAcc += currentRAMPercentage
 			}
 		}
 	}
 
-	cpuPowerRand := util.RandomInteger(1, 100)
-	for cp, power := range copyPartitions.CPUPowers {
-		if cpuPowerRand <= power.Percentage {
+	cpuClassRand := util.RandomInteger(1, 100)
+	for cp, class := range copyPartitions.CPUClasses {
+		if cpuClassRand <= class.Percentage {
 			cpuCoresRand := util.RandomInteger(1, 100)
-			for cc, cores := range copyPartitions.CPUPowers[cp].CPUCores {
+			for cc, cores := range copyPartitions.CPUClasses[cp].CPUCores {
 				if cpuCoresRand <= cores.Percentage {
 					ramRand := util.RandomInteger(1, 100)
-					for _, ram := range copyPartitions.CPUPowers[cp].CPUCores[cc].RAMs {
+					for _, ram := range copyPartitions.CPUClasses[cp].CPUCores[cc].RAMs {
 						if ramRand <= ram.Percentage {
-							return cores.Value, ram.Value
+							return class.Value, cores.Value, ram.Value
 						}
 					}
 				}

@@ -15,6 +15,6 @@ func newStaticResourceGen(simConfigs *configuration.Configuration, _ *caravelaCo
 	}, nil
 }
 
-func (s *staticResourceGen) Generate() (int, int) {
-	return s.simConfigs.StaticGeneratorResources().CPUs, s.simConfigs.StaticGeneratorResources().RAM
+func (s *staticResourceGen) Generate() (int, int, int) {
+	return int(s.simConfigs.StaticGeneratorResources().CPUClass), s.simConfigs.StaticGeneratorResources().CPUs, s.simConfigs.StaticGeneratorResources().RAM
 }

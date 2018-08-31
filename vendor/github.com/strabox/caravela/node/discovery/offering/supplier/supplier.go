@@ -199,7 +199,6 @@ func (s *Supplier) ReturnResources(releasedResources resources.Resources) {
 
 	log.Debugf(util.LogTag("SUPPLIER")+"RESOURCES RELEASED Res: <%d;%d>", releasedResources.CPUs(), releasedResources.RAM())
 	s.availableResources.Add(releasedResources)
-	log.Infof("Released: <%d,%d>, To: <%d,%d>", releasedResources.CPUs(), releasedResources.RAM(), s.availableResources.CPUs(), s.availableResources.RAM())
 
 	if s.config.Simulation() {
 		s.updateOffers() // Update its own offers sequential
@@ -267,16 +266,18 @@ func (s *Supplier) AvailableResources() types.Resources {
 	defer s.offersMutex.Unlock()
 
 	return types.Resources{
-		CPUs: s.availableResources.CPUs(),
-		RAM:  s.availableResources.RAM(),
+		CPUClass: types.CPUClass(s.availableResources.CPUClass()),
+		CPUs:     s.availableResources.CPUs(),
+		RAM:      s.availableResources.RAM(),
 	}
 }
 
 // Simulation
 func (s *Supplier) MaximumResources() types.Resources {
 	return types.Resources{
-		CPUs: s.maxResources.CPUs(),
-		RAM:  s.maxResources.RAM(),
+		CPUClass: types.CPUClass(s.availableResources.CPUClass()),
+		CPUs:     s.maxResources.CPUs(),
+		RAM:      s.maxResources.RAM(),
 	}
 }
 

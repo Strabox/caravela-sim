@@ -51,11 +51,11 @@ func (cliMock *ClientMock) Start() <-chan *events.Event {
 	return nil
 }
 
-func (cliMock *ClientMock) GetDockerCPUAndRAM() (int, int) {
-	cpus, ram := cliMock.resourcesGenerator.Generate()
-	cliMock.maxCPUS += cpus
+func (cliMock *ClientMock) GetDockerEngineTotalResources() (int, int, int) {
+	cpuClass, cpuCores, ram := cliMock.resourcesGenerator.Generate()
+	cliMock.maxCPUS += cpuCores
 	cliMock.maxRAM += ram
-	return cpus, ram
+	return cpuClass, cpuCores, ram
 }
 
 func (cliMock *ClientMock) CheckContainerStatus(containerID string) (myContainer.Status, error) {
