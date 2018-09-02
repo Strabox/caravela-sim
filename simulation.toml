@@ -1,8 +1,8 @@
 NumberOfNodes = 50000
 TickInterval = "20s"
-MaxTicks = 63
+MaxTicks = 51
 Multithread = true
-DiscoveryBackends = ["chord-single-offer", "chord-multiple-offer", "chord-random"]
+DiscoveryBackends = ["chord-single-offer", "chord-multiple-offer", "chord-random", "swarm"]
 RequestFeeder = "random"            # random
 SimulatorLogLevel = "info"
 CaravelaLogLevel = "info"

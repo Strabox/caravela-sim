@@ -43,3 +43,7 @@ func (node *NodeMock) Equals(nodeArg *NodeMock) bool {
 func (node *NodeMock) Smaller(nodeArg *NodeMock) bool {
 	return node.guid.Cmp(*nodeArg.guid) < 0
 }
+
+func (node *NodeMock) SetZeroGUID() {
+	node.guid = guid.NewGUIDInteger(0)
+}

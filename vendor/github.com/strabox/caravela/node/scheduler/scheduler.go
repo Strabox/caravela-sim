@@ -71,7 +71,7 @@ func (s *Scheduler) SubmitContainers(ctx context.Context, contConfigs []types.Co
 
 	// ================== Check for the containers group policy ==================
 
-	coLocateTotalResources := resources.NewResourcesCPUClass(types.LowCPUPClass, 0, 0)
+	coLocateTotalResources := resources.NewResourcesCPUClass(int(types.LowCPUPClass), 0, 0)
 	coLocateContainers := make([]types.ContainerConfig, 0)
 	spreadContainers := make([]types.ContainerConfig, 0)
 

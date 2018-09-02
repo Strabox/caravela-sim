@@ -63,12 +63,12 @@ func (rf *RandomFeeder) Start(ticksChannel <-chan chan RequestTask) {
 
 				if tick <= 10 || tick >= 20 {
 					for r := 0; r < runReqPerTick; r++ { // Run Container Requests
-						newTickChan <- func(randNodeIndex int, randNode *node.Node, currentTime time.Duration) {
+						newTickChan <- func(nodeIndex int, injectedNode *node.Node, currentTime time.Duration) {
 							resources := rf.generateResourcesProfile() // Generate the resources necessary for the request.
 							requestID := guid.NewGUIDRandom().String() // Generate a GUID for tracking the request inside Caravela.
 							requestContext := context.WithValue(context.Background(), types.RequestIDKey, requestID)
-							rf.collector.CreateRunRequest(randNodeIndex, requestID, resources, currentTime)
-							contStatus, err := randNode.SubmitContainers(
+							rf.collector.CreateRunRequest(nodeIndex, requestID, resources, currentTime)
+							contStatus, err := injectedNode.SubmitContainers(
 								requestContext,
 								[]types.ContainerConfig{
 									{
@@ -77,9 +77,10 @@ func (rf *RandomFeeder) Start(ticksChannel <-chan chan RequestTask) {
 										PortMappings: caravela.EmptyPortMappings(),
 										Args:         caravela.EmptyContainerArgs(),
 										Resources:    resources,
+										GroupPolicy:  types.SpreadGroupPolicy,
 									}})
 							if err == nil {
-								rf.reqInjectionNode.Store(contStatus[0].ContainerID, randNode)
+								rf.reqInjectionNode.Store(contStatus[0].ContainerID, injectedNode)
 								rf.collector.RunRequestSucceeded()
 							}
 							rf.collector.ArchiveRunRequest(requestID)
@@ -127,7 +128,7 @@ type requestProfile struct {
 var requestProfiles = []requestProfile{
 	{
 		Resources: types.Resources{
-			CPUClass: 1,
+			CPUClass: 0,
 			CPUs:     1,
 			RAM:      256,
 		},
@@ -135,7 +136,7 @@ var requestProfiles = []requestProfile{
 	},
 	{
 		Resources: types.Resources{
-			CPUClass: 1,
+			CPUClass: 0,
 			CPUs:     2,
 			RAM:      800,
 		},

@@ -103,13 +103,14 @@
     "node/discovery/offering/supplier",
     "node/discovery/offering/trader",
     "node/discovery/random",
+    "node/discovery/swarm",
     "node/external",
     "node/scheduler",
     "node/user",
     "overlay/types",
     "util"
   ]
-  revision = "f3f1446835536785cf020f1a139639514db49379"
+  revision = "ee50bc197f037c66ac0b9c0a74c46d687084d888"
 
 [[projects]]
   name = "github.com/urfave/cli"
@@ -168,7 +169,7 @@
     "lapack/lapack64",
     "mat"
   ]
-  revision = "95e9db9a70fd50632d7723641395d92a1f134d06"
+  revision = "70492dcef1a52513768253d34010afe76412249c"
 
 [[projects]]
   branch = "master"
