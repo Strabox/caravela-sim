@@ -3,10 +3,12 @@ package metrics
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/ivpusic/grpool"
 	"github.com/pkg/errors"
 	"github.com/strabox/caravela/api/types"
 	"io/ioutil"
 	"os"
+	"runtime"
 	"sort"
 	"time"
 )
@@ -26,9 +28,9 @@ type simulationData struct {
 	tmpDirFullPath string
 }
 
-// Collector aggregates all the metrics information about the system during a simulation.
+// Collector aggregates all the metrics information about the system during a engine.
 type Collector struct {
-	numNodes       int // Number of simulation nodes.
+	numNodes       int // Number of engine nodes.
 	currSimulation *simulationData
 	simulations    map[string]*simulationData
 
@@ -154,7 +156,7 @@ func (coll *Collector) Persist(currentTime time.Duration) {
 	}
 }
 
-// EndSimulation is called when the simulation stops and there is no need to gather more metrics.
+// EndSimulation is called when the engine stops and there is no need to gather more metrics.
 func (coll *Collector) EndSimulation(endTime time.Duration) {
 	if activeGlobal, err := coll.activeGlobal(); err == nil {
 		activeGlobal.SetEndTime(endTime)
@@ -166,11 +168,11 @@ func (coll *Collector) EndSimulation(endTime time.Duration) {
 // Clear removes all the temporary files and resources used during the metrics gathering.
 func (coll *Collector) Clear() {
 	for _, simData := range coll.simulations {
-		os.RemoveAll(simData.tmpDirFullPath) // clean up the simulation temp collector files
+		os.RemoveAll(simData.tmpDirFullPath) // clean up the engine temp collector files
 	}
 }
 
-// Print is used to gather all the metrics of the simulation into memory, consolidating them
+// Print is used to gather all the metrics of the engine into memory, consolidating them
 // in order to produce results into the console and into the files.
 func (coll *Collector) Print() {
 	coll.loadAllMetrics() // Load all the intermediate snapshots in memory
@@ -197,7 +199,7 @@ func (coll *Collector) Print() {
 // activeGlobal returns the current global snapshot that is gathering metrics.
 func (coll *Collector) activeGlobal() (*Global, error) {
 	if coll.currSimulation == nil {
-		return nil, errors.New("no active simulation")
+		return nil, errors.New("no active engine")
 	}
 	return &coll.currSimulation.snapshots[len(coll.currSimulation.snapshots)-1], nil
 }
@@ -235,14 +237,56 @@ func (coll *Collector) loadAllMetrics() {
 
 // plotGraphics plots all the charts/plots based on the metrics collected.
 func (coll *Collector) plotGraphics() {
-	coll.plotRequestsSucceeded()
-	coll.plotRequestsMessagesTradedPerRequest()
-	coll.plotFreeResources()
-	coll.plotResourceDistribution()
-	coll.plotLookupMessagesPercentiles()
+	// Goroutine pool used to plot the graphics in parallel.
+	maxWorkers := runtime.NumCPU() + 1
+	grpool := grpool.NewPool(maxWorkers, maxWorkers*3)
+
+	grpool.WaitCount(1)
+	grpool.JobQueue <- func() {
+		coll.plotRequestsSucceeded()
+		grpool.JobDone()
+	}
+
+	grpool.WaitCount(1)
+	grpool.JobQueue <- func() {
+		coll.plotRequestsMessagesTradedPerRequest()
+		grpool.JobDone()
+	}
+
+	grpool.WaitCount(1)
+	grpool.JobQueue <- func() {
+		coll.plotFreeResources()
+		grpool.JobDone()
+	}
+
+	grpool.WaitCount(1)
+	grpool.JobQueue <- func() {
+		coll.plotResourceDistribution()
+		grpool.JobDone()
+	}
+
+	grpool.WaitCount(1)
+	grpool.JobQueue <- func() {
+		coll.plotLookupMessagesPercentiles()
+		grpool.JobDone()
+	}
+
 	// Debug Performance Metrics Plots
-	coll.plotRelayedGetOfferMessages()
-	coll.plotEmptyGetOfferMessages()
+
+	grpool.WaitCount(1)
+	grpool.JobQueue <- func() {
+		coll.plotRelayedGetOfferMessages()
+		grpool.JobDone()
+	}
+
+	grpool.WaitCount(1)
+	grpool.JobQueue <- func() {
+		coll.plotEmptyGetOfferMessages()
+		grpool.JobDone()
+	}
+
+	grpool.WaitAll() // Wait for all the plots to be completed.
+	grpool.Release() // Release grpool resources.
 }
 
 // ===================================== Sort Interface =======================================

@@ -106,11 +106,14 @@
     "node/discovery/swarm",
     "node/external",
     "node/scheduler",
+    "node/scheduler/policies",
+    "node/scheduler/policies/binpack",
+    "node/scheduler/policies/spread",
     "node/user",
     "overlay/types",
     "util"
   ]
-  revision = "ee50bc197f037c66ac0b9c0a74c46d687084d888"
+  revision = "330105ba45331fe88db3c7197ca42d1085c4ffbe"
 
 [[projects]]
   name = "github.com/urfave/cli"
@@ -150,7 +153,7 @@
     "unix",
     "windows"
   ]
-  revision = "fa5fdf94c78965f1aa8423f0cc50b8b8d728b05a"
+  revision = "2b024373dcd9800f0cae693839fac6ede8d64a8c"
 
 [[projects]]
   branch = "master"

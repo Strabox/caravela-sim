@@ -47,7 +47,7 @@ func (cliMock *ClientMock) MaxResourcesAvailable() (int, int) {
 // ===============================================================================
 
 func (cliMock *ClientMock) Start() <-chan *events.Event {
-	// Do Nothing (Not necessary for the simulation)
+	// Do Nothing (Not necessary for the engine)
 	return nil
 }
 

@@ -21,12 +21,12 @@ func NewAPIServerMock() *APIServerMock {
 // ===============================================================================
 
 func (server *APIServerMock) Start(thisNode api.LocalNode) error {
-	// Do Nothing (For now not necessary for the simulation)
+	// Do Nothing (For now not necessary for the engine)
 	// API Server always starts with success
 	return nil
 }
 
 func (server *APIServerMock) Stop() {
-	// Do Nothing (For now not necessary for the simulation)
+	// Do Nothing (For now not necessary for the engine)
 	// API Server always stop with success
 }

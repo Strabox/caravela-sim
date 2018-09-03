@@ -5,8 +5,8 @@ import (
 	"fmt"
 	"github.com/pkg/errors"
 	"github.com/strabox/caravela-sim/configuration"
+	"github.com/strabox/caravela-sim/engine/metrics"
 	"github.com/strabox/caravela-sim/mocks/caravela"
-	"github.com/strabox/caravela-sim/simulation/metrics"
 	"github.com/strabox/caravela-sim/util"
 	"github.com/strabox/caravela/api/types"
 	"github.com/strabox/caravela/node"
@@ -90,7 +90,7 @@ func (rf *RandomFeeder) Start(ticksChannel <-chan chan RequestTask) {
 
 				close(newTickChan) // No more user requests for this tick
 			} else { // Simulator closed ticks channel
-				return // Stop feeding simulation
+				return // Stop feeding engine
 			}
 		}
 		tick++

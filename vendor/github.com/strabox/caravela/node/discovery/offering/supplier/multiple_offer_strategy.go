@@ -31,10 +31,16 @@ func (m *multipleOfferStrategy) Init(supp *Supplier, resourcesMapping *resources
 }
 
 func (m *multipleOfferStrategy) FindOffers(ctx context.Context, targetResources resources.Resources) []types.AvailableOffer {
-	return m.findOffersLowToHigher(ctx, targetResources)
+	if m.configs.SchedulingPolicy() == "binpack" {
+		return m.findOffersLowToHigher(ctx, targetResources)
+	} else if m.configs.SchedulingPolicy() == "spread" {
+		return m.findOffersHigherToLow(ctx, targetResources)
+	} else {
+		panic("invalid scheduling policies")
+	}
 }
 
-func (m *multipleOfferStrategy) UpdateOffers(availableResources resources.Resources) {
+func (m *multipleOfferStrategy) UpdateOffers(availableResources, usedResources resources.Resources) {
 	lowerPartitions, _ := m.resourcesMapping.LowerPartitionsOffer(availableResources)
 	offersToRemove := make([]supplierOffer, 0)
 
@@ -52,7 +58,7 @@ OfferLoop:
 	}
 
 	for _, resourcePartitionTarget := range lowerPartitions {
-		offer, err := m.createAnOffer(int64(m.localSupplier.newOfferID()), resourcePartitionTarget, availableResources)
+		offer, err := m.createAnOffer(int64(m.localSupplier.newOfferID()), resourcePartitionTarget, availableResources, usedResources)
 		if err == nil {
 			m.localSupplier.addOffer(offer)
 		}
@@ -86,10 +92,15 @@ OfferLoop:
 						&types.Offer{
 							ID:     int64(suppOffer.ID()),
 							Amount: 1,
-							Resources: types.Resources{
+							FreeResources: types.Resources{
 								CPUClass: types.CPUClass(availableResources.CPUClass()),
 								CPUs:     availableResources.CPUs(),
 								RAM:      availableResources.RAM(),
+							},
+							UsedResources: types.Resources{
+								CPUClass: types.CPUClass(usedResources.CPUClass()),
+								CPUs:     usedResources.CPUs(),
+								RAM:      usedResources.RAM(),
 							},
 						})
 				}

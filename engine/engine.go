@@ -1,15 +1,15 @@
-package simulation
+package engine
 
 import (
 	"fmt"
 	"github.com/ivpusic/grpool"
 	"github.com/pkg/errors"
 	"github.com/strabox/caravela-sim/configuration"
+	"github.com/strabox/caravela-sim/engine/feeder"
+	"github.com/strabox/caravela-sim/engine/metrics"
 	"github.com/strabox/caravela-sim/mocks/caravela"
 	"github.com/strabox/caravela-sim/mocks/docker"
 	"github.com/strabox/caravela-sim/mocks/overlay/chord"
-	"github.com/strabox/caravela-sim/simulation/feeder"
-	"github.com/strabox/caravela-sim/simulation/metrics"
 	"github.com/strabox/caravela-sim/util"
 	"github.com/strabox/caravela/api/types"
 	caravelaConfig "github.com/strabox/caravela/configuration"
@@ -18,18 +18,18 @@ import (
 	"time"
 )
 
-// engineLogTag log's tag of the simulator.
+// engineLogTag log's tag for the simulator engine.
 const engineLogTag = "ENGINE"
 
-// Engine represents an instance of a Caravela's simulator.
-// It holds all the structures to control, feed and analyse a simulation.
+// Engine represents an instance of a Caravela's simulator engine.
+// It holds all the structures to control, feed and analyse a engine during a simulation.
 type Engine struct {
 	isInit           bool                 // Used to verify if the simulator is initialized.
 	metricsCollector *metrics.Collector   // Metric's collector.
-	nodes            []*caravelaNode.Node // Array with all the nodes for the simulation.
+	nodes            []*caravelaNode.Node // Array with all the nodes for the engine.
 	overlayMock      *chord.Mock          // Overlay that "connects" all nodes.
 	feeder           feeder.Feeder        // Used to feed the simulator with requests.
-	workersPool      *grpool.Pool         // Pool of Goroutines to run the simulation.
+	workersPool      *grpool.Pool         // Pool of Goroutines to run the engine.
 
 	caravelaConfigs  *caravelaConfig.Configuration // Caravela's configurations.
 	simulatorConfigs *configuration.Configuration  // Engine's configurations.
@@ -55,7 +55,7 @@ func NewEngine(metricsCollector *metrics.Collector, simConfig *configuration.Con
 	}
 }
 
-// Init initializes all the components making it ready to start the simulation.
+// Init initializes all the components making it ready to start the engine.
 func (e *Engine) Init() {
 	util.Log.Info(util.LogTag(engineLogTag) + "Initializing...")
 
@@ -70,7 +70,7 @@ func (e *Engine) Init() {
 		e.caravelaConfigs.ChordNumSuccessors(), e.metricsCollector)
 	e.overlayMock.Init()
 
-	// Create the CARAVELA's nodes for the simulation.
+	// Create the CARAVELA's nodes for the engine.
 	util.Log.Info(util.LogTag(engineLogTag) + "Initializing nodes...")
 	for i := 0; i < e.simulatorConfigs.NumberOfNodes; i++ {
 		overlayNodeMock := e.overlayMock.GetNodeMockByIndex(i)
@@ -137,11 +137,11 @@ func (e *Engine) Start() {
 		// 3rd. Update metrics with system's current information.
 		e.updateMetrics()
 
-		// 4th. Update the simulation time using the tick mechanism.
+		// 4th. Update the engine time using the tick mechanism.
 		simCurrentTime = simCurrentTime + e.simulatorConfigs.TicksInterval()
 		numTicks++
 		if numTicks == e.simulatorConfigs.MaximumTicks() {
-			close(ticksChan) // Alert feeder that the simulation has ended.
+			close(ticksChan) // Alert feeder that the engine has ended.
 			break
 		}
 		if numTicks != 0 && (numTicks%ticksPerPersist) == 0 {
@@ -185,11 +185,11 @@ func (e *Engine) acceptRequests(ticksChan chan<- chan feeder.RequestTask, curren
 	}
 }
 
-// fireTimerActions runs the real time dependent actions.
+// fireTimerActions runs the actions dependent on the real time triggers/timers.
 func (e *Engine) fireTimerActions(currentTime, lastTimeRefreshes, lastTimeSpreadOffers time.Duration) (time.Duration, time.Duration) {
 	defer e.workersPool.WaitAll()
 
-	// 1. Refresh offers
+	// 1. Refresh Offers
 	if (currentTime - lastTimeRefreshes) >= e.caravelaConfigs.RefreshingInterval() {
 		// Necessary because the tick interval can be greater than the refresh interval.
 		timesToRefresh := int((currentTime - lastTimeRefreshes) / e.caravelaConfigs.RefreshingInterval())
@@ -208,7 +208,7 @@ func (e *Engine) fireTimerActions(currentTime, lastTimeRefreshes, lastTimeSpread
 		lastTimeRefreshes = currentTime
 	}
 
-	// 2. Spread offers
+	// 2. Spread Offers
 	if (currentTime - lastTimeSpreadOffers) >= e.caravelaConfigs.SpreadOffersInterval() {
 		// Necessary because the tick interval can be greater than the spread offers interval.
 		timesToSpread := int((currentTime - lastTimeSpreadOffers) / e.caravelaConfigs.SpreadOffersInterval())
@@ -226,8 +226,6 @@ func (e *Engine) fireTimerActions(currentTime, lastTimeRefreshes, lastTimeSpread
 
 		lastTimeSpreadOffers = currentTime
 	}
-
-	// 3. TODO: Advertise resources offers ??
 
 	return lastTimeRefreshes, lastTimeSpreadOffers
 }
@@ -261,9 +259,9 @@ func (e *Engine) selectInjectedNode() (int, *caravelaNode.Node) {
 	return nodeIndex, node
 }
 
-// release releases all the memory of the simulation structures, nodes, etc.
+// release releases all the memory of the engine structures, nodes, etc.
 func (e *Engine) release() {
-	util.Log.Info(util.LogTag(engineLogTag) + "Clearing simulation objects...")
+	util.Log.Info(util.LogTag(engineLogTag) + "Clearing engine objects...")
 	e.workersPool.Release()
 	e.feeder = nil
 	e.workersPool = nil

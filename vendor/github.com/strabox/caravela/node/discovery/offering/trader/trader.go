@@ -26,7 +26,7 @@ type Trader struct {
 	client  external.Caravela            // Client for the system
 
 	guid             *guid.GUID           // Trader's own GUID
-	resourcesMap     *resources.Mapping   // GUID<->Resources mapping
+	resourcesMap     *resources.Mapping   // GUID<->FreeResources mapping
 	handledResources *resources.Resources // Combination of resources that its responsible for managing (FIXED)
 
 	nearbyTradersOffering *nearbyTradersOffering    // Nearby traders that might have offers available
@@ -110,7 +110,7 @@ func (t *Trader) start() {
 		case <-t.spreadOffersTimer:
 			// Advertise offers (if any) into the neighbors traders.
 			// Necessary only to overcame the problems of unnoticed death of a neighbor.
-			if t.haveOffers() {
+			if t.haveOffers() && t.config.SpreadOffers() {
 				t.advertiseOffersToNeighbors(func(neighborGUID *guid.GUID) bool { return true },
 					&types.Node{GUID: t.guid.String(), IP: t.config.HostIP()})
 			}
@@ -125,7 +125,7 @@ func (t *Trader) start() {
 
 // Receives a resource offer from other node (supplier) of the system
 func (t *Trader) CreateOffer(fromSupp *types.Node, newOffer *types.Offer) {
-	resourcesOffered := resources.NewResourcesCPUClass(int(newOffer.Resources.CPUClass), newOffer.Resources.CPUs, newOffer.Resources.RAM)
+	resourcesOffered := resources.NewResourcesCPUClass(int(newOffer.FreeResources.CPUClass), newOffer.FreeResources.CPUs, newOffer.FreeResources.RAM)
 
 	// Verify if the offer contains the resources of trader.
 	// Basically verify if the offer is bigger than the handled resources of the trader.
@@ -140,12 +140,12 @@ func (t *Trader) CreateOffer(fromSupp *types.Node, newOffer *types.Offer) {
 
 		t.offers[offerKey] = offer
 		log.Debugf(util.LogTag("TRADER")+"%s Offer CREATED %dX<%d;%d>, From: %s, Offer: %d",
-			t.guid.Short(), newOffer.Amount, newOffer.Resources.CPUs, newOffer.Resources.RAM,
+			t.guid.Short(), newOffer.Amount, newOffer.FreeResources.CPUs, newOffer.FreeResources.RAM,
 			fromSupp.IP, newOffer.ID)
 
 		t.offersMutex.Unlock()
 
-		if advertise { // If node had no offers, advertise it has now for all the neighbors
+		if advertise && t.config.SpreadOffers() { // If node had no offers, advertise it has now for all the neighbors
 			if t.config.Simulation() {
 				t.advertiseOffersToNeighbors(func(neighborGUID *guid.GUID) bool { return true },
 					&types.Node{GUID: t.guid.String(), IP: t.config.HostIP()})
@@ -162,14 +162,14 @@ func (t *Trader) UpdateOffer(fromSupp *types.Node, offer *types.Offer) {
 	defer t.offersMutex.Unlock()
 
 	if traderOffer, exist := t.offers[offerKey{id: common.OfferID(offer.ID), supplierIP: fromSupp.IP}]; exist {
-		newOfferRes := *resources.NewResourcesCPUClass(int(offer.Resources.CPUClass), offer.Resources.CPUs, offer.Resources.RAM)
+		newOfferRes := *resources.NewResourcesCPUClass(int(offer.FreeResources.CPUClass), offer.FreeResources.CPUs, offer.FreeResources.RAM)
 		traderOffer.UpdateResources(newOfferRes, offer.Amount)
 	}
 }
 
 // Returns all the offers that the trader is managing.
 func (t *Trader) GetOffers(ctx context.Context, _ *types.Node, relay bool) []types.AvailableOffer {
-	if t.haveOffers() || !relay { // Trader has offers so return them immediately or we are not relaying
+	if t.haveOffers() || !relay || !t.config.SpreadOffers() { // Trader has offers so return them immediately or we are not relaying
 		t.offersMutex.Lock()
 		defer t.offersMutex.Unlock()
 
@@ -180,7 +180,7 @@ func (t *Trader) GetOffers(ctx context.Context, _ *types.Node, relay bool) []typ
 			allOffers[index].SupplierIP = traderOffer.SupplierIP()
 			allOffers[index].ID = int64(traderOffer.ID())
 			allOffers[index].Amount = traderOffer.Amount()
-			allOffers[index].Resources = types.Resources{
+			allOffers[index].FreeResources = types.Resources{
 				CPUClass: types.CPUClass(traderOffer.Resources().CPUClass()),
 				CPUs:     traderOffer.Resources().CPUs(),
 				RAM:      traderOffer.Resources().RAM(),
@@ -262,7 +262,7 @@ func (t *Trader) AdvertiseNeighborOffer(fromTrader, traderOffering *types.Node) 
 	}
 
 	// Do not relay the advertise if the node has offers.
-	if !t.haveOffers() {
+	if !t.haveOffers() && t.config.SpreadOffers() {
 		if t.config.Simulation() {
 			t.advertiseOffersToNeighbors(isValidNeighbor, traderOffering)
 		} else {
@@ -354,7 +354,7 @@ func (t *Trader) RefreshOffersSim() {
 func (t *Trader) SpreadOffersSim() {
 	// Advertise offers (if any) into the neighbors traders.
 	// Necessary only to overcame the problems of unnoticed death of a neighbor.
-	if t.haveOffers() {
+	if t.haveOffers() && t.config.SpreadOffers() {
 		t.advertiseOffersToNeighbors(func(neighborGUID *guid.GUID) bool { return true },
 			&types.Node{GUID: t.guid.String(), IP: t.config.HostIP()})
 	}

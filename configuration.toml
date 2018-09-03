@@ -3,12 +3,15 @@ Simulation = true
 CPUSlices = 1
 CPUOvercommit = 100
 RAMOvercommit = 100
+SchedulingPolicy = "binpack"
 [Caravela.DiscoveryBackend]
-Backend = "chord-single-offer"    # chord-random, chord-single-offer, chord-multiple-offers
-    [Caravela.DiscoveryBackend.SmartChordBackend]
-    SupplyingInterval = "1m"
+Backend = "chord-single-offer"    # chord-random, chord-single-offer, chord-multiple-offers, swarm
+    [Caravela.DiscoveryBackend.OfferingChordBackend]
     SpreadOffersInterval = "1m"
     RefreshingInterval = "5m"
+    # Debug performance flags
+    SpreadOffers = false
+    SpreadPartitionsState = false
     [Caravela.DiscoveryBackend.RandomChordBackend]
     RandBackendMaxRetries = 3
 [Caravela.Resources]

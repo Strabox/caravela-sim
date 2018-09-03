@@ -3,9 +3,9 @@ package cli
 import (
 	"fmt"
 	"github.com/strabox/caravela-sim/configuration"
+	"github.com/strabox/caravela-sim/engine"
+	"github.com/strabox/caravela-sim/engine/metrics"
 	"github.com/strabox/caravela-sim/mocks/caravela"
-	"github.com/strabox/caravela-sim/simulation"
-	"github.com/strabox/caravela-sim/simulation/metrics"
 	"github.com/strabox/caravela-sim/util"
 	"github.com/urfave/cli"
 )
@@ -29,16 +29,16 @@ func start(c *cli.Context) {
 		caravelaConfigs := caravela.Configuration()
 		caravelaConfigs.Caravela.DiscoveryBackend.Backend = str
 
-		mySimulator := simulation.NewEngine(metricsCollector, simulatorConfig, caravelaConfigs)
-		fmt.Println("Initializing simulation...")
+		mySimulator := engine.NewEngine(metricsCollector, simulatorConfig, caravelaConfigs)
+		fmt.Println("Initializing engine...")
 		mySimulator.Init()
 
-		fmt.Println("Starting simulation...")
+		fmt.Println("Starting engine...")
 		mySimulator.Start()
 		fmt.Println("Simulation ended")
 	}
 
-	fmt.Println("Crushing simulation results...")
+	fmt.Println("Crushing engine results...")
 	metricsCollector.Print() // Print the metricsCollector results and outputs the graphics.
 	metricsCollector.Clear() // Clear all the temporary metric files
 }

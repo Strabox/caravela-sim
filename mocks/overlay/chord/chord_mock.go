@@ -3,9 +3,9 @@ package chord
 import (
 	"context"
 	"github.com/pkg/errors"
+	"github.com/strabox/caravela-sim/engine/metrics"
 	"github.com/strabox/caravela-sim/mocks/caravela"
 	overlayMock "github.com/strabox/caravela-sim/mocks/overlay"
-	"github.com/strabox/caravela-sim/simulation/metrics"
 	"github.com/strabox/caravela-sim/util"
 	"github.com/strabox/caravela/api/types"
 	overlayTypes "github.com/strabox/caravela/overlay/types"
@@ -16,7 +16,7 @@ import (
 // chordLogTag chord's mock log tag.
 const chordLogTag = "SIM-CHORD"
 
-// numSpeedupNodes amount of nodes to speed up the simulation of a lookup request.
+// numSpeedupNodes amount of nodes to speed up the engine of a lookup request.
 const numSpeedupNodes = 200
 
 // Mock mocks the interactions with a Chord overlay client simulating its functionality.
@@ -119,12 +119,12 @@ func (chord *Mock) collectLookupMessages(ctx context.Context, targetNodeIndex in
 // ===============================================================================
 
 func (chord *Mock) Create(_ context.Context, _ overlayTypes.OverlayMembership) error {
-	// Do Nothing (Not necessary for the simulation)
+	// Do Nothing (Not necessary for the engine)
 	return nil
 }
 
 func (chord *Mock) Join(_ context.Context, _ string, _ int, _ overlayTypes.OverlayMembership) error {
-	// Do Nothing (Not necessary for the simulation)
+	// Do Nothing (Not necessary for the engine)
 	return nil
 }
 
@@ -199,12 +199,12 @@ func (chord *Mock) Neighbors(_ context.Context, nodeID []byte) ([]*overlayTypes.
 }
 
 func (chord *Mock) NodeID(_ context.Context) ([]byte, error) {
-	// Do Nothing (Not necessary for the simulation)
+	// Do Nothing (Not necessary for the engine)
 	return nil, nil
 }
 
 func (chord *Mock) Leave(_ context.Context) error {
-	// Do Nothing (Not necessary for the simulation)
+	// Do Nothing (Not necessary for the engine)
 	return nil
 }
 

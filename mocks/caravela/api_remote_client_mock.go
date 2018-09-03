@@ -2,7 +2,7 @@ package caravela
 
 import (
 	"context"
-	"github.com/strabox/caravela-sim/simulation/metrics"
+	"github.com/strabox/caravela-sim/engine/metrics"
 	"github.com/strabox/caravela/api/types"
 	"github.com/strabox/caravela/configuration"
 )
@@ -115,6 +115,6 @@ func (mock *RemoteClientMock) StopLocalContainer(ctx context.Context, toSupplier
 }
 
 func (mock *RemoteClientMock) ObtainConfiguration(_ context.Context, _ *types.Node) (*configuration.Configuration, error) {
-	// Do Nothing (Not necessary for the simulation)
+	// Do Nothing (Not necessary for the engine)
 	return nil, nil
 }

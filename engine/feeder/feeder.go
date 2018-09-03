@@ -1,7 +1,7 @@
 package feeder
 
 import (
-	"github.com/strabox/caravela-sim/simulation/metrics"
+	"github.com/strabox/caravela-sim/engine/metrics"
 	"github.com/strabox/caravela/node"
 	"time"
 )

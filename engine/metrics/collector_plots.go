@@ -3,7 +3,7 @@ package metrics
 import (
 	"errors"
 	"fmt"
-	"github.com/strabox/caravela-sim/simulation/metrics/graphics"
+	"github.com/strabox/caravela-sim/engine/metrics/graphics"
 	"gonum.org/v1/gonum/mat"
 	"gonum.org/v1/plot/plotter"
 	"gonum.org/v1/plot/plotutil"

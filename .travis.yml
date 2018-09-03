@@ -6,7 +6,7 @@ before_script:
 script:
 # Build the project
 - make
-# Run the default/example simulation
+# Run the default/example engine
 - make simulate
 notifications:
   on_success: change

@@ -19,10 +19,10 @@ const DefaultOutDirectoryPath = "out"
 
 // Configuration structure with initialization parameters for the simulator.
 type Configuration struct {
-	NumberOfNodes      int                // Number of nodes used in the simulation.
-	TickInterval       duration           // Interval between each simulator tick (in simulation time).
+	NumberOfNodes      int                // Number of nodes used in the engine.
+	TickInterval       duration           // Interval between each simulator tick (in engine time).
 	MaxTicks           int                // Maximum number of ticks done by the simulator.
-	Multithread        bool               // Used to leverage the multiple cores to speed up the simulation.
+	Multithread        bool               // Used to leverage the multiple cores to speed up the engine.
 	RequestFeeder      string             // Used to feed the simulator with a series of requests.
 	DiscoveryBackends  []string           // The discovery backends to simulate
 	ResourcesGenerator resourcesGenerator // Strategies used to generate the resources for each node.
@@ -36,7 +36,7 @@ type resourcesGenerator struct {
 	StaticResources   types.Resources
 }
 
-// Default creates the configuration structure for a basic/default simulation.
+// Default creates the configuration structure for a basic/default engine.
 func Default() *Configuration {
 	return &Configuration{
 		NumberOfNodes: 10000,
@@ -59,7 +59,7 @@ func Default() *Configuration {
 }
 
 // Produces configuration structure reading from the configuration file and filling the rest
-// with the default values of the simulation
+// with the default values of the engine
 func ReadFromFile(configFilePath string) (*Configuration, error) {
 	config := Default()
 
@@ -87,7 +87,7 @@ func (config *Configuration) validate() error {
 	}
 
 	if config.NumberOfNodes <= 0 {
-		return fmt.Errorf("the number of nodes in the simulation must be > 0: %d", config.NumberOfNodes)
+		return fmt.Errorf("the number of nodes in the engine must be > 0: %d", config.NumberOfNodes)
 	}
 
 	if config.MaxTicks <= 0 {

@@ -7,7 +7,7 @@ var (
 		{
 			Name:      "start",
 			ShortName: "s",
-			Usage:     "Start the simulation",
+			Usage:     "Start the engine",
 			Category:  "Simulator management",
 			Before:    printBanner,
 			Action:    start,
