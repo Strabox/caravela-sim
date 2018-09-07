@@ -9,12 +9,12 @@ type staticResourceGen struct {
 	simConfigs *configuration.Configuration
 }
 
-func newStaticResourceGen(simConfigs *configuration.Configuration, _ *caravelaConfigs.Configuration) (ResourcesGenerator, error) {
+func newStaticResourceGen(simConfigs *configuration.Configuration, _ *caravelaConfigs.Configuration, _ int64) (ResourcesGenerator, error) {
 	return &staticResourceGen{
 		simConfigs: simConfigs,
 	}, nil
 }
 
 func (s *staticResourceGen) Generate() (int, int, int) {
-	return int(s.simConfigs.StaticGeneratorResources().CPUClass), s.simConfigs.StaticGeneratorResources().CPUs, s.simConfigs.StaticGeneratorResources().RAM
+	return int(s.simConfigs.StaticGeneratorResources().CPUClass), s.simConfigs.StaticGeneratorResources().CPUs, s.simConfigs.StaticGeneratorResources().Memory
 }

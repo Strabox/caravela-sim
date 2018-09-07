@@ -10,7 +10,7 @@ import (
 )
 
 // Factory represents a method that creates new requests feeders.
-type Factory func(config *configuration.Configuration) (Feeder, error)
+type Factory func(config *configuration.Configuration, rngSeed int64) (Feeder, error)
 
 // feeders holds all the registered requests feeder available.
 var feeders = make(map[string]Factory)
@@ -33,7 +33,7 @@ func Register(feederName string, factory Factory) {
 }
 
 // Create is used to obtain a request feeder based on the configurations.
-func Create(config *configuration.Configuration) Feeder {
+func Create(config *configuration.Configuration, rngSeed int64) Feeder {
 	configuredFeeder := config.Feeder()
 
 	feederFactory, exist := feeders[configuredFeeder]
@@ -47,7 +47,7 @@ func Create(config *configuration.Configuration) Feeder {
 		log.Panic(err)
 	}
 
-	feeder, err := feederFactory(config)
+	feeder, err := feederFactory(config, rngSeed)
 	if err != nil {
 		log.Panic(err)
 	}

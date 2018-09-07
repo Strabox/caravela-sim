@@ -5,7 +5,7 @@ import (
 	"github.com/urfave/cli"
 )
 
-// Prints the banner of the CARAVELA Simulator system.
+// printBanner prints the banner of the CARAVELA Simulator system.
 func printBanner(_ *cli.Context) error {
 	fmt.Printf("##################################################################\n")
 	fmt.Printf("#      CARAVELA: A Cloud @ Edge (SIMULATOR)         000000       #\n")

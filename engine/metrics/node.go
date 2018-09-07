@@ -50,39 +50,39 @@ func (node *Node) AvailableResources() types.Resources {
 
 func (node *Node) UsedResources() types.Resources {
 	return types.Resources{
-		CPUs: node.MaxResources.CPUs - node.AvailableRes.CPUs,
-		RAM:  node.MaxResources.RAM - node.AvailableRes.RAM,
+		CPUs:   node.MaxResources.CPUs - node.AvailableRes.CPUs,
+		Memory: node.MaxResources.Memory - node.AvailableRes.Memory,
 	}
 }
 
-func (node *Node) RatioResourcesAvailable() float64 {
-	if node.AvailableRes.CPUs == 0 || node.AvailableRes.RAM == 0 { // Impossible used this resources
+func (node *Node) ResourcesFreeRatio() float64 {
+	if node.AvailableRes.CPUs == 0 || node.AvailableRes.Memory == 0 { // Impossible use this resources
 		return 0
 	}
 	cpusRatio := float64(node.AvailableRes.CPUs) / float64(node.MaxResources.CPUs)
-	ramRatio := float64(node.AvailableRes.RAM) / float64(node.MaxResources.RAM)
-	return (cpusRatio + ramRatio) / 2
+	memoryRatio := float64(node.AvailableRes.Memory) / float64(node.MaxResources.Memory)
+	return (cpusRatio + memoryRatio) / 2
 }
 
-func (node *Node) RatioResourcesUsed() float64 {
-	if node.AvailableRes.CPUs == 0 || node.AvailableRes.RAM == 0 { // Impossible used this resources
-		return 1
+func (node *Node) ResourcesUsedRatio() float64 {
+	if node.AvailableRes.CPUs == 0 || node.AvailableRes.Memory == 0 { // Impossible use this resources
+		return float64(1)
 	}
 	cpusRatio := float64(node.UsedResources().CPUs) / float64(node.MaxResources.CPUs)
-	ramRatio := float64(node.UsedResources().RAM) / float64(node.MaxResources.RAM)
-	return (cpusRatio + ramRatio) / 2
+	memoryRatio := float64(node.UsedResources().Memory) / float64(node.MaxResources.Memory)
+	return (cpusRatio + memoryRatio) / 2
 }
 
-func (node *Node) RatioResourcesUnreachable() float64 {
-	if node.AvailableRes.CPUs == 0 || node.AvailableRes.RAM == 0 { // Impossible used this resources
+func (node *Node) ResourcesUnreachableRatio() float64 {
+	if node.AvailableRes.CPUs == 0 || node.AvailableRes.Memory == 0 { // Impossible use this resources
 		cpusRatio := float64(node.AvailableRes.CPUs) / float64(node.MaxResources.CPUs)
-		ramRatio := float64(node.AvailableRes.RAM) / float64(node.MaxResources.RAM)
-		return (cpusRatio + ramRatio) / 2
+		memoryRatio := float64(node.AvailableRes.Memory) / float64(node.MaxResources.Memory)
+		return (cpusRatio + memoryRatio) / 2
 	}
 	return 0
 }
 
-func (node *Node) APIRequestsReceived() int64 {
+func (node *Node) TotalAPIRequestsReceived() int64 {
 	return node.ApiRequestsReceived
 }
 

@@ -9,14 +9,14 @@ import (
 	"gonum.org/v1/plot/vg"
 	"gonum.org/v1/plot/vg/draw"
 	"gonum.org/v1/plot/vg/vgimg"
+	"image/color"
 	"log"
 	"math"
 	"os"
 )
 
-func NewHeatMap(fileName, title, XLabel, YLabel, outputDirPath string, yTicks []int, grid *UnitGrid) {
-	pall := palette.Heat(24, 1)
-	heatMap := plotter.NewHeatMap(grid, pall)
+func NewHeatMap(fileName, title, XLabel, YLabel, outputDirPath string, yTicks []int, grid *UnitGrid, colorPalette palette.Palette) {
+	heatMap := plotter.NewHeatMap(grid, colorPalette)
 
 	plotRes := NewPlot(title, XLabel, YLabel, false)
 	plotRes.Y.Tick.Marker = integerTicks{ticks: yTicks}
@@ -27,7 +27,7 @@ func NewHeatMap(fileName, title, XLabel, YLabel, outputDirPath string, yTicks []
 	if err != nil {
 		log.Panic(err)
 	}
-	thumbs := plotter.PaletteThumbnailers(pall)
+	thumbs := plotter.PaletteThumbnailers(colorPalette)
 	for i := len(thumbs) - 1; i >= 0; i-- {
 		t := thumbs[i]
 		if i != 0 && i != len(thumbs)-1 {
@@ -119,4 +119,43 @@ func (it integerTicks) Ticks(min, max float64) []plot.Tick {
 	}
 
 	return t
+}
+
+type HardcodedPalette struct {
+	colors []color.Color
+}
+
+func (h *HardcodedPalette) Colors() []color.Color {
+	return h.colors
+}
+
+func MyHeatPalette() palette.Palette {
+	colors := []color.Color{
+		color.RGBA{R: 255, G: 245, B: 240, A: 255},
+		color.RGBA{R: 254, G: 224, B: 210, A: 255},
+		color.RGBA{R: 252, G: 187, B: 161, A: 255},
+		color.RGBA{R: 252, G: 146, B: 114, A: 255},
+		color.RGBA{R: 251, G: 106, B: 74, A: 255},
+		color.RGBA{R: 239, G: 59, B: 44, A: 255},
+		color.RGBA{R: 203, G: 24, B: 29, A: 255},
+		color.RGBA{R: 203, G: 24, B: 29, A: 255},
+		color.RGBA{R: 165, G: 15, B: 21, A: 255},
+		color.RGBA{R: 103, G: 0, B: 13, A: 255},
+	}
+	return &HardcodedPalette{colors: colors}
+}
+
+func MyInvertedHeatPalette() palette.Palette {
+	colors := []color.Color{
+		color.RGBA{R: 103, G: 0, B: 13, A: 255},
+		color.RGBA{R: 165, G: 15, B: 21, A: 255},
+		color.RGBA{R: 203, G: 24, B: 29, A: 255},
+		color.RGBA{R: 239, G: 59, B: 44, A: 255},
+		color.RGBA{R: 251, G: 106, B: 74, A: 255},
+		color.RGBA{R: 252, G: 146, B: 114, A: 255},
+		color.RGBA{R: 252, G: 187, B: 161, A: 255},
+		color.RGBA{R: 254, G: 224, B: 210, A: 255},
+		color.RGBA{R: 255, G: 245, B: 240, A: 255},
+	}
+	return &HardcodedPalette{colors: colors}
 }

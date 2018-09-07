@@ -22,17 +22,18 @@ const simulationDirBaseName = "sim-"
 // simulationDirSuffixFormat is the format for the suffix of the simulations output directories.
 const simulationDirSuffixFormat = "2006-01-02_15h04m05s"
 
+// simulationData represents a complete simulation data.
 type simulationData struct {
-	label          string
-	snapshots      []Global
-	tmpDirFullPath string
+	label          string   // Label to identify the simulation.
+	snapshots      []Global // System snapshots over time of the simulation.
+	tmpDirFullPath string   // Temporary directory to store metrics for the simulation.
 }
 
 // Collector aggregates all the metrics information about the system during a engine.
 type Collector struct {
-	numNodes       int // Number of engine nodes.
-	currSimulation *simulationData
-	simulations    map[string]*simulationData
+	numNodes       int               // Number of engine nodes.
+	currSimulation *simulationData   // Current simulation.
+	simulations    []*simulationData // Contains all the simulations identified by its label.
 
 	outputDirPath string // Output directory path.
 }
@@ -42,7 +43,7 @@ func NewCollector(numNodes int, baseOutputDirPath string) *Collector {
 	return &Collector{
 		numNodes:       numNodes,
 		currSimulation: nil,
-		simulations:    make(map[string]*simulationData),
+		simulations:    make([]*simulationData, 0),
 		outputDirPath:  baseOutputDirPath + "\\" + simulationDirBaseName + time.Now().Format(simulationDirSuffixFormat),
 	}
 }
@@ -55,7 +56,7 @@ func (coll *Collector) InitNewSimulation(simLabel string, nodesMaxRes []types.Re
 	}
 	coll.currSimulation = newSimulation
 
-	dirFullPath, err := ioutil.TempDir("", metricsTempDirName)
+	dirFullPath, err := ioutil.TempDir("", metricsTempDirName+newSimulation.label+"-")
 	if err != nil {
 		panic(errors.New("Temp directory can't be created, error: " + err.Error()))
 	}
@@ -156,11 +157,11 @@ func (coll *Collector) Persist(currentTime time.Duration) {
 	}
 }
 
-// EndSimulation is called when the engine stops and there is no need to gather more metrics.
+// EndSimulation is called when the simulator's engine stops and there is no need to gather more metrics.
 func (coll *Collector) EndSimulation(endTime time.Duration) {
 	if activeGlobal, err := coll.activeGlobal(); err == nil {
 		activeGlobal.SetEndTime(endTime)
-		coll.simulations[coll.currSimulation.label] = coll.currSimulation
+		coll.simulations = append(coll.simulations, coll.currSimulation)
 		coll.currSimulation = nil
 	}
 }
@@ -177,7 +178,7 @@ func (coll *Collector) Clear() {
 func (coll *Collector) Print() {
 	coll.loadAllMetrics() // Load all the intermediate snapshots in memory
 
-	for simLabel, simData := range coll.simulations {
+	for _, simData := range coll.simulations {
 		totalRunRequests := int64(0)
 		totalRunRequestsSucceeded := int64(0)
 		for _, global := range simData.snapshots {
@@ -186,7 +187,7 @@ func (coll *Collector) Print() {
 		}
 
 		fmt.Printf("##################################################################\n")
-		fmt.Printf("#          SIMULATION RESULT METRICS (%s)     #\n", simLabel)
+		fmt.Printf("#          SIMULATION RESULT METRICS (%s)     #\n", simData.label)
 		fmt.Printf("##################################################################\n")
 		fmt.Printf("#Requests:               %d\n", totalRunRequests)
 		fmt.Printf("#Requests Succeeded:     %d\n", totalRunRequestsSucceeded)
@@ -199,7 +200,7 @@ func (coll *Collector) Print() {
 // activeGlobal returns the current global snapshot that is gathering metrics.
 func (coll *Collector) activeGlobal() (*Global, error) {
 	if coll.currSimulation == nil {
-		return nil, errors.New("no active engine")
+		return nil, errors.New("no active simulation")
 	}
 	return &coll.currSimulation.snapshots[len(coll.currSimulation.snapshots)-1], nil
 }
@@ -239,54 +240,73 @@ func (coll *Collector) loadAllMetrics() {
 func (coll *Collector) plotGraphics() {
 	// Goroutine pool used to plot the graphics in parallel.
 	maxWorkers := runtime.NumCPU() + 1
-	grpool := grpool.NewPool(maxWorkers, maxWorkers*3)
+	goroutinePool := grpool.NewPool(maxWorkers, maxWorkers*3)
 
-	grpool.WaitCount(1)
-	grpool.JobQueue <- func() {
+	goroutinePool.WaitCount(1)
+	goroutinePool.JobQueue <- func() {
 		coll.plotRequestsSucceeded()
-		grpool.JobDone()
+		goroutinePool.JobDone()
 	}
 
-	grpool.WaitCount(1)
-	grpool.JobQueue <- func() {
+	goroutinePool.WaitCount(1)
+	goroutinePool.JobQueue <- func() {
 		coll.plotRequestsMessagesTradedPerRequest()
-		grpool.JobDone()
+		goroutinePool.JobDone()
 	}
 
-	grpool.WaitCount(1)
-	grpool.JobQueue <- func() {
-		coll.plotFreeResources()
-		grpool.JobDone()
+	goroutinePool.WaitCount(1)
+	goroutinePool.JobQueue <- func() {
+		coll.plotSystemFreeResourcesVSRequestSuccess()
+		goroutinePool.JobDone()
 	}
 
-	grpool.WaitCount(1)
-	grpool.JobQueue <- func() {
-		coll.plotResourceDistribution()
-		grpool.JobDone()
+	goroutinePool.WaitCount(1)
+	goroutinePool.JobQueue <- func() {
+		coll.plotResourcesUsedDistributionByNodesOverTime()
+		goroutinePool.JobDone()
 	}
 
-	grpool.WaitCount(1)
-	grpool.JobQueue <- func() {
-		coll.plotLookupMessagesPercentiles()
-		grpool.JobDone()
+	goroutinePool.WaitCount(1)
+	goroutinePool.JobQueue <- func() {
+		coll.plotMessagesTraderByRequestBoxPlots()
+		goroutinePool.JobDone()
+	}
+
+	goroutinePool.WaitCount(1)
+	goroutinePool.JobQueue <- func() {
+		coll.plotResourcesUnreachableDistributionByNodesOverTime()
+		goroutinePool.JobDone()
+	}
+
+	goroutinePool.WaitCount(1)
+	goroutinePool.JobQueue <- func() {
+		coll.plotMessagesAPIDistributionByNodesOverTime()
+		goroutinePool.JobDone()
+	}
+
+	goroutinePool.WaitCount(1)
+	goroutinePool.JobQueue <- func() {
+		coll.plotTotalMessagesTradedInSystem()
+		goroutinePool.JobDone()
 	}
 
 	// Debug Performance Metrics Plots
 
-	grpool.WaitCount(1)
-	grpool.JobQueue <- func() {
+	goroutinePool.WaitCount(1)
+	goroutinePool.JobQueue <- func() {
 		coll.plotRelayedGetOfferMessages()
-		grpool.JobDone()
+		goroutinePool.JobDone()
 	}
 
-	grpool.WaitCount(1)
-	grpool.JobQueue <- func() {
+	goroutinePool.WaitCount(1)
+	goroutinePool.JobQueue <- func() {
 		coll.plotEmptyGetOfferMessages()
-		grpool.JobDone()
+		goroutinePool.JobDone()
 	}
 
-	grpool.WaitAll() // Wait for all the plots to be completed.
-	grpool.Release() // Release grpool resources.
+	goroutinePool.WaitAll() // Wait for all the plots to be completed.
+	goroutinePool.Release() // Release goroutinePool resources.
+	goroutinePool = nil
 }
 
 // ===================================== Sort Interface =======================================

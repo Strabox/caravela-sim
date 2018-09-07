@@ -1,14 +1,10 @@
 package docker
 
-import (
-	"github.com/strabox/caravela-sim/configuration"
-	"github.com/strabox/caravela-sim/util"
-	"github.com/strabox/caravela/api/types"
-	caravelaConfigs "github.com/strabox/caravela/configuration"
-)
+/*
 
 type realisticallyResourceGen struct {
-	caravelaConfigs *caravelaConfigs.Configuration
+	randomGenerator *rand.Rand						// Pseudo-random generator.
+	caravelaConfigs *caravelaConfigs.Configuration	// Caravela's configurations.
 }
 
 type nodeResourcesProfile struct {
@@ -16,40 +12,45 @@ type nodeResourcesProfile struct {
 	Resources  types.Resources
 }
 
-func newRealisticallyResourceGen(_ *configuration.Configuration, caravelaConfigs *caravelaConfigs.Configuration) (ResourcesGenerator, error) {
+func newRealisticallyResourceGen(_ *configuration.Configuration, caravelaConfigs *caravelaConfigs.Configuration, rngSeed int64) (ResourcesGenerator, error) {
 	return &realisticallyResourceGen{
+		randomGenerator: rand.New(caravelaUtil.NewSourceSafe(rand.NewSource(rngSeed))),
 		caravelaConfigs: caravelaConfigs,
 	}, nil
 }
 
-func (e *realisticallyResourceGen) Generate() (int, int, int) {
+func (r *realisticallyResourceGen) Generate() (int, int, int) {
 	nodesProfiles := []nodeResourcesProfile{
 		{
 			Percentage: 50,
 			Resources: types.Resources{
+				CPUClass: 0,
 				CPUs: 2,
-				RAM:  4096,
+				Memory:  4096,
 			},
 		},
 		{
 			Percentage: 30,
 			Resources: types.Resources{
+				CPUClass: 0,
 				CPUs: 4,
-				RAM:  4096,
+				Memory:  4096,
 			},
 		},
 		{
 			Percentage: 15,
 			Resources: types.Resources{
+				CPUClass: 0,
 				CPUs: 4,
-				RAM:  8128,
+				Memory:  8128,
 			},
 		},
 		{
 			Percentage: 5,
 			Resources: types.Resources{
+				CPUClass: 0,
 				CPUs: 8,
-				RAM:  16326,
+				Memory:  16326,
 			},
 		},
 	}
@@ -61,7 +62,7 @@ func (e *realisticallyResourceGen) Generate() (int, int, int) {
 		acc += currentPercentage
 	}
 
-	randInt := util.RandomInteger(1, 100)
+	randInt := r.randomGenerator.Intn(101)
 	prevResourcesProfile := nodesProfiles[0].Resources
 	for i := range nodesProfiles {
 		if randInt <= nodesProfiles[i].Percentage {
@@ -70,5 +71,7 @@ func (e *realisticallyResourceGen) Generate() (int, int, int) {
 		}
 	}
 
-	return 1, prevResourcesProfile.CPUs, prevResourcesProfile.RAM // TODO: Dehardcode the CPUClass
+	return 0, prevResourcesProfile.CPUs, prevResourcesProfile.Memory // TODO: Dehardcode the CPUClass
 }
+
+*/

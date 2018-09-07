@@ -47,9 +47,9 @@ func Default() *Configuration {
 		ResourcesGenerator: resourcesGenerator{
 			ResourceGenerator: "partition-fit",
 			StaticResources: types.Resources{
-				CPUClass: 1,
+				CPUClass: 0,
 				CPUs:     4,
-				RAM:      4096,
+				Memory:   4096,
 			},
 		},
 		OutDirectoryPath:  DefaultOutDirectoryPath,
@@ -162,7 +162,7 @@ func (config *Configuration) Print() {
 	util.Log.Infof("Discovery Backends:   %v", config.CaravelaDiscoveryBackends())
 	util.Log.Infof("Request Feeder:       %s", config.Feeder())
 	util.Log.Infof("Resource Generator:   %s", config.ResourceGen())
-	util.Log.Infof("Static Gen Resources: <%d;%d>", config.StaticGeneratorResources().CPUs, config.StaticGeneratorResources().RAM)
+	util.Log.Infof("Static Gen Resources: <<%d;%d>;%d>", config.StaticGeneratorResources().CPUClass, config.StaticGeneratorResources().CPUs, config.StaticGeneratorResources().Memory)
 	util.Log.Infof("Output directory:     %s", config.OutputDirectoryPath())
 	util.Log.Infof("Sim's log level:      %s", config.SimulatorLogsLevel())
 	util.Log.Infof("CARAVELA's log level: %s", config.CaravelaLogsLevel())

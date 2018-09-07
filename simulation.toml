@@ -1,8 +1,8 @@
-NumberOfNodes = 5000
+NumberOfNodes = 10000
 TickInterval = "20s"
-MaxTicks = 45
+MaxTicks = 60
 Multithread = true
-DiscoveryBackends = ["chord-single-offer", "chord-multiple-offer", "chord-random", "swarm"]
+DiscoveryBackends = ["chord-single-offer", "chord-random", "swarm"]
 RequestFeeder = "random"            # random
 SimulatorLogLevel = "info"
 CaravelaLogLevel = "info"
@@ -10,6 +10,6 @@ CaravelaLogLevel = "info"
 [ResourcesGenerator]
 ResourceGenerator = "partition-fit" # static, "real", partition-fit
     [ResourcesGenerator.StaticResources]
-    CPUClass = 1
+    CPUClass = 0
     CPUs = 4
-    RAM = 4048
+    Memory = 4048

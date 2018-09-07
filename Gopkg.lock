@@ -113,7 +113,7 @@
     "overlay/types",
     "util"
   ]
-  revision = "330105ba45331fe88db3c7197ca42d1085c4ffbe"
+  revision = "205ea8ff437c438d53d04837125ddce57e23bf69"
 
 [[projects]]
   name = "github.com/urfave/cli"
@@ -125,7 +125,7 @@
   branch = "master"
   name = "golang.org/x/crypto"
   packages = ["ssh/terminal"]
-  revision = "182538f80094b6a8efaade63a8fd8e0d9d5843dd"
+  revision = "0709b304e793a5edb4a2c0145f281ecdc20838a4"
 
 [[projects]]
   branch = "master"
@@ -153,7 +153,7 @@
     "unix",
     "windows"
   ]
-  revision = "2b024373dcd9800f0cae693839fac6ede8d64a8c"
+  revision = "8cf3aee429924738c56c34bb819c4ea8273fc434"
 
 [[projects]]
   branch = "master"
@@ -172,7 +172,7 @@
     "lapack/lapack64",
     "mat"
   ]
-  revision = "70492dcef1a52513768253d34010afe76412249c"
+  revision = "a809dafcb141e2414a6cf04a680ff84e72d45c69"
 
 [[projects]]
   branch = "master"
@@ -191,7 +191,7 @@
     "vg/vgpdf",
     "vg/vgsvg"
   ]
-  revision = "f52aaf5deade9478d2b8f14ed4cf0e2c16e6dc6d"
+  revision = "5f3c436ce602d80b13f2936b6bf149515198d6a4"
 
 [solve-meta]
   analyzer-name = "dep"

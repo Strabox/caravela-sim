@@ -17,7 +17,7 @@ const containerIDSize = 64
 // It implements the github.com/strabox/caravela/node/external DockerClient interface.
 type ClientMock struct {
 	maxCPUS            int
-	maxRAM             int
+	maxMemory          int
 	numOfContainers    int64
 	containersRunning  sync.Map
 	resourcesGenerator ResourcesGenerator
@@ -27,7 +27,7 @@ type ClientMock struct {
 func NewClientMock(resourcesGenerator ResourcesGenerator) *ClientMock {
 	return &ClientMock{
 		maxCPUS:            0,
-		maxRAM:             0,
+		maxMemory:          0,
 		numOfContainers:    0,
 		containersRunning:  sync.Map{},
 		resourcesGenerator: resourcesGenerator,
@@ -39,7 +39,7 @@ func (cliMock *ClientMock) ContainersRunning() int64 {
 }
 
 func (cliMock *ClientMock) MaxResourcesAvailable() (int, int) {
-	return cliMock.maxCPUS, cliMock.maxRAM
+	return cliMock.maxCPUS, cliMock.maxMemory
 }
 
 // ===============================================================================
@@ -52,10 +52,10 @@ func (cliMock *ClientMock) Start() <-chan *events.Event {
 }
 
 func (cliMock *ClientMock) GetDockerEngineTotalResources() (int, int, int) {
-	cpuClass, cpuCores, ram := cliMock.resourcesGenerator.Generate()
+	cpuClass, cpuCores, memory := cliMock.resourcesGenerator.Generate()
 	cliMock.maxCPUS += cpuCores
-	cliMock.maxRAM += ram
-	return cpuClass, cpuCores, ram
+	cliMock.maxMemory += memory
+	return cpuClass, cpuCores, memory
 }
 
 func (cliMock *ClientMock) CheckContainerStatus(containerID string) (myContainer.Status, error) {

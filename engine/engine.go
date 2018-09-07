@@ -24,32 +24,38 @@ const engineLogTag = "ENGINE"
 // Engine represents an instance of a Caravela's simulator engine.
 // It holds all the structures to control, feed and analyse a engine during a simulation.
 type Engine struct {
-	isInit           bool                 // Used to verify if the simulator is initialized.
-	metricsCollector *metrics.Collector   // Metric's collector.
-	nodes            []*caravelaNode.Node // Array with all the nodes for the engine.
-	overlayMock      *chord.Mock          // Overlay that "connects" all nodes.
-	feeder           feeder.Feeder        // Used to feed the simulator with requests.
-	workersPool      *grpool.Pool         // Pool of Goroutines to run the engine.
+	isInit      bool  // Used to verify if the simulator is initialized.
+	baseRngSeed int64 // Base RNG seed for generating the node's max resources and the requests resources.
 
+	// Engine's main components.
+	nodes       []*caravelaNode.Node // Array with all the Caravela's nodes for the simulation.
+	overlayMock *chord.Mock          // Overlay that "connects" all nodes.
+	feeder      feeder.Feeder        // Used to feed the simulator with requests.
+
+	metricsCollector *metrics.Collector            // Metric's collector.
+	workersPool      *grpool.Pool                  // Pool of Goroutines to run the simulation.
 	caravelaConfigs  *caravelaConfig.Configuration // Caravela's configurations.
-	simulatorConfigs *configuration.Configuration  // Engine's configurations.
+	simulatorConfigs *configuration.Configuration  // Simulator's configurations.
 }
 
 // NewEngine creates a new simulator instance based on the configurations of the caravela and its own.
 func NewEngine(metricsCollector *metrics.Collector, simConfig *configuration.Configuration,
-	caravelaConfigurations *caravelaConfig.Configuration) *Engine {
+	caravelaConfigurations *caravelaConfig.Configuration, baseRngSeed int64) *Engine {
 	maxWorkers := 1
 	if simConfig.Multithreaded() {
 		maxWorkers = runtime.NumCPU() * 2
 	}
 
 	return &Engine{
-		isInit:           false,
+		isInit:      false,
+		baseRngSeed: baseRngSeed,
+
+		nodes:       make([]*caravelaNode.Node, simConfig.TotalNumberOfNodes()),
+		overlayMock: nil,
+		feeder:      feeder.Create(simConfig, baseRngSeed),
+
 		metricsCollector: metricsCollector,
-		nodes:            make([]*caravelaNode.Node, simConfig.TotalNumberOfNodes()),
-		overlayMock:      nil,
 		workersPool:      grpool.NewPool(maxWorkers, maxWorkers*6),
-		feeder:           feeder.Create(simConfig),
 		caravelaConfigs:  caravelaConfigurations,
 		simulatorConfigs: simConfig,
 	}
@@ -62,9 +68,9 @@ func (e *Engine) Init() {
 	// Init CARAVELA's packages structures.
 	caravela.Init(e.simulatorConfigs.CaravelaLogsLevel())
 
-	// External node's component mocks (Creation and Init).
+	// External node's component mocks (Creation and initialization).
 	apiServerMock := caravela.NewAPIServerMock()
-	dockerClientMock := docker.NewClientMock(docker.CreateResourceGen(e.simulatorConfigs, e.caravelaConfigs))
+	dockerClientMock := docker.NewClientMock(docker.CreateResourceGen(e.simulatorConfigs, e.caravelaConfigs, e.nextRngSeed()))
 	caravelaClientMock := caravela.NewRemoteClientMock(e, e.metricsCollector)
 	e.overlayMock = chord.NewChordMock(e.simulatorConfigs.TotalNumberOfNodes(),
 		e.caravelaConfigs.ChordNumSuccessors(), e.metricsCollector)
@@ -82,7 +88,7 @@ func (e *Engine) Init() {
 		e.nodes[i] = caravelaNode.NewNode(nodeConfig, e.overlayMock, caravelaClientMock, dockerClientMock,
 			apiServerMock)
 
-		if nodeConfig.DiscoveryBackend() == "swarm" && i == 0 {
+		if nodeConfig.DiscoveryBackend() == "swarm" && i == 0 { // Special case for swarm discovery backends.
 			overlayNodeMock.SetZeroGUID() // Zero mode's GUID is the master (first node in simulator)
 			e.nodes[i].AddTrader(overlayNodeMock.Bytes())
 		} else {
@@ -90,20 +96,20 @@ func (e *Engine) Init() {
 		}
 	}
 
-	// Start all the CARAVELA's nodes.
+	// Start all the Caravela's nodes.
 	util.Log.Info(util.LogTag(engineLogTag) + "Starting nodes functions...")
 	for i := 0; i < e.simulatorConfigs.TotalNumberOfNodes(); i++ {
 		e.nodes[i].Start(true, util.RandomIP())
 	}
 
-	// Init metric's collector.
+	// Initialize metric's collector.
 	maxNodesResources := make([]types.Resources, e.simulatorConfigs.TotalNumberOfNodes())
 	for i := range maxNodesResources {
 		maxNodesResources[i] = e.nodes[i].MaximumResourcesSim()
 	}
 	e.metricsCollector.InitNewSimulation(e.caravelaConfigs.DiscoveryBackend(), maxNodesResources)
 
-	// Init request feeder.
+	// Initialize request feeder.
 	e.feeder.Init(e.metricsCollector)
 
 	e.isInit = true
@@ -112,11 +118,12 @@ func (e *Engine) Init() {
 
 // Start starts the simulator engine.
 func (e *Engine) Start() {
+	const ticksPerPersist = 1
+
 	if !e.isInit {
 		panic(errors.New("simulator is not initialized"))
 	}
 
-	const ticksPerPersist = 1
 	util.Log.Info(util.LogTag(engineLogTag) + "Simulation started...")
 	realStartTime := time.Now()
 	simCurrentTime, simLastTimeRefreshes, simLastTimeSpread, numTicks := 0*time.Second, 0*time.Second, 0*time.Second, 0
@@ -287,4 +294,10 @@ func (e *Engine) NodeByGUID(guid string) (*caravelaNode.Node, int) {
 func (e *Engine) randomNode() (int, *caravelaNode.Node) {
 	randIndex := util.RandomInteger(0, len(e.nodes)-1)
 	return randIndex, e.nodes[randIndex]
+}
+
+// nextRngSeed returns a deterministic seed based on the base seed given to the engine.
+func (e *Engine) nextRngSeed() int64 {
+	e.baseRngSeed += 10
+	return e.baseRngSeed
 }

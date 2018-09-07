@@ -11,23 +11,28 @@ import (
 	"github.com/strabox/caravela/api/types"
 	"github.com/strabox/caravela/node"
 	"github.com/strabox/caravela/node/common/guid"
+	caravelaUtil "github.com/strabox/caravela/util"
+	"math/rand"
 	"sync"
 	"time"
 )
 
 const logFeederTag = "FEEDER"
 
+// RandomFeeder generates a stream of user requests using a pre-defined defined requests profile.
 type RandomFeeder struct {
-	collector        *metrics.Collector
-	reqInjectionNode sync.Map
-
-	simConfigs *configuration.Configuration
+	collector        *metrics.Collector           // Metrics collector that collects system level metrics.
+	reqInjectionNode sync.Map                     // Map of ContainerID<->NodeIndex.
+	randomGenerator  *rand.Rand                   // Pseudo-random generator.
+	simConfigs       *configuration.Configuration // Simulator's configurations.
 }
 
-func newRandomFeeder(simConfigs *configuration.Configuration) (Feeder, error) {
+// newRandomFeeder creates a new random feeder.
+func newRandomFeeder(simConfigs *configuration.Configuration, rngSeed int64) (Feeder, error) {
 	return &RandomFeeder{
 		collector:        nil,
 		reqInjectionNode: sync.Map{},
+		randomGenerator:  rand.New(caravelaUtil.NewSourceSafe(rand.NewSource(rngSeed))),
 		simConfigs:       simConfigs,
 	}, nil
 }
@@ -111,7 +116,7 @@ func (rf *RandomFeeder) generateResourcesProfile() types.Resources {
 		panic(errors.New("random feeder profiles probability does not sum 100%"))
 	}
 
-	randProfile := util.RandomInteger(1, 100)
+	randProfile := rf.randomGenerator.Intn(101)
 	for _, profile := range copyRequestProfiles {
 		if randProfile <= profile.Percentage {
 			return profile.Resources
@@ -130,23 +135,31 @@ var requestProfiles = []requestProfile{
 		Resources: types.Resources{
 			CPUClass: 0,
 			CPUs:     1,
-			RAM:      256,
+			Memory:   350,
 		},
-		Percentage: 40,
+		Percentage: 35,
 	},
 	{
 		Resources: types.Resources{
 			CPUClass: 0,
 			CPUs:     2,
-			RAM:      800,
+			Memory:   1024,
 		},
-		Percentage: 30,
+		Percentage: 15,
+	},
+	{
+		Resources: types.Resources{
+			CPUClass: 0,
+			CPUs:     4,
+			Memory:   4048,
+		},
+		Percentage: 10,
 	},
 	{
 		Resources: types.Resources{
 			CPUClass: 1,
-			CPUs:     3,
-			RAM:      1500,
+			CPUs:     2,
+			Memory:   750,
 		},
 		Percentage: 20,
 	},
@@ -154,7 +167,15 @@ var requestProfiles = []requestProfile{
 		Resources: types.Resources{
 			CPUClass: 1,
 			CPUs:     3,
-			RAM:      2500,
+			Memory:   1500,
+		},
+		Percentage: 10,
+	},
+	{
+		Resources: types.Resources{
+			CPUClass: 1,
+			CPUs:     3,
+			Memory:   2500,
 		},
 		Percentage: 10,
 	},

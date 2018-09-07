@@ -117,7 +117,7 @@ func (g *Global) ArchiveRunRequest(requestID string) {
 // RunRequestSuccessRatio returns the request success ratio for all the requests during this collection.
 func (g *Global) RunRequestSuccessRatio() float64 {
 	if g.TotalRunRequests() == 0 {
-		return 1
+		return 0
 	}
 	return float64(g.RunRequestsSucceeded) / float64(g.TotalRunRequests())
 }
@@ -139,28 +139,52 @@ func (g *Global) AllAvailableResourcesAvg() float64 {
 	for _, nodeMetrics := range g.NodesMetrics {
 		numOfNodesCalculated++
 		if numOfNodesCalculated == 0 {
-			result = nodeMetrics.RatioResourcesAvailable()
+			result = nodeMetrics.ResourcesFreeRatio()
 		} else {
-			result = (result*(numOfNodesCalculated-1) + nodeMetrics.RatioResourcesAvailable()) / numOfNodesCalculated
+			result = (result*(numOfNodesCalculated-1) + nodeMetrics.ResourcesFreeRatio()) / numOfNodesCalculated
 		}
 	}
 	return result
 }
 
-func (g *Global) RequestsMessagesExchanged() []float64 {
+func (g *Global) MessagesExchangedByRequest() []float64 {
 	resTotalMessages := make([]float64, len(g.RunRequestsCompleted))
 	for i := range resTotalMessages {
-		resTotalMessages[i] = float64(g.RunRequestsCompleted[i].MessagesTraded)
+		resTotalMessages[i] = float64(g.RunRequestsCompleted[i].TotalMessagesTraded())
 	}
 	return resTotalMessages
+}
+
+func (g *Global) ResourcesUnreachableRatioNode() []float64 {
+	res := make([]float64, len(g.NodesMetrics))
+	for i, nodeMetric := range g.NodesMetrics {
+		res[i] = nodeMetric.ResourcesUnreachableRatio()
+	}
+	return res
 }
 
 func (g *Global) ResourcesUsedNodeRatio() []float64 {
 	res := make([]float64, len(g.NodesMetrics))
 	for i, nodeMetric := range g.NodesMetrics {
-		res[i] = nodeMetric.RatioResourcesUsed()
+		res[i] = nodeMetric.ResourcesUsedRatio()
 	}
 	return res
+}
+
+func (g *Global) TotalAPIMessagesReceivedByNode() []float64 {
+	res := make([]float64, len(g.NodesMetrics))
+	for i, nodeMetric := range g.NodesMetrics {
+		res[i] = float64(nodeMetric.TotalAPIRequestsReceived())
+	}
+	return res
+}
+
+func (g *Global) TotalAPIMessagesReceivedByAllNodes() float64 {
+	acc := int64(0)
+	for _, nodeMetric := range g.NodesMetrics {
+		acc += nodeMetric.TotalAPIRequestsReceived()
+	}
+	return float64(acc)
 }
 
 // ================================= Getters and Setters =================================
@@ -218,13 +242,17 @@ func (g *Global) Less(i, j int) bool {
 	iMaxRes := g.NodesMetrics[i].MaxResources
 	jMaxRes := g.NodesMetrics[j].MaxResources
 
-	if iMaxRes.CPUs < jMaxRes.CPUs {
+	if iMaxRes.CPUClass < jMaxRes.CPUClass {
 		return true
-	} else if iMaxRes.CPUs == jMaxRes.CPUs {
-		if iMaxRes.RAM <= jMaxRes.RAM {
+	} else if iMaxRes.CPUClass == jMaxRes.CPUClass {
+		if iMaxRes.CPUs < jMaxRes.CPUs {
 			return true
+		} else if iMaxRes.CPUs == jMaxRes.CPUs {
+			if iMaxRes.Memory <= jMaxRes.Memory {
+				return true
+			}
 		}
-		return false
 	}
+
 	return false
 }

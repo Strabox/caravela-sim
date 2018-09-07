@@ -11,7 +11,7 @@ import (
 )
 
 // Factory represents a method that creates new resource generators.
-type ResourceGenFactory func(simConfigs *configuration.Configuration, caravelaConfigs *caravelaConfigs.Configuration) (ResourcesGenerator, error)
+type ResourceGenFactory func(simConfigs *configuration.Configuration, caravelaConfigs *caravelaConfigs.Configuration, rngSeed int64) (ResourcesGenerator, error)
 
 // generators holds all the registered resource generators available.
 var generators = make(map[string]ResourceGenFactory)
@@ -36,7 +36,7 @@ func RegisterResourceGen(resourceGenName string, factory ResourceGenFactory) {
 }
 
 // CreateResourceGen is used to obtain a resource generator based on the configurations.
-func CreateResourceGen(simConfigs *configuration.Configuration, caravelaConfigs *caravelaConfigs.Configuration) ResourcesGenerator {
+func CreateResourceGen(simConfigs *configuration.Configuration, caravelaConfigs *caravelaConfigs.Configuration, rngSeed int64) ResourcesGenerator {
 	configuredResourceGen := simConfigs.ResourceGen()
 
 	resourceGeneratorFactory, exist := generators[configuredResourceGen]
@@ -50,7 +50,7 @@ func CreateResourceGen(simConfigs *configuration.Configuration, caravelaConfigs 
 		log.Panic(err)
 	}
 
-	resourceGenerator, err := resourceGeneratorFactory(simConfigs, caravelaConfigs)
+	resourceGenerator, err := resourceGeneratorFactory(simConfigs, caravelaConfigs, rngSeed)
 	if err != nil {
 		log.Panic(err)
 	}

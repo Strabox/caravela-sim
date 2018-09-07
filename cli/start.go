@@ -8,6 +8,7 @@ import (
 	"github.com/strabox/caravela-sim/mocks/caravela"
 	"github.com/strabox/caravela-sim/util"
 	"github.com/urfave/cli"
+	"time"
 )
 
 func start(c *cli.Context) {
@@ -25,16 +26,19 @@ func start(c *cli.Context) {
 
 	metricsCollector := metrics.NewCollector(simulatorConfig.TotalNumberOfNodes(), simulatorConfig.OutDirectoryPath)
 
+	// Base seed for engine pseudo-random generators.
+	baseRngSeed := time.Now().UnixNano()
+
 	for _, str := range simulatorConfig.CaravelaDiscoveryBackends() {
 		caravelaConfigs := caravela.Configuration()
 		caravelaConfigs.Caravela.DiscoveryBackend.Backend = str
 
-		mySimulator := engine.NewEngine(metricsCollector, simulatorConfig, caravelaConfigs)
+		simEngine := engine.NewEngine(metricsCollector, simulatorConfig, caravelaConfigs, baseRngSeed)
 		fmt.Println("Initializing engine...")
-		mySimulator.Init()
+		simEngine.Init()
 
 		fmt.Println("Starting engine...")
-		mySimulator.Start()
+		simEngine.Start()
 		fmt.Println("Simulation ended")
 	}
 
