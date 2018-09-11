@@ -175,6 +175,7 @@ func (j *jsonFeeder) generateRequestResources(normalizedCpus, normalizedMemory f
 	for i, cpuClass := range cpuClasses {
 		if randInt <= cpuClass {
 			chosenCpuClass = i
+			break
 		}
 	}
 
