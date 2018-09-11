@@ -10,19 +10,17 @@ import (
 )
 
 // Init initializes all the packages and static configurations of the caravela's project.
-func Init(logLevel string) {
+func Init(logLevel string, caravelaConfigs *caravelaConfig.Configuration) {
 	// Init logs
 	log.SetLevel(util.LogLevel(logLevel))
 	log.SetFormatter(util.LogFormatter(true, true))
 	log.SetOutput(os.Stdout)
 
-	// Caravela configurations
-	caravelaConfigs := Configuration()
-
 	caravelaConfigs.Print()
 
 	// Initialize CARAVELA's GUID package
-	guid.Init(caravelaConfigs.ChordHashSizeBits())
+	guid.Init(caravelaConfigs.ChordHashSizeBits(), int64(caravelaConfigs.GUIDEstimatedNetworkSize()),
+		int64(caravelaConfigs.GUIDScaleFactor()))
 }
 
 // Configuration is a wrapper for obtaining the CARAVELA's configurations structure from the

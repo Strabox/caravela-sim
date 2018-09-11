@@ -113,7 +113,7 @@
     "overlay/types",
     "util"
   ]
-  revision = "205ea8ff437c438d53d04837125ddce57e23bf69"
+  revision = "51dc9df11a3447f2c11b08888757ad54b46450a7"
 
 [[projects]]
   name = "github.com/urfave/cli"
@@ -131,7 +131,7 @@
   branch = "master"
   name = "golang.org/x/exp"
   packages = ["rand"]
-  revision = "3d87b88a115fa4e65fadcbf34e6a60e8040cec41"
+  revision = "e88728d35e99800368f4acc0969018db6b0d3dd5"
 
 [[projects]]
   branch = "master"
@@ -153,7 +153,7 @@
     "unix",
     "windows"
   ]
-  revision = "8cf3aee429924738c56c34bb819c4ea8273fc434"
+  revision = "d0be0721c37eeb5299f245a996a483160fc36940"
 
 [[projects]]
   branch = "master"

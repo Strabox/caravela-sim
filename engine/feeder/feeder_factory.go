@@ -5,12 +5,13 @@ import (
 	"fmt"
 	"github.com/strabox/caravela-sim/configuration"
 	"github.com/strabox/caravela-sim/util"
+	caravelaConfigs "github.com/strabox/caravela/configuration"
 	"log"
 	"strings"
 )
 
 // Factory represents a method that creates new requests feeders.
-type Factory func(config *configuration.Configuration, rngSeed int64) (Feeder, error)
+type Factory func(simConfig *configuration.Configuration, caravelaConfigs *caravelaConfigs.Configuration, rngSeed int64) (Feeder, error)
 
 // feeders holds all the registered requests feeder available.
 var feeders = make(map[string]Factory)
@@ -18,6 +19,7 @@ var feeders = make(map[string]Factory)
 // init initializes our predefined request feeders.
 func init() {
 	Register("random", newRandomFeeder)
+	Register("json", newJsonFeeder)
 }
 
 // Register can be used to register a new request feeder in order to be available.
@@ -33,7 +35,7 @@ func Register(feederName string, factory Factory) {
 }
 
 // Create is used to obtain a request feeder based on the configurations.
-func Create(config *configuration.Configuration, rngSeed int64) Feeder {
+func Create(config *configuration.Configuration, caravelaConfigs *caravelaConfigs.Configuration, rngSeed int64) Feeder {
 	configuredFeeder := config.Feeder()
 
 	feederFactory, exist := feeders[configuredFeeder]
@@ -47,7 +49,7 @@ func Create(config *configuration.Configuration, rngSeed int64) Feeder {
 		log.Panic(err)
 	}
 
-	feeder, err := feederFactory(config, rngSeed)
+	feeder, err := feederFactory(config, caravelaConfigs, rngSeed)
 	if err != nil {
 		log.Panic(err)
 	}

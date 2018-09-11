@@ -52,7 +52,7 @@ func NewEngine(metricsCollector *metrics.Collector, simConfig *configuration.Con
 
 		nodes:       make([]*caravelaNode.Node, simConfig.TotalNumberOfNodes()),
 		overlayMock: nil,
-		feeder:      feeder.Create(simConfig, baseRngSeed),
+		feeder:      feeder.Create(simConfig, caravelaConfigurations, baseRngSeed),
 
 		metricsCollector: metricsCollector,
 		workersPool:      grpool.NewPool(maxWorkers, maxWorkers*6),
@@ -66,7 +66,7 @@ func (e *Engine) Init() {
 	util.Log.Info(util.LogTag(engineLogTag) + "Initializing...")
 
 	// Init CARAVELA's packages structures.
-	caravela.Init(e.simulatorConfigs.CaravelaLogsLevel())
+	caravela.Init(e.simulatorConfigs.CaravelaLogsLevel(), e.caravelaConfigs)
 
 	// External node's component mocks (Creation and initialization).
 	apiServerMock := caravela.NewAPIServerMock()
@@ -110,7 +110,8 @@ func (e *Engine) Init() {
 	e.metricsCollector.InitNewSimulation(e.caravelaConfigs.DiscoveryBackend(), maxNodesResources)
 
 	// Initialize request feeder.
-	e.feeder.Init(e.metricsCollector)
+	cpus, memory := dockerClientMock.MaxResourcesAvailable()
+	e.feeder.Init(e.metricsCollector, types.Resources{CPUs: cpus, Memory: memory})
 
 	e.isInit = true
 	util.Log.Info(util.LogTag(engineLogTag) + "Initialized")
@@ -118,7 +119,7 @@ func (e *Engine) Init() {
 
 // Start starts the simulator engine.
 func (e *Engine) Start() {
-	const ticksPerPersist = 1
+	const ticksPerPersist = 5
 
 	if !e.isInit {
 		panic(errors.New("simulator is not initialized"))
@@ -148,9 +149,9 @@ func (e *Engine) Start() {
 		simCurrentTime = simCurrentTime + e.simulatorConfigs.TicksInterval()
 		numTicks++
 		if numTicks == e.simulatorConfigs.MaximumTicks() {
-			close(ticksChan) // Alert feeder that the engine has ended.
 			break
 		}
+
 		if numTicks != 0 && (numTicks%ticksPerPersist) == 0 {
 			e.metricsCollector.Persist(simCurrentTime)
 			continue
@@ -158,6 +159,7 @@ func (e *Engine) Start() {
 		e.metricsCollector.CreateNewGlobalSnapshot(simCurrentTime)
 	}
 
+	close(ticksChan) // Alert feeder that the engine has ended.
 	e.metricsCollector.EndSimulation(simCurrentTime)
 
 	util.Log.Info(util.LogTag(engineLogTag) + "Simulation Ended")

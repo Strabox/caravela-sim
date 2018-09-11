@@ -9,6 +9,7 @@ import (
 	"github.com/strabox/caravela-sim/mocks/caravela"
 	"github.com/strabox/caravela-sim/util"
 	"github.com/strabox/caravela/api/types"
+	caravelaConfigs "github.com/strabox/caravela/configuration"
 	"github.com/strabox/caravela/node"
 	"github.com/strabox/caravela/node/common/guid"
 	caravelaUtil "github.com/strabox/caravela/util"
@@ -17,10 +18,10 @@ import (
 	"time"
 )
 
-const logFeederTag = "FEEDER"
+const logRandFeederTag = "R-FEEDER"
 
-// RandomFeeder generates a stream of user requests using a pre-defined defined requests profile.
-type RandomFeeder struct {
+// randomFeeder generates a stream of user requests using a pre-defined defined requests profile.
+type randomFeeder struct {
 	collector        *metrics.Collector           // Metrics collector that collects system level metrics.
 	reqInjectionNode sync.Map                     // Map of ContainerID<->NodeIndex.
 	randomGenerator  *rand.Rand                   // Pseudo-random generator.
@@ -28,8 +29,8 @@ type RandomFeeder struct {
 }
 
 // newRandomFeeder creates a new random feeder.
-func newRandomFeeder(simConfigs *configuration.Configuration, rngSeed int64) (Feeder, error) {
-	return &RandomFeeder{
+func newRandomFeeder(simConfigs *configuration.Configuration, _ *caravelaConfigs.Configuration, rngSeed int64) (Feeder, error) {
+	return &randomFeeder{
 		collector:        nil,
 		reqInjectionNode: sync.Map{},
 		randomGenerator:  rand.New(caravelaUtil.NewSourceSafe(rand.NewSource(rngSeed))),
@@ -37,11 +38,11 @@ func newRandomFeeder(simConfigs *configuration.Configuration, rngSeed int64) (Fe
 	}, nil
 }
 
-func (rf *RandomFeeder) Init(metricsCollector *metrics.Collector) {
+func (rf *randomFeeder) Init(metricsCollector *metrics.Collector, _ types.Resources) {
 	rf.collector = metricsCollector
 }
 
-func (rf *RandomFeeder) Start(ticksChannel <-chan chan RequestTask) {
+func (rf *randomFeeder) Start(ticksChannel <-chan chan RequestTask) {
 	runReqPerTick := int(float64(rf.simConfigs.NumberOfNodes) * float64(0.025)) // Send 2.5% of cluster size in requests per node
 	stopReqPerTick := int(float64(rf.simConfigs.NumberOfNodes) * float64(0.017))
 	tick := 0
@@ -57,7 +58,7 @@ func (rf *RandomFeeder) Start(ticksChannel <-chan chan RequestTask) {
 							newTickChan <- func(_ int, _ *node.Node, _ time.Duration) {
 								err := injectionNode.StopContainers(context.Background(), []string{containerID})
 								if err != nil {
-									//util.Log.Infof(util.LogTag(logFeederTag)+"Stop container FAILED, err: %s", err)
+									//util.Log.Infof(util.LogTag(logRandFeederTag)+"Stop container FAILED, err: %s", err)
 								}
 								rf.reqInjectionNode.Delete(containerID)
 							}
@@ -71,19 +72,18 @@ func (rf *RandomFeeder) Start(ticksChannel <-chan chan RequestTask) {
 						newTickChan <- func(nodeIndex int, injectedNode *node.Node, currentTime time.Duration) {
 							resources := rf.generateResourcesProfile() // Generate the resources necessary for the request.
 							requestID := guid.NewGUIDRandom().String() // Generate a GUID for tracking the request inside Caravela.
-							requestContext := context.WithValue(context.Background(), types.RequestIDKey, requestID)
+							requestCtx := context.WithValue(context.Background(), types.RequestIDKey, requestID)
 							rf.collector.CreateRunRequest(nodeIndex, requestID, resources, currentTime)
 							contStatus, err := injectedNode.SubmitContainers(
-								requestContext,
-								[]types.ContainerConfig{
-									{
-										ImageKey:     util.RandomName(),
-										Name:         util.RandomName(),
-										PortMappings: caravela.EmptyPortMappings(),
-										Args:         caravela.EmptyContainerArgs(),
-										Resources:    resources,
-										GroupPolicy:  types.SpreadGroupPolicy,
-									}})
+								requestCtx,
+								[]types.ContainerConfig{{
+									ImageKey:     util.RandomName(),
+									Name:         util.RandomName(),
+									PortMappings: caravela.EmptyPortMappings(),
+									Args:         caravela.EmptyContainerArgs(),
+									Resources:    resources,
+									GroupPolicy:  types.SpreadGroupPolicy,
+								}})
 							if err == nil {
 								rf.reqInjectionNode.Store(contStatus[0].ContainerID, injectedNode)
 								rf.collector.RunRequestSucceeded()
@@ -102,7 +102,7 @@ func (rf *RandomFeeder) Start(ticksChannel <-chan chan RequestTask) {
 	}
 }
 
-func (rf *RandomFeeder) generateResourcesProfile() types.Resources {
+func (rf *randomFeeder) generateResourcesProfile() types.Resources {
 	copyRequestProfiles := make([]requestProfile, len(requestProfiles))
 	copy(copyRequestProfiles, requestProfiles)
 

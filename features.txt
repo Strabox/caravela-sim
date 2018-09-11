@@ -1,3 +1,4 @@
-snapshot metrics in memory -> disc [some work]
-single-thread->multithread (speedup simulation 2x + added realism and request concurrency) [much work to handle multiple requests and track their metrics]
-requests feeder programmatically, from files whatever [a bit of work]
+-snapshot metrics in memory -> disc [some work]
+-single-thread->multithread (speedup simulation 2x + added realism and request concurrency) [much work to handle multiple requests and track their metrics]
+-requests feeder programmatically, from files whatever [a bit of work]
+-same seed for node resources generation and request resources generation.

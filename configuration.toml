@@ -10,8 +10,10 @@ Backend = "chord-single-offer"    # chord-random, chord-single-offer, chord-mult
     SpreadOffersInterval = "5m"
     RefreshingInterval = "5m"
     # Debug performance flags
-    SpreadOffers = false
+    SpreadOffers = true
     SpreadPartitionsState = true
+    GUIDEstimatedNetworkSize = 5000
+    GUIDScaleFactor = 3
     [Caravela.DiscoveryBackend.RandomChordBackend]
     RandBackendMaxRetries = 4
 [Caravela.Resources]
