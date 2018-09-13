@@ -55,7 +55,7 @@ func NewEngine(metricsCollector *metrics.Collector, simConfig *configuration.Con
 		feeder:      feeder.Create(simConfig, caravelaConfigurations, baseRngSeed),
 
 		metricsCollector: metricsCollector,
-		workersPool:      grpool.NewPool(maxWorkers, maxWorkers*6),
+		workersPool:      grpool.NewPool(maxWorkers, maxWorkers*30),
 		caravelaConfigs:  caravelaConfigurations,
 		simulatorConfigs: simConfig,
 	}
@@ -73,7 +73,7 @@ func (e *Engine) Init() {
 	dockerClientMock := docker.NewClientMock(docker.CreateResourceGen(e.simulatorConfigs, e.caravelaConfigs, e.nextRngSeed()))
 	caravelaClientMock := caravela.NewRemoteClientMock(e, e.metricsCollector)
 	e.overlayMock = chord.NewChordMock(e.simulatorConfigs.TotalNumberOfNodes(),
-		e.caravelaConfigs.ChordNumSuccessors(), e.metricsCollector)
+		e.caravelaConfigs.ChordNumSuccessors(), e.simulatorConfigs.ChordMockSpeedupNodes(), e.metricsCollector)
 	e.overlayMock.Init()
 
 	// Create the CARAVELA's nodes for the engine.

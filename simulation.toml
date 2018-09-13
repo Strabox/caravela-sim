@@ -1,11 +1,45 @@
-NumberOfNodes = 10000
-TickInterval = "20s"
-MaxTicks = 90
+NumberOfNodes = 15000
+TickInterval = "10s"
+MaxTicks = 65
 Multithread = true
-DiscoveryBackends = ["chord-single-offer", "chord-random"]
-RequestFeeder = "json"            # random, json
+DiscoveryBackends = ["chord-single-offer", "chord-random"]  # chord-random, chord-single-offer, chord-multiple-offers, swarm
+OutDirectoryPath = "out"
 SimulatorLogLevel = "info"
 CaravelaLogLevel = "info"
+
+[RequestFeeder]
+RequestFeeder = "random"    # random, json
+    [[RequestFeeder.RequestsProfile]]
+    CPUClass = 0
+    CPUs = 1
+    Memory =  300
+    Percentage = 35
+    [[RequestFeeder.RequestsProfile]]
+    CPUClass = 0
+    CPUs = 2
+    Memory =  1024
+    Percentage = 15
+    [[RequestFeeder.RequestsProfile]]
+    CPUClass = 0
+    CPUs = 4
+    Memory =  4048
+    Percentage = 10
+    [[RequestFeeder.RequestsProfile]]
+    CPUClass = 1
+    CPUs = 2
+    Memory =  750
+    Percentage = 20
+    [[RequestFeeder.RequestsProfile]]
+    CPUClass = 1
+    CPUs = 3
+    Memory =  1500
+    Percentage = 10
+    [[RequestFeeder.RequestsProfile]]
+    CPUClass = 1
+    CPUs = 6
+    Memory =  2500
+    Percentage = 10
+
 
 [ResourcesGenerator]
 ResourceGenerator = "partition-fit" # static, "real", partition-fit
@@ -13,3 +47,6 @@ ResourceGenerator = "partition-fit" # static, "real", partition-fit
     CPUClass = 0
     CPUs = 4
     Memory = 4048
+
+[ChordMock]
+SpeedupNodes = 500

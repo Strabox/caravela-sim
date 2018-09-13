@@ -11,9 +11,7 @@ import (
 	"github.com/strabox/caravela/api/types"
 	caravelaConfigs "github.com/strabox/caravela/configuration"
 	"github.com/strabox/caravela/node"
-	caravelaUtil "github.com/strabox/caravela/util"
 	"math"
-	"math/rand"
 	"os"
 	"strconv"
 	"sync"
@@ -28,18 +26,16 @@ type jsonFeeder struct {
 	containerInjectionNode sync.Map                       // Map of ContainerID<->NodeIndex.
 	currentRequests        sync.Map                       // Map of RequestID<->ContainerID.
 	systemTotalResources   types.Resources                // Caravela's maximum resources.
-	randomGenerator        *rand.Rand                     // Pseudo-random generator.
 	simConfigs             *configuration.Configuration   // Simulator's configurations.
 	caravelaConfigs        *caravelaConfigs.Configuration // Caravela's configurations.
 }
 
 // newJsonFeeder creates a new json feeder.
-func newJsonFeeder(simConfigs *configuration.Configuration, caravelaConfigs *caravelaConfigs.Configuration, rngSeed int64) (Feeder, error) {
+func newJsonFeeder(simConfigs *configuration.Configuration, caravelaConfigs *caravelaConfigs.Configuration, _ int64) (Feeder, error) {
 	return &jsonFeeder{
 		collector:              nil,
 		containerInjectionNode: sync.Map{},
 		currentRequests:        sync.Map{},
-		randomGenerator:        rand.New(caravelaUtil.NewSourceSafe(rand.NewSource(rngSeed))),
 		simConfigs:             simConfigs,
 		caravelaConfigs:        caravelaConfigs,
 	}, nil
@@ -59,7 +55,7 @@ func (j *jsonFeeder) Start(ticksChannel <-chan chan RequestTask) {
 		CPUs      float64 `json:"CPU request"`
 		Memory    float64 `json:"memory request"`
 	}
-	const maxJsonFiles = 18
+	const maxJsonFiles = 20
 	jsonFileCounter := 0
 	tick := 0
 
@@ -108,6 +104,7 @@ func (j *jsonFeeder) Start(ticksChannel <-chan chan RequestTask) {
 									j.currentRequests.Store(requestID, contStatus[0].ContainerID)
 									j.collector.RunRequestSucceeded()
 								}
+								j.currentRequests.Delete(requestID)
 								j.collector.ArchiveRunRequest(requestID)
 							}
 						}
@@ -146,7 +143,7 @@ func (j *jsonFeeder) Start(ticksChannel <-chan chan RequestTask) {
 				}
 
 				if !jsonRequestStream.More() && (jsonFileCounter == maxJsonFiles) {
-					fmt.Println("ASDDDDDDDDDDDDDDDDDDDDDDDD")
+					util.Log.Fatalf(util.LogTag(logJsonFeederTag) + "No more requests in the json files!!!")
 					currentJsonFile.Close() // Close the request file.
 					close(newTickChan)      // No more user requests for this tick.
 					return
@@ -202,19 +199,21 @@ func (j *jsonFeeder) generateRequestResources(normalizedCpus, normalizedMemory f
 		}
 	}
 
-	chosenCpuClass := 0
-	randInt := j.randomGenerator.Intn(101)
-	for i, cpuClass := range cpuClasses {
-		if randInt <= cpuClass {
-			chosenCpuClass = i
-			break
+	/*
+		chosenCpuClass := 0
+		randInt := j.randomGenerator.Intn(101)
+		for i, cpuClass := range cpuClasses {
+			if randInt <= cpuClass {
+				chosenCpuClass = i
+				break
+			}
 		}
-	}
+	*/
 
 	return types.Resources{
-		CPUClass: types.CPUClass(chosenCpuClass),
-		CPUs:     int(math.Ceil(normalizedCpus * float64(maxCpus))),
-		Memory:   int(math.Ceil(normalizedMemory * float64(maxMemory))),
+		CPUClass: 0,
+		CPUs:     int(math.Ceil((4 * normalizedCpus) * float64(maxCpus))),
+		Memory:   int(math.Ceil((4 * normalizedMemory) * float64(maxMemory))),
 	}
 }
 

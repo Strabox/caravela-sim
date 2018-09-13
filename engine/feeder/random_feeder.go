@@ -22,10 +22,11 @@ const logRandFeederTag = "R-FEEDER"
 
 // randomFeeder generates a stream of user requests using a pre-defined defined requests profile.
 type randomFeeder struct {
-	collector        *metrics.Collector           // Metrics collector that collects system level metrics.
-	reqInjectionNode sync.Map                     // Map of ContainerID<->NodeIndex.
-	randomGenerator  *rand.Rand                   // Pseudo-random generator.
-	simConfigs       *configuration.Configuration // Simulator's configurations.
+	collector            *metrics.Collector           // Metrics collector that collects system level metrics.
+	reqInjectionNode     sync.Map                     // Map of ContainerID<->NodeIndex.
+	randomGenerator      *rand.Rand                   // Pseudo-random generator.
+	systemTotalResources types.Resources              // Caravela's maximum resources.
+	simConfigs           *configuration.Configuration // Simulator's configurations.
 }
 
 // newRandomFeeder creates a new random feeder.
@@ -38,8 +39,9 @@ func newRandomFeeder(simConfigs *configuration.Configuration, _ *caravelaConfigs
 	}, nil
 }
 
-func (rf *randomFeeder) Init(metricsCollector *metrics.Collector, _ types.Resources) {
+func (rf *randomFeeder) Init(metricsCollector *metrics.Collector, systemTotalResources types.Resources) {
 	rf.collector = metricsCollector
+	rf.systemTotalResources = systemTotalResources
 }
 
 func (rf *randomFeeder) Start(ticksChannel <-chan chan RequestTask) {
@@ -69,6 +71,7 @@ func (rf *randomFeeder) Start(ticksChannel <-chan chan RequestTask) {
 
 				if tick <= 10 || tick >= 20 {
 					for r := 0; r < runReqPerTick; r++ { // Run Container Requests
+
 						newTickChan <- func(nodeIndex int, injectedNode *node.Node, currentTime time.Duration) {
 							resources := rf.generateResourcesProfile() // Generate the resources necessary for the request.
 							requestID := guid.NewGUIDRandom().String() // Generate a GUID for tracking the request inside Caravela.
@@ -90,6 +93,7 @@ func (rf *randomFeeder) Start(ticksChannel <-chan chan RequestTask) {
 							}
 							rf.collector.ArchiveRunRequest(requestID)
 						}
+
 					}
 				}
 
@@ -102,9 +106,10 @@ func (rf *randomFeeder) Start(ticksChannel <-chan chan RequestTask) {
 	}
 }
 
+// TODO
 func (rf *randomFeeder) generateResourcesProfile() types.Resources {
-	copyRequestProfiles := make([]requestProfile, len(requestProfiles))
-	copy(copyRequestProfiles, requestProfiles)
+	copyRequestProfiles := make([]configuration.RequestProfile, len(rf.simConfigs.RequestsProfile()))
+	copy(copyRequestProfiles, rf.simConfigs.RequestsProfile())
 
 	acc := 0
 	for i, profile := range copyRequestProfiles {
@@ -113,70 +118,18 @@ func (rf *randomFeeder) generateResourcesProfile() types.Resources {
 		acc += currentPercentage
 	}
 	if acc != 100 {
-		panic(errors.New("random feeder profiles probability does not sum 100%"))
+		panic(errors.New("random feeder request profiles probability does not sum 100%"))
 	}
 
 	randProfile := rf.randomGenerator.Intn(101)
 	for _, profile := range copyRequestProfiles {
 		if randProfile <= profile.Percentage {
-			return profile.Resources
+			return types.Resources{
+				CPUClass: types.CPUClass(profile.CPUClass),
+				CPUs:     profile.CPUs,
+				Memory:   profile.Memory,
+			}
 		}
 	}
 	panic(fmt.Errorf("random feeder problem generating resources, rand profile: %d", randProfile))
-}
-
-type requestProfile struct {
-	Resources  types.Resources
-	Percentage int
-}
-
-var requestProfiles = []requestProfile{
-	{
-		Resources: types.Resources{
-			CPUClass: 0,
-			CPUs:     1,
-			Memory:   350,
-		},
-		Percentage: 35,
-	},
-	{
-		Resources: types.Resources{
-			CPUClass: 0,
-			CPUs:     2,
-			Memory:   1024,
-		},
-		Percentage: 15,
-	},
-	{
-		Resources: types.Resources{
-			CPUClass: 0,
-			CPUs:     4,
-			Memory:   4048,
-		},
-		Percentage: 10,
-	},
-	{
-		Resources: types.Resources{
-			CPUClass: 1,
-			CPUs:     2,
-			Memory:   750,
-		},
-		Percentage: 20,
-	},
-	{
-		Resources: types.Resources{
-			CPUClass: 1,
-			CPUs:     3,
-			Memory:   1500,
-		},
-		Percentage: 10,
-	},
-	{
-		Resources: types.Resources{
-			CPUClass: 1,
-			CPUs:     3,
-			Memory:   2500,
-		},
-		Percentage: 10,
-	},
 }

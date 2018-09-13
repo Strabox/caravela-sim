@@ -19,6 +19,10 @@ build:
 	@echo Building for the current machine settings...
 	$(GOBUILD) -o $(BINARY_NAME) -v
 
+build-linux:
+	@echo Building for linux and current machine arch...
+	env GOOS=linux $(GOBUILD) -o $(BINARY_NAME) -v
+
 clean:
 	@echo Cleaning project...
 	$(GOCLEAN)

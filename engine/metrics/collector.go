@@ -8,6 +8,7 @@ import (
 	"github.com/strabox/caravela/api/types"
 	"io/ioutil"
 	"os"
+	"path/filepath"
 	"runtime"
 	"sort"
 	"time"
@@ -44,7 +45,7 @@ func NewCollector(numNodes int, baseOutputDirPath string) *Collector {
 		numNodes:       numNodes,
 		currSimulation: nil,
 		simulations:    make([]*simulationData, 0),
-		outputDirPath:  baseOutputDirPath + "\\" + simulationDirBaseName + time.Now().Format(simulationDirSuffixFormat),
+		outputDirPath:  filepath.Join(baseOutputDirPath, simulationDirBaseName+time.Now().Format(simulationDirSuffixFormat)),
 	}
 }
 
@@ -145,7 +146,7 @@ func (coll *Collector) Persist(currentTime time.Duration) {
 			if err != nil {
 				panic(errors.New("can't marshall the collector snapshot, error: " + err.Error()))
 			}
-			err = ioutil.WriteFile(coll.currSimulation.tmpDirFullPath+"\\"+global.Start.String()+".json", jsonBytes, 0644)
+			err = ioutil.WriteFile(filepath.Join(coll.currSimulation.tmpDirFullPath, global.Start.String()+".json"), jsonBytes, 0644)
 			if err != nil {
 				panic(errors.New("can't write the collector snapshot to disk, error: " + err.Error()))
 			}
@@ -218,7 +219,7 @@ func (coll *Collector) loadAllMetrics() {
 			if !fileInfo.IsDir() {
 				var globalMetrics Global
 
-				fileContent, err := ioutil.ReadFile(simData.tmpDirFullPath + "\\" + fileInfo.Name())
+				fileContent, err := ioutil.ReadFile(filepath.Join(simData.tmpDirFullPath, fileInfo.Name()))
 				if err != nil {
 					panic(errors.New("can't read the snapshot file, error: " + err.Error()))
 				}

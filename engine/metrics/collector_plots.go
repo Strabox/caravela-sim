@@ -9,6 +9,7 @@ import (
 	"gonum.org/v1/plot/plotutil"
 	"gonum.org/v1/plot/vg"
 	"math"
+	"path/filepath"
 	"sort"
 )
 
@@ -33,7 +34,7 @@ func (coll *Collector) plotRequestsSucceeded() {
 		panic(errors.New("Problem with plots, error: " + err.Error()))
 	}
 
-	graphics.Save(plotRes, 25*vg.Centimeter, 17*vg.Centimeter, generatePNGFileName(coll.outputDirPath+"\\"+"RequestsSucceeded"))
+	graphics.Save(plotRes, 25*vg.Centimeter, 17*vg.Centimeter, generatePNGFileName(filepath.Join(coll.outputDirPath, "RequestsSucceeded")))
 }
 
 func (coll *Collector) plotRequestsMessagesTradedPerRequest() {
@@ -62,7 +63,7 @@ func (coll *Collector) plotRequestsMessagesTradedPerRequest() {
 
 	plotRes.Legend.Top = true
 
-	graphics.Save(plotRes, 25*vg.Centimeter, 17*vg.Centimeter, generatePNGFileName(coll.outputDirPath+"\\"+"MessagesPerRequest"))
+	graphics.Save(plotRes, 40*vg.Centimeter, 27*vg.Centimeter, generatePNGFileName(filepath.Join(coll.outputDirPath, "MessagesPerRequest")))
 }
 
 func (coll *Collector) plotSystemFreeResourcesVSRequestSuccess() {
@@ -91,7 +92,7 @@ func (coll *Collector) plotSystemFreeResourcesVSRequestSuccess() {
 			panic(errors.New("Problem with plots, error: " + err.Error()))
 		}
 
-		graphics.Save(plotRes, 25*vg.Centimeter, 17*vg.Centimeter, generatePNGFileName(coll.outputDirPath+"\\"+"FreeResources_"+simData.label))
+		graphics.Save(plotRes, 25*vg.Centimeter, 17*vg.Centimeter, generatePNGFileName(filepath.Join(coll.outputDirPath, "FreeResources_"+simData.label)))
 	}
 }
 
@@ -112,7 +113,7 @@ func (coll *Collector) plotMessagesTraderByRequestBoxPlots() {
 		panic(errors.New("Problem with plots, error: " + err.Error()))
 	}
 
-	graphics.Save(plotRes, 15*vg.Centimeter, 15*vg.Centimeter, generatePNGFileName(coll.outputDirPath+"\\"+"MessagesDistribution"))
+	graphics.Save(plotRes, 15*vg.Centimeter, 15*vg.Centimeter, generatePNGFileName(filepath.Join(coll.outputDirPath, "MessagesDistribution")))
 }
 
 func (coll *Collector) plotResourcesUsedDistributionByNodesOverTime() {
@@ -224,7 +225,7 @@ func (coll *Collector) plotTotalMessagesTradedInSystem() {
 	plotRes.Legend.Top = true
 	plotRes.NominalX("Main Simulation")
 
-	graphics.Save(plotRes, 13*vg.Centimeter, 14*vg.Centimeter, generatePNGFileName(coll.outputDirPath+"\\"+"MessagesTradedInSystem"))
+	graphics.Save(plotRes, 13*vg.Centimeter, 14*vg.Centimeter, generatePNGFileName(filepath.Join(coll.outputDirPath, "MessagesTradedInSystem")))
 }
 
 // ======================================= Debug Performance Plots ===============================
@@ -247,7 +248,7 @@ func (coll *Collector) plotRelayedGetOfferMessages() {
 		panic(errors.New("Problem with plots, error: " + err.Error()))
 	}
 
-	graphics.Save(plotRes, 25*vg.Centimeter, 17*vg.Centimeter, generatePNGFileName(coll.outputDirPath+"\\"+"Debug_GetOffersRelayed"))
+	graphics.Save(plotRes, 25*vg.Centimeter, 17*vg.Centimeter, generatePNGFileName(filepath.Join(coll.outputDirPath, "Debug_GetOffersRelayed")))
 }
 
 func (coll *Collector) plotEmptyGetOfferMessages() {
@@ -268,7 +269,7 @@ func (coll *Collector) plotEmptyGetOfferMessages() {
 		panic(errors.New("Problem with plots, error: " + err.Error()))
 	}
 
-	graphics.Save(plotRes, 25*vg.Centimeter, 17*vg.Centimeter, generatePNGFileName(coll.outputDirPath+"\\"+"Debug_EmptyGetOffer"))
+	graphics.Save(plotRes, 25*vg.Centimeter, 17*vg.Centimeter, generatePNGFileName(filepath.Join(coll.outputDirPath, "Debug_EmptyGetOffer")))
 }
 
 // ======================================== Auxiliary Functions ====================================
