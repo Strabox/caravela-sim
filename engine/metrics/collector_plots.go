@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"github.com/strabox/caravela-sim/engine/metrics/graphics"
 	"gonum.org/v1/gonum/mat"
+	"gonum.org/v1/plot/palette"
 	"gonum.org/v1/plot/plotter"
 	"gonum.org/v1/plot/plotutil"
 	"gonum.org/v1/plot/vg"
@@ -13,7 +14,7 @@ import (
 	"sort"
 )
 
-func (coll *Collector) plotRequestsSucceeded() {
+func (coll *Collector) plotCumulativeRequestsSucceeded() {
 	plotRes := graphics.NewPlot("Deploy Containers Requests Success", "Time (Seconds)", "Requests Succeeded", true)
 
 	dataPoints := make([]interface{}, 0)
@@ -29,16 +30,16 @@ func (coll *Collector) plotRequestsSucceeded() {
 		dataPoints = append(dataPoints, simData.label, pts)
 	}
 
-	err := plotutil.AddLinePoints(plotRes, dataPoints...)
+	err := plotutil.AddLines(plotRes, dataPoints...)
 	if err != nil {
 		panic(errors.New("Problem with plots, error: " + err.Error()))
 	}
 
-	graphics.Save(plotRes, 25*vg.Centimeter, 17*vg.Centimeter, generatePNGFileName(filepath.Join(coll.outputDirPath, "RequestsSucceeded")))
+	graphics.Save(plotRes, 15*vg.Centimeter, 15*vg.Centimeter, generatePNGFileName(coll.outputDirPath, "RequestsSucceeded"))
 }
 
-func (coll *Collector) plotRequestsMessagesTradedPerRequest() {
-	plotRes := graphics.NewPlot("Average Discover Messages", "Time (Seconds)", "#Avg Messages", true)
+func (coll *Collector) plotAvgMessagesTradedPerRunRequest() {
+	plotRes := graphics.NewPlot("Average Discover Messages per Request", "Time (Seconds)", "#Avg Messages", true)
 
 	dataPoints := make([]interface{}, 0)
 	for _, simData := range coll.simulations {
@@ -50,31 +51,30 @@ func (coll *Collector) plotRequestsMessagesTradedPerRequest() {
 				continue
 			}
 			simulationPts[j].X = simData.snapshots[i].EndTime().Seconds()
-			simulationPts[j].Y = float64(runRequestsAvgMessages)
+			simulationPts[j].Y = runRequestsAvgMessages
 			j++
 		}
 		dataPoints = append(dataPoints, simData.label, simulationPts)
 	}
 
-	err := plotutil.AddLinePoints(plotRes, dataPoints...)
+	err := plotutil.AddLines(plotRes, dataPoints...)
 	if err != nil {
 		panic(errors.New("Problem with plots, error: " + err.Error()))
 	}
 
-	plotRes.Legend.Top = true
-
-	graphics.Save(plotRes, 40*vg.Centimeter, 27*vg.Centimeter, generatePNGFileName(filepath.Join(coll.outputDirPath, "MessagesPerRequest")))
+	graphics.Save(plotRes, 15*vg.Centimeter, 15*vg.Centimeter, generatePNGFileName(coll.outputDirPath, "MessagesPerRequest"))
 }
 
 func (coll *Collector) plotSystemFreeResourcesVSRequestSuccess() {
 	for _, simData := range coll.simulations {
 		plotRes := graphics.NewPlot(fmt.Sprintf("Free Resources (%s)", simData.label), "Time (Seconds)",
 			"Resources Free %", true)
-		availableResPts := make(plotter.XYs, len(simData.snapshots))
+
+		totalFreeResPts := make(plotter.XYs, len(simData.snapshots))
 		requestsSucceeded := make(plotter.XYs, len(simData.snapshots))
 		for i, r := 0, 0; i < len(simData.snapshots); i++ {
-			availableResPts[i].X = simData.snapshots[i].EndTime().Seconds()
-			availableResPts[i].Y = float64(simData.snapshots[i].AllAvailableResourcesAvg())
+			totalFreeResPts[i].X = simData.snapshots[i].EndTime().Seconds()
+			totalFreeResPts[i].Y = float64(simData.snapshots[i].TotalFreeResourcesAvg())
 
 			runRequestSuccessRatio := simData.snapshots[i].RunRequestSuccessRatio()
 			if runRequestSuccessRatio == 0 {
@@ -86,13 +86,13 @@ func (coll *Collector) plotSystemFreeResourcesVSRequestSuccess() {
 			r++
 		}
 
-		err := plotutil.AddLinePoints(plotRes, "Free Resources", availableResPts,
+		err := plotutil.AddLines(plotRes, "Free Resources", totalFreeResPts,
 			"Requests Succeeded", requestsSucceeded)
 		if err != nil {
 			panic(errors.New("Problem with plots, error: " + err.Error()))
 		}
 
-		graphics.Save(plotRes, 25*vg.Centimeter, 17*vg.Centimeter, generatePNGFileName(filepath.Join(coll.outputDirPath, "FreeResources_"+simData.label)))
+		graphics.Save(plotRes, 15*vg.Centimeter, 15*vg.Centimeter, generatePNGFileName(coll.outputDirPath, "FreeResources_"+simData.label))
 	}
 }
 
@@ -113,7 +113,7 @@ func (coll *Collector) plotMessagesTraderByRequestBoxPlots() {
 		panic(errors.New("Problem with plots, error: " + err.Error()))
 	}
 
-	graphics.Save(plotRes, 15*vg.Centimeter, 15*vg.Centimeter, generatePNGFileName(filepath.Join(coll.outputDirPath, "MessagesDistribution")))
+	graphics.Save(plotRes, 15*vg.Centimeter, 15*vg.Centimeter, generatePNGFileName(coll.outputDirPath, "MessagesDistribution"))
 }
 
 func (coll *Collector) plotResourcesUsedDistributionByNodesOverTime() {
@@ -124,7 +124,6 @@ func (coll *Collector) plotResourcesUsedDistributionByNodesOverTime() {
 		yTicks := make([]int, len(simData.snapshots)+1)
 		for i, snapshot := range simData.snapshots {
 			yTicks[i] = int(snapshot.EndTime().Seconds())
-			sort.Sort(&snapshot) // Sort the snapshot's node's metric by the Max Resources in ascending order.
 			copy(data[lower:upper], snapshot.ResourcesUsedNodeRatio())
 			lower += coll.numNodes
 			upper += coll.numNodes
@@ -136,7 +135,7 @@ func (coll *Collector) plotResourcesUsedDistributionByNodesOverTime() {
 		dataGrid := &graphics.UnitGrid{Data: mat.NewDense(len(simData.snapshots), coll.numNodes, data)}
 
 		graphics.NewHeatMap(generatePNGFileName("ResourcesUsedDistribution_"+simData.label), fmt.Sprintf("Resources Used Distribution (%s)", simData.label),
-			"Nodes", "Time (Seconds)", coll.outputDirPath, yTicks, dataGrid, graphics.MyInvertedHeatPalette())
+			"Nodes", "Time (Seconds)", coll.outputDirPath, yTicks, dataGrid, palette.Heat(64, 1))
 	}
 }
 
@@ -148,7 +147,6 @@ func (coll *Collector) plotResourcesUnreachableDistributionByNodesOverTime() {
 		yTicks := make([]int, len(simData.snapshots)+1)
 		for i, snapshot := range simData.snapshots {
 			yTicks[i] = int(snapshot.EndTime().Seconds())
-			sort.Sort(&snapshot) // Sort the snapshot's node's metric by the Max Resources in ascending order.
 			copy(data[lower:upper], snapshot.ResourcesUnreachableRatioNode())
 			lower += coll.numNodes
 			upper += coll.numNodes
@@ -160,7 +158,7 @@ func (coll *Collector) plotResourcesUnreachableDistributionByNodesOverTime() {
 		dataGrid := &graphics.UnitGrid{Data: mat.NewDense(len(simData.snapshots), coll.numNodes, data)}
 
 		graphics.NewHeatMap(generatePNGFileName("ResourcesUnreachableDistribution_"+simData.label), fmt.Sprintf("Resources Unreachable Distribution (%s)", simData.label),
-			"Nodes", "Time (Seconds)", coll.outputDirPath, yTicks, dataGrid, graphics.MyInvertedHeatPalette())
+			"Nodes", "Time (Seconds)", coll.outputDirPath, yTicks, dataGrid, palette.Heat(64, 1))
 	}
 }
 
@@ -172,7 +170,6 @@ func (coll *Collector) plotMessagesAPIDistributionByNodesOverTime() {
 		yTicks := make([]int, len(simData.snapshots)+1)
 		for i, snapshot := range simData.snapshots {
 			yTicks[i] = int(snapshot.EndTime().Seconds())
-			sort.Sort(&snapshot) // Sort the snapshot's node's metric by the Max Resources in ascending order.
 			copy(data[lower:upper], snapshot.TotalAPIMessagesReceivedByNode())
 			lower += coll.numNodes
 			upper += coll.numNodes
@@ -184,7 +181,7 @@ func (coll *Collector) plotMessagesAPIDistributionByNodesOverTime() {
 		dataGrid := &graphics.UnitGrid{Data: mat.NewDense(len(simData.snapshots), coll.numNodes, data)}
 
 		graphics.NewHeatMap(generatePNGFileName("MessagesAPIDistribution_"+simData.label), fmt.Sprintf("Messages Distribution (%s)", simData.label),
-			"Nodes", "Time (Seconds)", coll.outputDirPath, yTicks, dataGrid, graphics.MyHeatPalette())
+			"Nodes", "Time (Seconds)", coll.outputDirPath, yTicks, dataGrid, palette.Heat(64, 1))
 	}
 }
 
@@ -193,7 +190,7 @@ func (coll *Collector) plotTotalMessagesTradedInSystem() {
 
 	barWidth := vg.Points(25)
 
-	barOffset := float64(0)
+	barOffset := []float64{0, -30, 30, -60, 60, -90, 90}
 	color := 0
 	for i, simData := range coll.simulations {
 		messagesTradedAcc := float64(0)
@@ -208,16 +205,11 @@ func (coll *Collector) plotTotalMessagesTradedInSystem() {
 
 		barChart.LineStyle.Width = vg.Length(0)
 		barChart.Color = plotutil.Color(color)
-		barChart.Offset = vg.Points(barOffset)
+		barChart.Offset = vg.Points(barOffset[i])
 
 		plotRes.Add(barChart)
 
 		plotRes.Legend.Add(simData.label, barChart)
-		if i%2 == 0 {
-			barOffset = -30
-		} else {
-			barOffset = 30
-		}
 
 		color++
 	}
@@ -225,7 +217,7 @@ func (coll *Collector) plotTotalMessagesTradedInSystem() {
 	plotRes.Legend.Top = true
 	plotRes.NominalX("Main Simulation")
 
-	graphics.Save(plotRes, 13*vg.Centimeter, 14*vg.Centimeter, generatePNGFileName(filepath.Join(coll.outputDirPath, "MessagesTradedInSystem")))
+	graphics.Save(plotRes, 15*vg.Centimeter, 15*vg.Centimeter, generatePNGFileName(coll.outputDirPath, "MessagesTradedInSystem"))
 }
 
 // ======================================= Debug Performance Plots ===============================
@@ -243,12 +235,12 @@ func (coll *Collector) plotRelayedGetOfferMessages() {
 		dataPoints = append(dataPoints, simData.label, relayedGetOffersPts)
 	}
 
-	err := plotutil.AddLinePoints(plotRes, dataPoints...)
+	err := plotutil.AddLines(plotRes, dataPoints...)
 	if err != nil {
 		panic(errors.New("Problem with plots, error: " + err.Error()))
 	}
 
-	graphics.Save(plotRes, 25*vg.Centimeter, 17*vg.Centimeter, generatePNGFileName(filepath.Join(coll.outputDirPath, "Debug_GetOffersRelayed")))
+	graphics.Save(plotRes, 15*vg.Centimeter, 15*vg.Centimeter, generatePNGFileName(coll.outputDirPath, "Debug_GetOffersRelayed"))
 }
 
 func (coll *Collector) plotEmptyGetOfferMessages() {
@@ -264,16 +256,16 @@ func (coll *Collector) plotEmptyGetOfferMessages() {
 		dataPoints = append(dataPoints, simData.label, emptyGetOffersPts)
 	}
 
-	err := plotutil.AddLinePoints(plotRes, dataPoints...)
+	err := plotutil.AddLines(plotRes, dataPoints...)
 	if err != nil {
 		panic(errors.New("Problem with plots, error: " + err.Error()))
 	}
 
-	graphics.Save(plotRes, 25*vg.Centimeter, 17*vg.Centimeter, generatePNGFileName(filepath.Join(coll.outputDirPath, "Debug_EmptyGetOffer")))
+	graphics.Save(plotRes, 15*vg.Centimeter, 15*vg.Centimeter, generatePNGFileName(coll.outputDirPath, "Debug_EmptyGetOffer"))
 }
 
 // ======================================== Auxiliary Functions ====================================
 
-func generatePNGFileName(fileName string) string {
-	return fileName + ".png"
+func generatePNGFileName(pathNames ...string) string {
+	return filepath.Join(pathNames...) + ".png"
 }

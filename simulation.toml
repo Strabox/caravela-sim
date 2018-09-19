@@ -1,52 +1,60 @@
-NumberOfNodes = 15000
-TickInterval = "10s"
-MaxTicks = 65
+NumberOfNodes = 5000
+TickInterval = "20s"
+MaxTicks = 300
 Multithread = true
-DiscoveryBackends = ["chord-single-offer", "chord-random"]  # chord-random, chord-single-offer, chord-multiple-offers, swarm
+DiscoveryBackends = ["chord-single-offer", "chord-random", "swarm"]  # chord-random, chord-single-offer, chord-multiple-offer, swarm
 OutDirectoryPath = "out"
 SimulatorLogLevel = "info"
 CaravelaLogLevel = "info"
 
 [RequestFeeder]
 RequestFeeder = "random"    # random, json
+    DeployRequestsRate = [0.025, 0.015, 0.010, 0.035, 0.02, 0.01,  0.01,  0.05]
+    StopRequestsRate =   [0.0,   0.0,   0.0,   0.0,   0.0,  0.025, 0.015, 0.15]
+    # CPU Class 0
     [[RequestFeeder.RequestsProfile]]
     CPUClass = 0
     CPUs = 1
-    Memory =  300
-    Percentage = 35
+    Memory =  256
+    Percentage = 20
     [[RequestFeeder.RequestsProfile]]
     CPUClass = 0
     CPUs = 2
-    Memory =  1024
-    Percentage = 15
+    Memory =  1500
+    Percentage = 20
+    [[RequestFeeder.RequestsProfile]]
+    CPUClass = 0
+    CPUs = 3
+    Memory =  2500
+    Percentage = 10
     [[RequestFeeder.RequestsProfile]]
     CPUClass = 0
     CPUs = 4
-    Memory =  4048
-    Percentage = 10
+    Memory =  3500
+    Percentage = 15
+    # CPU Class 1
     [[RequestFeeder.RequestsProfile]]
     CPUClass = 1
-    CPUs = 2
-    Memory =  750
+    CPUs = 1
+    Memory =  512
     Percentage = 20
     [[RequestFeeder.RequestsProfile]]
     CPUClass = 1
     CPUs = 3
-    Memory =  1500
+    Memory =  2048
     Percentage = 10
     [[RequestFeeder.RequestsProfile]]
     CPUClass = 1
     CPUs = 6
-    Memory =  2500
-    Percentage = 10
-
+    Memory =  5000
+    Percentage = 5
 
 [ResourcesGenerator]
-ResourceGenerator = "partition-fit" # static, "real", partition-fit
+ResourceGenerator = "partition-fit" # static, partition-fit
     [ResourcesGenerator.StaticResources]
     CPUClass = 0
     CPUs = 4
     Memory = 4048
 
 [ChordMock]
-SpeedupNodes = 500
+SpeedupNodes = 300

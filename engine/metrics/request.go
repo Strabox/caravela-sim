@@ -22,14 +22,14 @@ func NewRunRequest(resources types.Resources) *RunRequest {
 
 // ========================= Metrics Collector Methods ====================================
 
-// IncrMessagesTraded increments the number of messages necessary to handle the request.
-func (request *RunRequest) IncrMessagesTraded(numMessages int64) {
+// IncrMessagesExchanged increments the number of messages necessary to handle the request.
+func (request *RunRequest) IncrMessagesExchanged(numMessages int64) {
 	atomic.AddInt64(&request.MessagesTraded, numMessages)
 }
 
 // ============================ Getters and Setters ========================================
 
-// TotalMessagesTraded returns the total number of messages necessary to handle the request.
-func (request *RunRequest) TotalMessagesTraded() int64 {
+// TotalMessagesExchanged returns the total number of messages necessary to handle the request.
+func (request *RunRequest) TotalMessagesExchanged() int64 {
 	return request.MessagesTraded
 }

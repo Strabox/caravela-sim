@@ -56,21 +56,23 @@ type caravela struct {
 
 type discoveryBackend struct {
 	Backend              string                   `json:"StorageBackend"`       // Selected discovery backend.
-	OfferingChordBackend offeringChordDiscBackend `json:"OfferingChordBackend"` // SmartChord discovery backend configs.
+	OfferingChordBackend offeringChordDiscBackend `json:"OfferingChordBackend"` // OfferingChord discovery backend configs.
 	RandomChordBackend   randomChordDiscBackend   `json:"RandomChordBackend"`   // RandomChord discovery backend configs.
 }
 
 type offeringChordDiscBackend struct {
-	SupplyingInterval      duration `json:"SupplyingInterval"`      // Interval for supplier to check if it is necessary offer resources
-	SpreadOffersInterval   duration `json:"SpreadOffersInterval"`   // Interval for the trader to spread offer information into neighbors
-	RefreshesCheckInterval duration `json:"RefreshesCheckInterval"` // Interval to check if the refreshes to its offers are being done
-	RefreshingInterval     duration `json:"RefreshingInterval"`     // Interval for trader to send refresh messages to suppliers
-	RefreshMissedTimeout   duration `json:"RefreshMissedTimeout"`   // Timeout for a refresh message
-	MaxRefreshesFailed     int      `json:"MaxRefreshesFailed"`     // Maximum amount of refreshes that a supplier failed to reply
-	MaxRefreshesMissed     int      `json:"MaxRefreshesMissed"`     // Maximum amount of refreshes a trader failed to send to the supplier
+	SupplyingInterval         duration `json:"SupplyingInterval"`      // Interval for supplier to check if it is necessary offer resources
+	SpreadOffersInterval      duration `json:"SpreadOffersInterval"`   // Interval for the trader to spread offer information into neighbors
+	RefreshesCheckInterval    duration `json:"RefreshesCheckInterval"` // Interval to check if the refreshes to its offers are being done
+	RefreshingInterval        duration `json:"RefreshingInterval"`     // Interval for trader to send refresh messages to suppliers
+	RefreshMissedTimeout      duration `json:"RefreshMissedTimeout"`   // Timeout for a refresh message
+	MaxRefreshesFailed        int      `json:"MaxRefreshesFailed"`     // Maximum amount of refreshes that a supplier failed to reply
+	MaxRefreshesMissed        int      `json:"MaxRefreshesMissed"`     // Maximum amount of refreshes a trader failed to send to the supplier
+	PartitionsStateBufferSize int      `json:"PartitionsStateBufferSize"`
 	// Debug performance flags
-	SpreadOffers             bool `json:"SpreadOffers"`             // Used to tell if the spread offers mechanism is used or not.
-	SpreadPartitionsState    bool `json:"SpreadPartitionsState"`    // Used to tell if the spread partitions state is used or not.
+	SpreadOffers             bool `json:"SpreadOffers"`          // Used to tell if the spread offers mechanism is used or not.
+	SpreadPartitionsState    bool `json:"SpreadPartitionsState"` // Used to tell if the spread partitions state is used or not.
+	PseudoSuperPeers         bool `json:"PseudoSuperPeers"`
 	GUIDEstimatedNetworkSize int  `json:"GUIDEstimatedNetworkSize"` // Estimated network size to tune the GUID scale.
 	GUIDScaleFactor          int  `json:"GUIDScaleFactor"`          // GUID scale's factor.
 }
@@ -126,21 +128,23 @@ func Default(hostIP string) *Configuration {
 			DiscoveryBackend: discoveryBackend{
 				Backend: "chord-single-offer",
 				OfferingChordBackend: offeringChordDiscBackend{
-					SupplyingInterval:      duration{Duration: 45 * time.Second},
-					SpreadOffersInterval:   duration{Duration: 40 * time.Second},
-					RefreshesCheckInterval: duration{Duration: 30 * time.Second},
-					RefreshingInterval:     refreshingInterval,
-					MaxRefreshesFailed:     2,
-					MaxRefreshesMissed:     2,
-					RefreshMissedTimeout:   duration{Duration: refreshingInterval.Duration + (5 * time.Second)},
+					SupplyingInterval:         duration{Duration: 45 * time.Second},
+					SpreadOffersInterval:      duration{Duration: 40 * time.Second},
+					RefreshesCheckInterval:    duration{Duration: 30 * time.Second},
+					RefreshingInterval:        refreshingInterval,
+					RefreshMissedTimeout:      duration{Duration: refreshingInterval.Duration + (5 * time.Second)},
+					MaxRefreshesFailed:        2,
+					MaxRefreshesMissed:        2,
+					PartitionsStateBufferSize: 15,
 					// Debug performance flags
 					SpreadOffers:             true,
 					SpreadPartitionsState:    true,
+					PseudoSuperPeers:         false,
 					GUIDEstimatedNetworkSize: 50000,
 					GUIDScaleFactor:          5,
 				},
 				RandomChordBackend: randomChordDiscBackend{
-					RandBackendMaxRetries: 6,
+					RandBackendMaxRetries: 3,
 				},
 			},
 			Resources: ResourcesPartitions{
@@ -275,6 +279,10 @@ func (c *Configuration) validate() error {
 		return fmt.Errorf("maximum number of missed refreshes must be a positive integer")
 	}
 
+	if c.PartitionsStateBufferSize() <= 0 {
+		return fmt.Errorf("the partitions state buffer size must be > 0")
+	}
+
 	if c.GUIDEstimatedNetworkSize() <= 0 {
 		return fmt.Errorf("estimated network size must a positive integer")
 	}
@@ -353,9 +361,11 @@ func (c *Configuration) Print() {
 	log.Printf("      Refresh missed timeout:        %s", c.RefreshMissedTimeout().String())
 	log.Printf("      Max num of refreshes failed:   %d", c.MaxRefreshesFailed())
 	log.Printf("      Max num of refreshes missed:   %d", c.MaxRefreshesMissed())
+	log.Printf("      Partitions State Buffer Size:  %d", c.PartitionsStateBufferSize())
 	// Debug performance flags.
 	log.Printf("      Spread Offers:                 %t", c.SpreadOffers())
 	log.Printf("      Spread Partitions State:       %t", c.SpreadPartitionsState())
+	log.Printf("      Pseudo Super Peers:            %t", c.PseudoSuperPeers())
 	log.Printf("      GUID Estimated Network Size:   %d", c.GUIDEstimatedNetworkSize())
 	log.Printf("      GUID Scale Factor:             %d", c.GUIDScaleFactor())
 
@@ -400,7 +410,23 @@ func (c *Configuration) APITimeout() time.Duration {
 }
 
 func (c *Configuration) ResourcesPartitions() ResourcesPartitions {
-	return c.Caravela.Resources
+	copyResources := ResourcesPartitions{}
+	copyResources.CPUClasses = make([]CPUClassPartition, len(c.Caravela.Resources.CPUClasses))
+	for cp, class := range c.Caravela.Resources.CPUClasses {
+		copyResources.CPUClasses[cp].Value = class.Value
+		copyResources.CPUClasses[cp].Percentage = class.Percentage
+		copyResources.CPUClasses[cp].CPUCores = make([]CPUCoresPartition, len(class.CPUCores))
+		for cc, cores := range class.CPUCores {
+			copyResources.CPUClasses[cp].CPUCores[cc].Value = cores.Value
+			copyResources.CPUClasses[cp].CPUCores[cc].Percentage = cores.Percentage
+			copyResources.CPUClasses[cp].CPUCores[cc].Memory = make([]MemoryPartition, len(cores.Memory))
+			for r, memory := range cores.Memory {
+				copyResources.CPUClasses[cp].CPUCores[cc].Memory[r].Value = memory.Value
+				copyResources.CPUClasses[cp].CPUCores[cc].Memory[r].Percentage = memory.Percentage
+			}
+		}
+	}
+	return copyResources
 }
 
 func (c *Configuration) CPUSlices() int {
@@ -455,6 +481,10 @@ func (c *Configuration) RefreshMissedTimeout() time.Duration {
 	return c.Caravela.DiscoveryBackend.OfferingChordBackend.RefreshMissedTimeout.Duration
 }
 
+func (c *Configuration) PartitionsStateBufferSize() int {
+	return c.Caravela.DiscoveryBackend.OfferingChordBackend.PartitionsStateBufferSize
+}
+
 // Debug performance flag.
 func (c *Configuration) SpreadOffers() bool {
 	return c.Caravela.DiscoveryBackend.OfferingChordBackend.SpreadOffers
@@ -463,6 +493,11 @@ func (c *Configuration) SpreadOffers() bool {
 // Debug performance flag.
 func (c *Configuration) SpreadPartitionsState() bool {
 	return c.Caravela.DiscoveryBackend.OfferingChordBackend.SpreadPartitionsState
+}
+
+// Debug performance flag.
+func (c *Configuration) PseudoSuperPeers() bool {
+	return c.Caravela.DiscoveryBackend.OfferingChordBackend.PseudoSuperPeers
 }
 
 // Debug performance flag.

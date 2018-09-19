@@ -50,7 +50,7 @@ func NewHeatMap(fileName, title, XLabel, YLabel, outputDirPath string, yTicks []
 	plotRes.X.Max = 1.5
 	plotRes.Y.Max = 1.5
 
-	img := vgimg.New(1420, 640)
+	img := vgimg.New(2550, 1640)
 	dc := draw.New(img)
 
 	legend.Top = true

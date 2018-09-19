@@ -40,12 +40,12 @@ type Supplier struct {
 }
 
 // NewSupplier creates a new supplier component, that manages the local resources.
-func NewSupplier(config *configuration.Configuration, overlay external.Overlay, client external.Caravela,
+func NewSupplier(node nodeCommon.Node, config *configuration.Configuration, overlay external.Overlay, client external.Caravela,
 	resourcesMap *resources.Mapping, maxResources resources.Resources) *Supplier {
 
 	s := &Supplier{
 		config:         config,
-		offersStrategy: CreateOffersStrategy(config),
+		offersStrategy: CreateOffersStrategy(node, config),
 		client:         client,
 
 		nodeGUID: nil,
@@ -220,6 +220,16 @@ func (s *Supplier) updateOffers() {
 	}
 }
 
+func (s *Supplier) forceOfferRefresh(offerID common.OfferID, success bool) {
+	if offer, exist := s.activeOffers[offerID]; exist {
+		if success {
+			offer.Refresh()
+		} else {
+			offer.UnreachableTrader()
+		}
+	}
+}
+
 func (s *Supplier) newOfferID() common.OfferID {
 	res := s.offersIDGen
 	s.offersIDGen++
@@ -277,7 +287,7 @@ func (s *Supplier) AvailableResources() types.Resources {
 // Simulation
 func (s *Supplier) MaximumResources() types.Resources {
 	return types.Resources{
-		CPUClass: types.CPUClass(s.availableResources.CPUClass()),
+		CPUClass: types.CPUClass(s.maxResources.CPUClass()),
 		CPUs:     s.maxResources.CPUs(),
 		Memory:   s.maxResources.Memory(),
 	}

@@ -9,7 +9,7 @@ import (
 // a CARAVELA's node.
 type Node struct {
 	MaxResources        types.Resources `json:"MaxResources"`        // Maximum resources available in the node.
-	AvailableRes        types.Resources `json:"AvailableResources"`  // Current available resources in the node.
+	FreeRes             types.Resources `json:"FreeResources"`       // Current available resources in the node.
 	ApiRequestsReceived int64           `json:"ApiRequestsReceived"` // Number of API requests received.
 	RequestsSubmitted   int64           `json:"RequestsSubmitted"`   // Number of requests submitted in the node..
 }
@@ -18,7 +18,7 @@ type Node struct {
 func NewNode(maxResources types.Resources) *Node {
 	return &Node{
 		MaxResources:        maxResources,
-		AvailableRes:        maxResources,
+		FreeRes:             maxResources,
 		ApiRequestsReceived: 0,
 		RequestsSubmitted:   0,
 	}
@@ -26,66 +26,66 @@ func NewNode(maxResources types.Resources) *Node {
 
 // ========================= Metrics Collector Methods ====================================
 
-func (node *Node) APIRequestReceived() {
-	atomic.AddInt64(&node.ApiRequestsReceived, 1)
+func (n *Node) APIRequestReceived() {
+	atomic.AddInt64(&n.ApiRequestsReceived, 1)
 }
 
-func (node *Node) RunRequestSubmitted() {
-	atomic.AddInt64(&node.RequestsSubmitted, 1)
+func (n *Node) RunRequestSubmitted() {
+	atomic.AddInt64(&n.RequestsSubmitted, 1)
 }
 
-func (node *Node) SetAvailableResources(res types.Resources) {
-	node.AvailableRes = res
+func (n *Node) SetFreeResources(freeRes types.Resources) {
+	n.FreeRes = freeRes
 }
 
 // ================================= Getters  ==============================================
 
-func (node *Node) MaximumResources() types.Resources {
-	return node.MaxResources
+func (n *Node) MaximumResources() types.Resources {
+	return n.MaxResources
 }
 
-func (node *Node) AvailableResources() types.Resources {
-	return node.AvailableRes
+func (n *Node) FreeResources() types.Resources {
+	return n.FreeRes
 }
 
-func (node *Node) UsedResources() types.Resources {
+func (n *Node) UsedResources() types.Resources {
 	return types.Resources{
-		CPUs:   node.MaxResources.CPUs - node.AvailableRes.CPUs,
-		Memory: node.MaxResources.Memory - node.AvailableRes.Memory,
+		CPUs:   n.MaxResources.CPUs - n.FreeRes.CPUs,
+		Memory: n.MaxResources.Memory - n.FreeRes.Memory,
 	}
 }
 
-func (node *Node) ResourcesFreeRatio() float64 {
-	if node.AvailableRes.CPUs == 0 || node.AvailableRes.Memory == 0 { // Impossible use this resources
+func (n *Node) FreeResourcesRatio() float64 {
+	if n.FreeRes.CPUs == 0 || n.FreeRes.Memory == 0 { // Impossible use this "free" resources.
 		return 0
 	}
-	cpusRatio := float64(node.AvailableRes.CPUs) / float64(node.MaxResources.CPUs)
-	memoryRatio := float64(node.AvailableRes.Memory) / float64(node.MaxResources.Memory)
+	cpusRatio := float64(n.FreeRes.CPUs) / float64(n.MaxResources.CPUs)
+	memoryRatio := float64(n.FreeRes.Memory) / float64(n.MaxResources.Memory)
 	return (cpusRatio + memoryRatio) / 2
 }
 
-func (node *Node) ResourcesUsedRatio() float64 {
-	if node.AvailableRes.CPUs == 0 || node.AvailableRes.Memory == 0 { // Impossible use this resources
+func (n *Node) UsedResourcesRatio() float64 {
+	if n.FreeRes.CPUs == 0 || n.FreeRes.Memory == 0 { // Impossible use this "free" resources.
 		return float64(1)
 	}
-	cpusRatio := float64(node.UsedResources().CPUs) / float64(node.MaxResources.CPUs)
-	memoryRatio := float64(node.UsedResources().Memory) / float64(node.MaxResources.Memory)
+	cpusRatio := float64(n.UsedResources().CPUs) / float64(n.MaxResources.CPUs)
+	memoryRatio := float64(n.UsedResources().Memory) / float64(n.MaxResources.Memory)
 	return (cpusRatio + memoryRatio) / 2
 }
 
-func (node *Node) ResourcesUnreachableRatio() float64 {
-	if node.AvailableRes.CPUs == 0 || node.AvailableRes.Memory == 0 { // Impossible use this resources
-		cpusRatio := float64(node.AvailableRes.CPUs) / float64(node.MaxResources.CPUs)
-		memoryRatio := float64(node.AvailableRes.Memory) / float64(node.MaxResources.Memory)
+func (n *Node) UnreachableResourcesRatio() float64 {
+	if n.FreeRes.CPUs == 0 || n.FreeRes.Memory == 0 { // Impossible use this "free" resources.
+		cpusRatio := float64(n.FreeRes.CPUs) / float64(n.MaxResources.CPUs)
+		memoryRatio := float64(n.FreeRes.Memory) / float64(n.MaxResources.Memory)
 		return (cpusRatio + memoryRatio) / 2
 	}
 	return 0
 }
 
-func (node *Node) TotalAPIRequestsReceived() int64 {
-	return node.ApiRequestsReceived
+func (n *Node) TotalAPIRequestsReceived() int64 {
+	return n.ApiRequestsReceived
 }
 
-func (node *Node) TotalRunRequestsSubmitted() int64 {
-	return node.RequestsSubmitted
+func (n *Node) TotalRunRequestsSubmitted() int64 {
+	return n.RequestsSubmitted
 }

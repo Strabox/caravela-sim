@@ -122,7 +122,6 @@ func (j *jsonFeeder) Start(ticksChannel <-chan chan RequestTask) {
 						injNode, exist := j.containerInjectionNode.Load(containerID)
 						if !exist {
 							continue
-							//panic(fmt.Errorf("no mapping between request and container, %s", containerID))
 						}
 						injectionNode, ok := injNode.(*node.Node)
 						if !ok {

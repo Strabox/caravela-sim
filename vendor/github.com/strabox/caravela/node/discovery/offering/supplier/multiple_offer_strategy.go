@@ -4,6 +4,8 @@ import (
 	"context"
 	"github.com/strabox/caravela/api/types"
 	"github.com/strabox/caravela/configuration"
+	"github.com/strabox/caravela/node/common"
+	"github.com/strabox/caravela/node/common/guid"
 	"github.com/strabox/caravela/node/common/resources"
 	"github.com/strabox/caravela/node/external"
 )
@@ -13,11 +15,12 @@ type multipleOfferStrategy struct {
 	updateOffers bool
 }
 
-func newMultipleOfferStrategy(config *configuration.Configuration) (OfferingStrategy, error) {
+func newMultipleOfferStrategy(node common.Node, config *configuration.Configuration) (OfferingStrategy, error) {
 	return &multipleOfferStrategy{
 		updateOffers: config.DiscoveryBackend() == "chord-multiple-offer-updates",
 		baseOfferStrategy: baseOfferStrategy{
 			configs: config,
+			node:    node,
 		},
 	}, nil
 }
@@ -31,13 +34,35 @@ func (m *multipleOfferStrategy) Init(supp *Supplier, resourcesMapping *resources
 }
 
 func (m *multipleOfferStrategy) FindOffers(ctx context.Context, targetResources resources.Resources) []types.AvailableOffer {
-	if m.configs.SchedulingPolicy() == "binpack" {
-		return m.findOffersLowToHigher(ctx, targetResources)
-	} else if m.configs.SchedulingPolicy() == "spread" {
-		return m.findOffersHigherToLow(ctx, targetResources)
-	} else {
-		panic("invalid scheduling policies")
+	availableOffers := make([]types.AvailableOffer, 0)
+
+	for r := 0; r < 2; r++ {
+		destinationGUID, err := m.resourcesMapping.RandGUIDFittestSearch(targetResources)
+		if err != nil { // System can't handle that many resources
+			return availableOffers
+		}
+
+		overlayNodes, _ := m.overlay.Lookup(ctx, destinationGUID.Bytes())
+		overlayNodes = m.removeNonTargetNodes(overlayNodes, *destinationGUID)
+
+		for _, node := range overlayNodes {
+			offers, err := m.remoteClient.GetOffers(
+				ctx,
+				&types.Node{}, //TODO: Remove this crap!
+				&types.Node{IP: node.IP(), GUID: guid.NewGUIDBytes(node.GUID()).String()},
+				true)
+			if err == nil && len(offers) != 0 {
+				availableOffers = append(availableOffers, offers...)
+				break
+			}
+		}
+
+		if len(availableOffers) > 0 {
+			return availableOffers
+		}
 	}
+
+	return availableOffers
 }
 
 func (m *multipleOfferStrategy) UpdateOffers(availableResources, usedResources resources.Resources) {
@@ -85,9 +110,9 @@ OfferLoop:
 		for _, offer := range activeOffers {
 			if !offer.Resources().Equals(availableResources) {
 				updateOffer := func(suppOffer supplierOffer) {
-					m.remoteClient.UpdateOffer(
+					err := m.remoteClient.UpdateOffer(
 						context.Background(),
-						&types.Node{IP: m.configs.HostIP(), GUID: ""},
+						&types.Node{IP: m.configs.HostIP()},
 						&types.Node{IP: suppOffer.ResponsibleTraderIP(), GUID: suppOffer.ResponsibleTraderGUID().String()},
 						&types.Offer{
 							ID:     int64(suppOffer.ID()),
@@ -103,6 +128,7 @@ OfferLoop:
 								Memory:   usedResources.Memory(),
 							},
 						})
+					m.localSupplier.forceOfferRefresh(offer.ID(), err == nil)
 				}
 
 				if m.configs.Simulation() {

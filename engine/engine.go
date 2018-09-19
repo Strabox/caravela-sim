@@ -110,8 +110,9 @@ func (e *Engine) Init() {
 	e.metricsCollector.InitNewSimulation(e.caravelaConfigs.DiscoveryBackend(), maxNodesResources)
 
 	// Initialize request feeder.
-	cpus, memory := dockerClientMock.MaxResourcesAvailable()
-	e.feeder.Init(e.metricsCollector, types.Resources{CPUs: cpus, Memory: memory})
+	maxCpus, maxMemory := dockerClientMock.MaxResourcesAvailable()
+	e.feeder.Init(e.metricsCollector, types.Resources{CPUs: maxCpus, Memory: maxMemory})
+	util.Log.Infof(util.LogTag(engineLogTag)+"System Total Resources: <%d;%d>", maxCpus, maxMemory)
 
 	e.isInit = true
 	util.Log.Info(util.LogTag(engineLogTag) + "Initialized")
@@ -119,7 +120,7 @@ func (e *Engine) Init() {
 
 // Start starts the simulator engine.
 func (e *Engine) Start() {
-	const ticksPerPersist = 5
+	const ticksPerPersist = 2
 
 	if !e.isInit {
 		panic(errors.New("simulator is not initialized"))
@@ -250,7 +251,10 @@ func (e *Engine) updateMetrics() {
 		e.workersPool.WaitCount(1)
 		e.workersPool.JobQueue <- func() {
 			defer e.workersPool.JobDone()
-			e.metricsCollector.SetAvailableNodeResources(tempI, tempNode.AvailableResourcesSim())
+			nodeFreeResources := tempNode.AvailableResourcesSim()
+			nodeMaxResources := tempNode.MaximumResourcesSim()
+			e.assertNodeState(nodeFreeResources, nodeMaxResources)
+			e.metricsCollector.SetAvailableNodeResources(tempI, nodeFreeResources)
 		}
 	}
 }
@@ -300,6 +304,26 @@ func (e *Engine) randomNode() (int, *caravelaNode.Node) {
 
 // nextRngSeed returns a deterministic seed based on the base seed given to the engine.
 func (e *Engine) nextRngSeed() int64 {
-	e.baseRngSeed += 10
+	e.baseRngSeed += 11
 	return e.baseRngSeed
+}
+
+func (e *Engine) assertNodeState(freeResources, maximumResources types.Resources) {
+	if freeResources.CPUs < 0 {
+		util.Log.Error("ASDDDDDDDDDDDDDD")
+		panic(errors.New("negative free CPUs"))
+	}
+	if freeResources.Memory < 0 {
+		util.Log.Error("ASDDDDasdasdDDDDDDDDDD")
+		panic(errors.New("negative free Memory"))
+	}
+
+	if freeResources.CPUs > maximumResources.CPUs {
+		util.Log.Error("ASDDDDDDDDDDDDDDasdasdadasd")
+		panic(errors.New("over free CPUs"))
+	}
+	if freeResources.Memory > maximumResources.Memory {
+		util.Log.Error("ASDDDDDDDDDDDDDDjkadlkasdkadslk")
+		panic(errors.New("over free Memory"))
+	}
 }

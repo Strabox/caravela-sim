@@ -1,6 +1,7 @@
 package metrics
 
 import (
+	"github.com/strabox/caravela-sim/util"
 	"github.com/strabox/caravela/api/types"
 	"sync"
 	"sync/atomic"
@@ -39,8 +40,7 @@ func NewGlobalInitial(numNodes int, startTime time.Duration, nodesMaxRes []types
 	}
 
 	for index := range res.NodesMetrics {
-		newNode := NewNode(nodesMaxRes[index])
-		res.NodesMetrics[index] = *newNode
+		res.NodesMetrics[index] = *NewNode(nodesMaxRes[index])
 	}
 
 	return res
@@ -61,8 +61,7 @@ func NewGlobalNext(numNodes int, prevGlobal *Global) *Global {
 	}
 
 	for index := range prevGlobal.NodesMetrics {
-		newNode := NewNode(prevGlobal.NodesMetrics[index].MaximumResources())
-		res.NodesMetrics[index] = *newNode
+		res.NodesMetrics[index] = *NewNode(prevGlobal.NodesMetrics[index].MaximumResources())
 	}
 
 	return res
@@ -86,7 +85,7 @@ func (g *Global) CreateRunRequest(nodeIndex int, requestID string, resources typ
 	currentTime time.Duration) {
 
 	newRunRequest := NewRunRequest(resources)
-	newRunRequest.IncrMessagesTraded(1)
+	newRunRequest.IncrMessagesExchanged(1)
 	g.RunRequestsAggregator.Store(requestID, newRunRequest)
 
 	g.NodesMetrics[nodeIndex].RunRequestSubmitted()
@@ -95,7 +94,7 @@ func (g *Global) CreateRunRequest(nodeIndex int, requestID string, resources typ
 func (g *Global) IncrMessagesTradedRequest(requestID string, numMessages int) {
 	if req, exist := g.RunRequestsAggregator.Load(requestID); exist {
 		if request, ok := req.(*RunRequest); ok {
-			request.IncrMessagesTraded(int64(numMessages))
+			request.IncrMessagesExchanged(int64(numMessages))
 		}
 	}
 }
@@ -128,20 +127,20 @@ func (g *Global) RunRequestsAvgMessages() float64 {
 	}
 	accMessages := int64(0)
 	for _, runRequest := range g.RunRequestsCompleted {
-		accMessages += runRequest.TotalMessagesTraded()
+		accMessages += runRequest.TotalMessagesExchanged()
 	}
 	return float64(accMessages) / float64(len(g.RunRequestsCompleted))
 }
 
-func (g *Global) AllAvailableResourcesAvg() float64 {
+func (g *Global) TotalFreeResourcesAvg() float64 {
 	result := float64(0)
 	numOfNodesCalculated := float64(0)
 	for _, nodeMetrics := range g.NodesMetrics {
 		numOfNodesCalculated++
 		if numOfNodesCalculated == 0 {
-			result = nodeMetrics.ResourcesFreeRatio()
+			result = nodeMetrics.FreeResourcesRatio()
 		} else {
-			result = (result*(numOfNodesCalculated-1) + nodeMetrics.ResourcesFreeRatio()) / numOfNodesCalculated
+			result = (result*(numOfNodesCalculated-1) + nodeMetrics.FreeResourcesRatio()) / numOfNodesCalculated
 		}
 	}
 	return result
@@ -150,7 +149,7 @@ func (g *Global) AllAvailableResourcesAvg() float64 {
 func (g *Global) MessagesExchangedByRequest() []float64 {
 	resTotalMessages := make([]float64, len(g.RunRequestsCompleted))
 	for i := range resTotalMessages {
-		resTotalMessages[i] = float64(g.RunRequestsCompleted[i].TotalMessagesTraded())
+		resTotalMessages[i] = float64(g.RunRequestsCompleted[i].TotalMessagesExchanged())
 	}
 	return resTotalMessages
 }
@@ -158,7 +157,7 @@ func (g *Global) MessagesExchangedByRequest() []float64 {
 func (g *Global) ResourcesUnreachableRatioNode() []float64 {
 	res := make([]float64, len(g.NodesMetrics))
 	for i, nodeMetric := range g.NodesMetrics {
-		res[i] = nodeMetric.ResourcesUnreachableRatio()
+		res[i] = nodeMetric.UnreachableResourcesRatio()
 	}
 	return res
 }
@@ -166,7 +165,11 @@ func (g *Global) ResourcesUnreachableRatioNode() []float64 {
 func (g *Global) ResourcesUsedNodeRatio() []float64 {
 	res := make([]float64, len(g.NodesMetrics))
 	for i, nodeMetric := range g.NodesMetrics {
-		res[i] = nodeMetric.ResourcesUsedRatio()
+		res[i] = nodeMetric.UsedResourcesRatio()
+		if res[i] < 0 {
+			util.Log.Errorf("NodeIndex: %d, Max: <%d;%d>, Free: <%d;%d>, Used: <%d;%d>", i, nodeMetric.MaxResources.CPUs, nodeMetric.MaxResources.Memory,
+				nodeMetric.FreeRes.CPUs, nodeMetric.FreeRes.Memory, nodeMetric.UsedResources().CPUs, nodeMetric.UsedResources().Memory)
+		}
 	}
 	return res
 }
@@ -217,8 +220,10 @@ func (g *Global) TotalRunRequests() int64 {
 	return int64(len(g.RunRequestsCompleted))
 }
 
-func (g *Global) SetAvailableNodeResources(nodeIndex int, res types.Resources) {
-	g.NodesMetrics[nodeIndex].SetAvailableResources(res)
+func (g *Global) SetAvailableNodeResources(nodeIndex int, freeResources types.Resources) {
+	if len(g.NodesMetrics) > nodeIndex {
+		g.NodesMetrics[nodeIndex].SetFreeResources(freeResources)
+	}
 }
 
 func (g *Global) APIRequestReceived(nodeIndex int) {

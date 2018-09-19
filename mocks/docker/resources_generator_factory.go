@@ -20,7 +20,6 @@ var generators = make(map[string]ResourceGenFactory)
 func init() {
 	RegisterResourceGen("static", newStaticResourceGen)
 	RegisterResourceGen("partition-fit", newPartitionAwareResourceGen)
-	//RegisterResourceGen("real", newRealisticallyResourceGen)
 }
 
 // RegisterResourceGen can be used to register a new resource generator in order to be available.

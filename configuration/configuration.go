@@ -46,8 +46,10 @@ type Configuration struct {
 
 // TODO
 type requestFeeder struct {
-	RequestFeeder   string // Used to feed the simulator with a series of requests.
-	RequestsProfile []RequestProfile
+	RequestFeeder      string // Used to feed the simulator with a series of requests.
+	RequestsProfile    []RequestProfile
+	DeployRequestsRate []float64
+	StopRequestsRate   []float64
 }
 
 // TODO
@@ -64,12 +66,27 @@ type chordMock struct {
 // Default creates the configuration structure for a basic/default engine.
 func Default() *Configuration {
 	return &Configuration{
-		NumberOfNodes: 10000,
-		TickInterval:  duration{Duration: 20 * time.Second},
-		MaxTicks:      25,
-		Multithread:   true,
+		NumberOfNodes:     10000,
+		TickInterval:      duration{Duration: 20 * time.Second},
+		MaxTicks:          50,
+		Multithread:       true,
+		OutDirectoryPath:  DefaultOutDirectoryPath,
+		SimulatorLogLevel: DefaultSimLogLevel,
+		CaravelaLogLevel:  DefaultCaravelaLogLevel,
 		RequestFeeder: requestFeeder{
-			RequestFeeder: DefaultRequestFeeder,
+			RequestFeeder:      DefaultRequestFeeder,
+			DeployRequestsRate: []float64{0.025, 0.015, 0.010, 0.035, 0.02, 0.01, 0.01, 0.05},
+			StopRequestsRate:   []float64{0, 0, 0, 0, 0, 0.025, 0.015, 0.15},
+			RequestsProfile: []RequestProfile{
+				{CPUClass: 0, CPUs: 1, Memory: 256, Percentage: 20},
+				{CPUClass: 0, CPUs: 2, Memory: 1500, Percentage: 20},
+				{CPUClass: 0, CPUs: 3, Memory: 2500, Percentage: 10},
+				{CPUClass: 0, CPUs: 4, Memory: 5500, Percentage: 10},
+				{CPUClass: 0, CPUs: 8, Memory: 7000, Percentage: 10},
+				{CPUClass: 1, CPUs: 1, Memory: 512, Percentage: 20},
+				{CPUClass: 1, CPUs: 3, Memory: 2048, Percentage: 5},
+				{CPUClass: 1, CPUs: 6, Memory: 5000, Percentage: 5},
+			},
 		},
 		ResourcesGenerator: resourcesGenerator{
 			ResourceGenerator: DefaultResourceGenerator,
@@ -82,9 +99,6 @@ func Default() *Configuration {
 		ChordMock: chordMock{
 			SpeedupNodes: DefaultSpeedupNodes,
 		},
-		OutDirectoryPath:  DefaultOutDirectoryPath,
-		SimulatorLogLevel: DefaultSimLogLevel,
-		CaravelaLogLevel:  DefaultCaravelaLogLevel,
 	}
 }
 
@@ -124,6 +138,14 @@ func (c *Configuration) validate() error {
 		return fmt.Errorf("the number of maximum ticks must be > 0: %d", c.MaxTicks)
 	}
 
+	if len(c.DeployRequestsRate()) == 0 {
+		return fmt.Errorf("the sequence of deploy requests rate must have at least one rate")
+	}
+
+	if len(c.StopRequestsRate()) == 0 {
+		return fmt.Errorf("the sequence stop requests rate must have at least one rate")
+	}
+
 	if c.ChordMock.SpeedupNodes <= 0 {
 		return fmt.Errorf("the number of speedup nodes must be > 0: %d", c.MaxTicks)
 	}
@@ -159,8 +181,22 @@ func (c *Configuration) CaravelaDiscoveryBackends() []string {
 	return c.DiscoveryBackends
 }
 
+func (c *Configuration) DeployRequestsRate() []float64 {
+	res := make([]float64, len(c.RequestFeeder.DeployRequestsRate))
+	copy(res, c.RequestFeeder.DeployRequestsRate)
+	return res
+}
+
+func (c *Configuration) StopRequestsRate() []float64 {
+	res := make([]float64, len(c.RequestFeeder.StopRequestsRate))
+	copy(res, c.RequestFeeder.StopRequestsRate)
+	return res
+}
+
 func (c *Configuration) RequestsProfile() []RequestProfile {
-	return c.RequestFeeder.RequestsProfile
+	res := make([]RequestProfile, len(c.RequestFeeder.RequestsProfile))
+	copy(res, c.RequestFeeder.RequestsProfile)
+	return res
 }
 
 func (c *Configuration) Feeder() string {
@@ -211,8 +247,10 @@ func (c *Configuration) Print() {
 
 	util.Log.Infof("Request Feeder")
 	util.Log.Infof("  Request Feeder:         %s", c.Feeder())
+	util.Log.Infof("  Deploy Requests Rate:   %v", c.DeployRequestsRate())
+	util.Log.Infof("  Stop Requests Rate:     %v", c.StopRequestsRate())
 	for _, reqProfile := range c.RequestsProfile() {
-		util.Log.Infof("    <<%d;%d>;%d>: %d%%", reqProfile.CPUClass, reqProfile.CPUs, reqProfile.Memory, reqProfile.Percentage)
+		util.Log.Infof("    <<%d;%d>;%d>:         %d%%", reqProfile.CPUClass, reqProfile.CPUs, reqProfile.Memory, reqProfile.Percentage)
 	}
 	util.Log.Infof("")
 

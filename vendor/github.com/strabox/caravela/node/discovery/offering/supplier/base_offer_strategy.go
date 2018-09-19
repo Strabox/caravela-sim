@@ -6,10 +6,10 @@ import (
 	log "github.com/Sirupsen/logrus"
 	"github.com/strabox/caravela/api/types"
 	"github.com/strabox/caravela/configuration"
+	nodeCommon "github.com/strabox/caravela/node/common"
 	"github.com/strabox/caravela/node/common/guid"
 	"github.com/strabox/caravela/node/common/resources"
 	"github.com/strabox/caravela/node/discovery/common"
-	"github.com/strabox/caravela/node/discovery/offering/partitions"
 	"github.com/strabox/caravela/node/external"
 	overlayTypes "github.com/strabox/caravela/overlay/types"
 	"github.com/strabox/caravela/util"
@@ -20,6 +20,7 @@ type localSupplier interface {
 	addOffer(offer *supplierOffer)
 	removeOffer(offerID common.OfferID)
 	offers() []supplierOffer
+	forceOfferRefresh(offerID common.OfferID, success bool)
 }
 
 type baseOfferStrategy struct {
@@ -27,107 +28,8 @@ type baseOfferStrategy struct {
 	resourcesMapping *resources.Mapping
 	overlay          external.Overlay
 	remoteClient     external.Caravela
+	node             nodeCommon.Node
 	configs          *configuration.Configuration
-}
-
-func (b *baseOfferStrategy) findOffersLowToHigher(ctx context.Context, targetResources resources.Resources) []types.AvailableOffer {
-	var destinationGUID *guid.GUID = nil
-	findPhase := 0
-	availableOffers := make([]types.AvailableOffer, 0)
-	for {
-		var err error = nil
-
-		if findPhase == 0 { // Random trader inside resources zone
-			destinationGUID, err = b.resourcesMapping.RandGUIDFittestSearch(targetResources)
-			if err != nil { // System can't handle that many resources
-				return availableOffers
-			}
-		} else { // Random trader in higher resources zone
-			destinationGUID, err = b.resourcesMapping.HigherRandGUIDSearch(*destinationGUID, targetResources)
-			if err != nil { // No more resource partitions to search
-				return availableOffers
-			}
-		}
-
-		targetResPartition := *b.resourcesMapping.ResourcesByGUID(*destinationGUID)
-		log.Debugf(util.LogTag("SUPPLIER")+"FINDING OFFERS for RES: %s", targetResPartition)
-
-		if partitions.GlobalState.Try(targetResPartition) || !b.configs.SpreadPartitionsState() {
-			overlayNodes, _ := b.overlay.Lookup(ctx, destinationGUID.Bytes())
-			overlayNodes = b.removeNonTargetNodes(overlayNodes, *destinationGUID)
-
-			for _, node := range overlayNodes {
-				offers, err := b.remoteClient.GetOffers(
-					ctx,
-					&types.Node{}, //TODO: Remove this crap!
-					&types.Node{IP: node.IP(), GUID: guid.NewGUIDBytes(node.GUID()).String()},
-					true)
-				if err == nil && len(offers) != 0 {
-					availableOffers = append(availableOffers, offers...)
-					partitions.GlobalState.Hit(targetResPartition)
-					break
-				} else if err == nil && len(offers) == 0 {
-					partitions.GlobalState.Miss(targetResPartition)
-				}
-			}
-
-			if len(availableOffers) > 0 {
-				return availableOffers
-			}
-		}
-
-		findPhase++
-	}
-}
-
-func (b *baseOfferStrategy) findOffersHigherToLow(ctx context.Context, targetResources resources.Resources) []types.AvailableOffer {
-	var destinationGUID *guid.GUID = nil
-	findPhase := 0
-	availableOffers := make([]types.AvailableOffer, 0)
-	for {
-		var err error = nil
-
-		if findPhase == 0 { // Random trader inside resources zone
-			destinationGUID, err = b.resourcesMapping.RandGUIDHighestSearch(targetResources)
-			if err != nil { // System can't handle that many resources
-				return availableOffers
-			}
-		} else { // Random trader in higher resources zone
-			destinationGUID, err = b.resourcesMapping.LowerRandGUIDSearch(*destinationGUID, targetResources)
-			if err != nil { // No more resource partitions to search
-				return availableOffers
-			}
-		}
-
-		targetResPartition := *b.resourcesMapping.ResourcesByGUID(*destinationGUID)
-		log.Debugf(util.LogTag("SUPPLIER")+"FINDING OFFERS for RES: %s", targetResPartition)
-
-		if partitions.GlobalState.Try(targetResPartition) || !b.configs.SpreadPartitionsState() {
-			overlayNodes, _ := b.overlay.Lookup(ctx, destinationGUID.Bytes())
-			overlayNodes = b.removeNonTargetNodes(overlayNodes, *destinationGUID)
-
-			for _, node := range overlayNodes {
-				offers, err := b.remoteClient.GetOffers(
-					ctx,
-					&types.Node{}, //TODO: Remove this crap!
-					&types.Node{IP: node.IP(), GUID: guid.NewGUIDBytes(node.GUID()).String()},
-					true)
-				if err == nil && len(offers) != 0 {
-					availableOffers = append(availableOffers, offers...)
-					partitions.GlobalState.Hit(targetResPartition)
-					break
-				} else if err == nil && len(offers) == 0 {
-					partitions.GlobalState.Miss(targetResPartition)
-				}
-			}
-
-			if len(availableOffers) > 0 {
-				return availableOffers
-			}
-		}
-
-		findPhase++
-	}
 }
 
 func (b *baseOfferStrategy) createAnOffer(newOfferID int64, targetResources, realAvailableRes, usedResources resources.Resources) (*supplierOffer, error) {

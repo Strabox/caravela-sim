@@ -2,3 +2,151 @@
 -single-thread->multithread (speedup simulation 2x + added realism and request concurrency) [much work to handle multiple requests and track their metrics]
 -requests feeder programmatically, from files whatever [a bit of work]
 -same seed for node resources generation and request resources generation.
+
+[Caravela.Resources]
+    [[Caravela.Resources.CPUClasses]]
+    Value = 0
+    Percentage = 70
+        [[Caravela.Resources.CPUClasses.CPUCores]]
+        Value = 1
+        Percentage = 50
+            [[Caravela.Resources.CPUClasses.CPUCores.Memory]]
+            Value = 256
+            Percentage = 50
+            [[Caravela.Resources.CPUClasses.CPUCores.Memory]]
+            Value = 512
+            Percentage = 50
+        [[Caravela.Resources.CPUClasses.CPUCores]]
+        Value = 2
+        Percentage = 20
+            [[Caravela.Resources.CPUClasses.CPUCores.Memory]]
+            Value = 512
+            Percentage = 50
+            [[Caravela.Resources.CPUClasses.CPUCores.Memory]]
+            Value = 1024
+            Percentage = 50
+        [[Caravela.Resources.CPUClasses.CPUCores]]
+        Value = 4
+        Percentage = 10
+            [[Caravela.Resources.CPUClasses.CPUCores.Memory]]
+            Value = 1024
+            Percentage = 25
+            [[Caravela.Resources.CPUClasses.CPUCores.Memory]]
+            Value = 2048
+            Percentage = 50
+            [[Caravela.Resources.CPUClasses.CPUCores.Memory]]
+            Value = 4096
+            Percentage = 25
+        [[Caravela.Resources.CPUClasses.CPUCores]]
+        Value = 8
+        Percentage = 10
+            [[Caravela.Resources.CPUClasses.CPUCores.Memory]]
+            Value = 2048
+            Percentage = 35
+            [[Caravela.Resources.CPUClasses.CPUCores.Memory]]
+            Value = 4096
+            Percentage = 35
+            [[Caravela.Resources.CPUClasses.CPUCores.Memory]]
+            Value = 8198
+            Percentage = 30
+        [[Caravela.Resources.CPUClasses.CPUCores]]
+        Value = 16
+        Percentage = 10
+            [[Caravela.Resources.CPUClasses.CPUCores.Memory]]
+            Value = 4096
+            Percentage = 40
+            [[Caravela.Resources.CPUClasses.CPUCores.Memory]]
+            Value = 8198
+            Percentage = 40
+            [[Caravela.Resources.CPUClasses.CPUCores.Memory]]
+            Value = 16250
+            Percentage = 20
+    [[Caravela.Resources.CPUClasses]]
+    Value = 1
+    Percentage = 30
+        [[Caravela.Resources.CPUClasses.CPUCores]]
+        Value = 1
+        Percentage = 50
+            [[Caravela.Resources.CPUClasses.CPUCores.Memory]]
+            Value = 256
+            Percentage = 50
+            [[Caravela.Resources.CPUClasses.CPUCores.Memory]]
+            Value = 512
+            Percentage = 50
+        [[Caravela.Resources.CPUClasses.CPUCores]]
+        Value = 2
+        Percentage = 20
+            [[Caravela.Resources.CPUClasses.CPUCores.Memory]]
+            Value = 512
+            Percentage = 50
+            [[Caravela.Resources.CPUClasses.CPUCores.Memory]]
+            Value = 1024
+            Percentage = 50
+        [[Caravela.Resources.CPUClasses.CPUCores]]
+        Value = 4
+        Percentage = 10
+            [[Caravela.Resources.CPUClasses.CPUCores.Memory]]
+            Value = 1024
+            Percentage = 25
+            [[Caravela.Resources.CPUClasses.CPUCores.Memory]]
+            Value = 2048
+            Percentage = 50
+            [[Caravela.Resources.CPUClasses.CPUCores.Memory]]
+            Value = 4096
+            Percentage = 25
+        [[Caravela.Resources.CPUClasses.CPUCores]]
+        Value = 8
+        Percentage = 10
+            [[Caravela.Resources.CPUClasses.CPUCores.Memory]]
+            Value = 2048
+            Percentage = 35
+            [[Caravela.Resources.CPUClasses.CPUCores.Memory]]
+            Value = 4096
+            Percentage = 35
+            [[Caravela.Resources.CPUClasses.CPUCores.Memory]]
+            Value = 8198
+            Percentage = 30
+        [[Caravela.Resources.CPUClasses.CPUCores]]
+        Value = 16
+        Percentage = 10
+            [[Caravela.Resources.CPUClasses.CPUCores.Memory]]
+            Value = 4096
+            Percentage = 40
+            [[Caravela.Resources.CPUClasses.CPUCores.Memory]]
+            Value = 8198
+            Percentage = 40
+            [[Caravela.Resources.CPUClasses.CPUCores.Memory]]
+            Value = 16250
+            Percentage = 20
+
+
+[[RequestFeeder.RequestsProfile]]
+CPUClass = 0
+CPUs = 1
+Memory =  300
+Percentage = 35
+[[RequestFeeder.RequestsProfile]]
+CPUClass = 0
+CPUs = 3
+Memory =  1024
+Percentage = 15
+[[RequestFeeder.RequestsProfile]]
+CPUClass = 0
+CPUs = 8
+Memory =  4048
+Percentage = 10
+[[RequestFeeder.RequestsProfile]]
+CPUClass = 1
+CPUs = 2
+Memory =  750
+Percentage = 20
+[[RequestFeeder.RequestsProfile]]
+CPUClass = 1
+CPUs = 3
+Memory =  1500
+Percentage = 10
+[[RequestFeeder.RequestsProfile]]
+CPUClass = 1
+CPUs = 12
+Memory =  8198
+Percentage = 10

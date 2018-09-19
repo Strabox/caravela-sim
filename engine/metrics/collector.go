@@ -30,6 +30,20 @@ type simulationData struct {
 	tmpDirFullPath string   // Temporary directory to store metrics for the simulation.
 }
 
+// ===================================== Sort Interface =======================================
+
+func (sim *simulationData) Len() int {
+	return len(sim.snapshots)
+}
+
+func (sim *simulationData) Swap(i, j int) {
+	sim.snapshots[i], sim.snapshots[j] = sim.snapshots[j], sim.snapshots[i]
+}
+
+func (sim *simulationData) Less(i, j int) bool {
+	return sim.snapshots[i].StartTime() < sim.snapshots[j].StartTime()
+}
+
 // Collector aggregates all the metrics information about the system during a engine.
 type Collector struct {
 	numNodes       int               // Number of engine nodes.
@@ -232,8 +246,13 @@ func (coll *Collector) loadAllMetrics() {
 				simData.snapshots = append(simData.snapshots, globalMetrics)
 			}
 		}
+	}
 
+	for _, simData := range coll.simulations {
 		sort.Sort(simData) // Sort the global snapshots by the sim time of them.
+		for _, snapshot := range simData.snapshots {
+			sort.Sort(&snapshot)
+		}
 	}
 }
 
@@ -245,13 +264,19 @@ func (coll *Collector) plotGraphics() {
 
 	goroutinePool.WaitCount(1)
 	goroutinePool.JobQueue <- func() {
-		coll.plotRequestsSucceeded()
+		coll.plotTotalMessagesTradedInSystem()
 		goroutinePool.JobDone()
 	}
 
 	goroutinePool.WaitCount(1)
 	goroutinePool.JobQueue <- func() {
-		coll.plotRequestsMessagesTradedPerRequest()
+		coll.plotCumulativeRequestsSucceeded()
+		goroutinePool.JobDone()
+	}
+
+	goroutinePool.WaitCount(1)
+	goroutinePool.JobQueue <- func() {
+		coll.plotAvgMessagesTradedPerRunRequest()
 		goroutinePool.JobDone()
 	}
 
@@ -263,63 +288,47 @@ func (coll *Collector) plotGraphics() {
 
 	goroutinePool.WaitCount(1)
 	goroutinePool.JobQueue <- func() {
-		coll.plotResourcesUsedDistributionByNodesOverTime()
-		goroutinePool.JobDone()
-	}
-
-	goroutinePool.WaitCount(1)
-	goroutinePool.JobQueue <- func() {
 		coll.plotMessagesTraderByRequestBoxPlots()
 		goroutinePool.JobDone()
 	}
 
 	goroutinePool.WaitCount(1)
 	goroutinePool.JobQueue <- func() {
-		coll.plotResourcesUnreachableDistributionByNodesOverTime()
+		coll.plotResourcesUsedDistributionByNodesOverTime()
 		goroutinePool.JobDone()
 	}
 
-	goroutinePool.WaitCount(1)
-	goroutinePool.JobQueue <- func() {
-		coll.plotMessagesAPIDistributionByNodesOverTime()
-		goroutinePool.JobDone()
-	}
+	/*
+		goroutinePool.WaitCount(1)
+		goroutinePool.JobQueue <- func() {
+			coll.plotResourcesUnreachableDistributionByNodesOverTime()
+			goroutinePool.JobDone()
+		}
 
-	goroutinePool.WaitCount(1)
-	goroutinePool.JobQueue <- func() {
-		coll.plotTotalMessagesTradedInSystem()
-		goroutinePool.JobDone()
-	}
+		goroutinePool.WaitCount(1)
+		goroutinePool.JobQueue <- func() {
+			coll.plotMessagesAPIDistributionByNodesOverTime()
+			goroutinePool.JobDone()
+		}
+	*/
 
 	// Debug Performance Metrics Plots
 
-	goroutinePool.WaitCount(1)
-	goroutinePool.JobQueue <- func() {
-		coll.plotRelayedGetOfferMessages()
-		goroutinePool.JobDone()
-	}
+	/*
+		goroutinePool.WaitCount(1)
+		goroutinePool.JobQueue <- func() {
+			coll.plotRelayedGetOfferMessages()
+			goroutinePool.JobDone()
+		}
 
-	goroutinePool.WaitCount(1)
-	goroutinePool.JobQueue <- func() {
-		coll.plotEmptyGetOfferMessages()
-		goroutinePool.JobDone()
-	}
+		goroutinePool.WaitCount(1)
+		goroutinePool.JobQueue <- func() {
+			coll.plotEmptyGetOfferMessages()
+			goroutinePool.JobDone()
+		}
+	*/
 
 	goroutinePool.WaitAll() // Wait for all the plots to be completed.
 	goroutinePool.Release() // Release goroutinePool resources.
 	goroutinePool = nil
-}
-
-// ===================================== Sort Interface =======================================
-
-func (sim *simulationData) Len() int {
-	return len(sim.snapshots)
-}
-
-func (sim *simulationData) Swap(i, j int) {
-	sim.snapshots[i], sim.snapshots[j] = sim.snapshots[j], sim.snapshots[i]
-}
-
-func (sim *simulationData) Less(i, j int) bool {
-	return sim.snapshots[i].StartTime() < sim.snapshots[j].StartTime()
 }

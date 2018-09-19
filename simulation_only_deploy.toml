@@ -1,0 +1,65 @@
+NumberOfNodes = 20000
+TickInterval = "20s"
+MaxTicks = 125
+Multithread = true
+DiscoveryBackends = ["chord-multiple-offer-updates", "chord-random"]  # chord-random, chord-single-offer, chord-multiple-offer, swarm
+OutDirectoryPath = "out"
+SimulatorLogLevel = "info"
+CaravelaLogLevel = "info"
+
+[RequestFeeder]
+RequestFeeder = "random"    # random, json
+    DeployRequestsRate = [0.025, 0.015, 0.010, 0.035, 0.02, 0.02,  0.02,  0.06]
+    StopRequestsRate =   [0.0,   0.0,   0.0,   0.0,   0.0,  0.005, 0.005, 0.005]
+    # CPU Class 0
+    [[RequestFeeder.RequestsProfile]]
+    CPUClass = 0
+    CPUs = 1
+    Memory =  256
+    Percentage = 20
+    [[RequestFeeder.RequestsProfile]]
+    CPUClass = 0
+    CPUs = 2
+    Memory =  1500
+    Percentage = 20
+    [[RequestFeeder.RequestsProfile]]
+    CPUClass = 0
+    CPUs = 3
+    Memory =  2500
+    Percentage = 10
+    [[RequestFeeder.RequestsProfile]]
+    CPUClass = 0
+    CPUs = 4
+    Memory =  3500
+    Percentage = 10
+    [[RequestFeeder.RequestsProfile]]
+    CPUClass = 0
+    CPUs = 8
+    Memory =  7000
+    Percentage = 10
+    # CPU Class 1
+    [[RequestFeeder.RequestsProfile]]
+    CPUClass = 1
+    CPUs = 1
+    Memory =  512
+    Percentage = 20
+    [[RequestFeeder.RequestsProfile]]
+    CPUClass = 1
+    CPUs = 3
+    Memory =  2048
+    Percentage = 5
+    [[RequestFeeder.RequestsProfile]]
+    CPUClass = 1
+    CPUs = 6
+    Memory =  5000
+    Percentage = 5
+
+[ResourcesGenerator]
+ResourceGenerator = "partition-fit" # static, partition-fit
+    [ResourcesGenerator.StaticResources]
+    CPUClass = 0
+    CPUs = 4
+    Memory = 4048
+
+[ChordMock]
+SpeedupNodes = 300
