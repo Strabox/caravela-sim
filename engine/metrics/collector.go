@@ -304,13 +304,13 @@ func (coll *Collector) plotGraphics() {
 			coll.plotResourcesUnreachableDistributionByNodesOverTime()
 			goroutinePool.JobDone()
 		}
-
-		goroutinePool.WaitCount(1)
-		goroutinePool.JobQueue <- func() {
-			coll.plotMessagesAPIDistributionByNodesOverTime()
-			goroutinePool.JobDone()
-		}
 	*/
+
+	goroutinePool.WaitCount(1)
+	goroutinePool.JobQueue <- func() {
+		coll.plotMessagesAPIDistributionByNodesOverTime()
+		goroutinePool.JobDone()
+	}
 
 	// Debug Performance Metrics Plots
 

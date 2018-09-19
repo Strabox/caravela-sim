@@ -67,11 +67,11 @@ func TimesWithContext(ctx context.Context, percpu bool) ([]TimesStat, error) {
 	}
 
 	LOT := float64(0.0000001)
-	HIT := LOT * 4294967296.0
-	idle := (HIT * float64(lpIdleTime.DwHighDateTime)) + (LOT * float64(lpIdleTime.DwLowDateTime))
-	user := (HIT * float64(lpUserTime.DwHighDateTime)) + (LOT * float64(lpUserTime.DwLowDateTime))
-	kernel := (HIT * float64(lpKernelTime.DwHighDateTime)) + (LOT * float64(lpKernelTime.DwLowDateTime))
-	system := kernel - idle
+	HIT := (LOT * 4294967296.0)
+	idle := ((HIT * float64(lpIdleTime.DwHighDateTime)) + (LOT * float64(lpIdleTime.DwLowDateTime)))
+	user := ((HIT * float64(lpUserTime.DwHighDateTime)) + (LOT * float64(lpUserTime.DwLowDateTime)))
+	kernel := ((HIT * float64(lpKernelTime.DwHighDateTime)) + (LOT * float64(lpKernelTime.DwLowDateTime)))
+	system := (kernel - idle)
 
 	ret = append(ret, TimesStat{
 		CPU:    "cpu-total",

@@ -187,7 +187,7 @@ func invoke(disp *IDispatch, dispid int32, dispatch int16, params ...interface{}
 	for i, varg := range vargs {
 		n := len(params) - i - 1
 		if varg.VT == VT_BSTR && varg.Val != 0 {
-			SysFreeString((*int16)(unsafe.Pointer(uintptr(varg.Val))))
+			SysFreeString(((*int16)(unsafe.Pointer(uintptr(varg.Val)))))
 		}
 		if varg.VT == (VT_BSTR|VT_BYREF) && varg.Val != 0 {
 			*(params[n].(*string)) = LpOleStrToString(*(**uint16)(unsafe.Pointer(uintptr(varg.Val))))

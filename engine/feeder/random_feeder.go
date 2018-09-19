@@ -90,8 +90,8 @@ func (rf *randomFeeder) Start(ticksChannel <-chan chan RequestTask) {
 	submitRequests := rf.simConfigs.DeployRequestsRate()
 	stopRequests := rf.simConfigs.StopRequestsRate()
 	for i := range submitRequests {
-		submitRequests[i] = float64(rf.simConfigs.NumberOfNodes) * float64(submitRequests[i])
-		stopRequests[i] = float64(rf.simConfigs.NumberOfNodes) * float64(stopRequests[i])
+		submitRequests[i] = float64(rf.simConfigs.NumberOfNodes) * (float64(submitRequests[i] / 100))
+		stopRequests[i] = float64(rf.simConfigs.NumberOfNodes) * (float64(stopRequests[i] / 100))
 	}
 	superTicksSize := int(math.Ceil(float64(rf.simConfigs.MaximumTicks()) / float64(len(submitRequests))))
 

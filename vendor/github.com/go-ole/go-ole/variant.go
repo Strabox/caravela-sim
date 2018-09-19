@@ -30,7 +30,7 @@ func (v *VARIANT) ToArray() *SafeArrayConversion {
 			return nil
 		}
 	}
-	var safeArray = (*SafeArray)(unsafe.Pointer(uintptr(v.Val)))
+	var safeArray *SafeArray = (*SafeArray)(unsafe.Pointer(uintptr(v.Val)))
 	return &SafeArrayConversion{safeArray}
 }
 

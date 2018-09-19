@@ -31,6 +31,7 @@ type Engine struct {
 	nodes       []*caravelaNode.Node // Array with all the Caravela's nodes for the simulation.
 	overlayMock *chord.Mock          // Overlay that "connects" all nodes.
 	feeder      feeder.Feeder        // Used to feed the simulator with requests.
+	nodesBags   [][]*caravelaNode.Node
 
 	metricsCollector *metrics.Collector            // Metric's collector.
 	workersPool      *grpool.Pool                  // Pool of Goroutines to run the simulation.
@@ -53,6 +54,7 @@ func NewEngine(metricsCollector *metrics.Collector, simConfig *configuration.Con
 		nodes:       make([]*caravelaNode.Node, simConfig.TotalNumberOfNodes()),
 		overlayMock: nil,
 		feeder:      feeder.Create(simConfig, caravelaConfigurations, baseRngSeed),
+		nodesBags:   make([][]*caravelaNode.Node, 10),
 
 		metricsCollector: metricsCollector,
 		workersPool:      grpool.NewPool(maxWorkers, maxWorkers*30),
@@ -114,13 +116,27 @@ func (e *Engine) Init() {
 	e.feeder.Init(e.metricsCollector, types.Resources{CPUs: maxCpus, Memory: maxMemory})
 	util.Log.Infof(util.LogTag(engineLogTag)+"System Total Resources: <%d;%d>", maxCpus, maxMemory)
 
+	// Make a bag of random nodes in order to enforce time based actions more realistically.
+	allNodes := make([]int, len(e.nodes))
+	for i := range allNodes {
+		allNodes[i] = i
+	}
+	for i := range e.nodesBags {
+		e.nodesBags[i] = make([]*caravelaNode.Node, e.simulatorConfigs.TotalNumberOfNodes()/10)
+		for j := range e.nodesBags[i] {
+			randIndex := util.RandomInteger(0, len(allNodes)-1)
+			e.nodesBags[i][j] = e.nodes[allNodes[randIndex]]
+			allNodes = append(allNodes[:randIndex], allNodes[randIndex+1:]...)
+		}
+	}
+
 	e.isInit = true
 	util.Log.Info(util.LogTag(engineLogTag) + "Initialized")
 }
 
 // Start starts the simulator engine.
 func (e *Engine) Start() {
-	const ticksPerPersist = 2
+	const ticksPerPersist = 5
 
 	if !e.isInit {
 		panic(errors.New("simulator is not initialized"))
@@ -128,7 +144,13 @@ func (e *Engine) Start() {
 
 	util.Log.Info(util.LogTag(engineLogTag) + "Simulation started...")
 	realStartTime := time.Now()
-	simCurrentTime, simLastTimeRefreshes, simLastTimeSpread, numTicks := 0*time.Second, 0*time.Second, 0*time.Second, 0
+
+	simCurrentTime, numTicks := 0*time.Second, 0
+	simLastTimeRefreshes, simLastTimeSpread := make([]time.Duration, 10), make([]time.Duration, 10)
+	for i := range simLastTimeRefreshes {
+		simLastTimeRefreshes[i] = time.Duration(i) * e.caravelaConfigs.RefreshingInterval()
+		simLastTimeSpread[i] = time.Duration(i) * e.caravelaConfigs.SpreadOffersInterval()
+	}
 	ticksChan := make(chan chan feeder.RequestTask)
 
 	go e.feeder.Start(ticksChan) // Start request feeder.
@@ -196,45 +218,49 @@ func (e *Engine) acceptRequests(ticksChan chan<- chan feeder.RequestTask, curren
 }
 
 // fireTimerActions runs the actions dependent on the real time triggers/timers.
-func (e *Engine) fireTimerActions(currentTime, lastTimeRefreshes, lastTimeSpreadOffers time.Duration) (time.Duration, time.Duration) {
+func (e *Engine) fireTimerActions(currentTime time.Duration, lastTimeRefreshes, lastTimeSpreadOffers []time.Duration) ([]time.Duration, []time.Duration) {
 	defer e.workersPool.WaitAll()
 
 	// 1. Refresh Offers
-	if (currentTime - lastTimeRefreshes) >= e.caravelaConfigs.RefreshingInterval() {
-		// Necessary because the tick interval can be greater than the refresh interval.
-		timesToRefresh := int((currentTime - lastTimeRefreshes) / e.caravelaConfigs.RefreshingInterval())
+	for i := range lastTimeRefreshes {
+		if lastTimeRefreshes[i] >= currentTime && (currentTime-lastTimeRefreshes[i]) >= e.caravelaConfigs.RefreshingInterval() {
+			// Necessary because the tick interval can be greater than the refresh interval.
+			timesToRefresh := int((currentTime - lastTimeRefreshes[i]) / e.caravelaConfigs.RefreshingInterval())
 
-		for _, node := range e.nodes {
-			tempNode := node
-			e.workersPool.WaitCount(1)
-			e.workersPool.JobQueue <- func() {
-				defer e.workersPool.JobDone()
-				for i := 0; i < timesToRefresh; i++ {
-					tempNode.RefreshOffersSim()
+			for _, node := range e.nodesBags[i] {
+				tempNode := node
+				e.workersPool.WaitCount(1)
+				e.workersPool.JobQueue <- func() {
+					defer e.workersPool.JobDone()
+					for i := 0; i < timesToRefresh; i++ {
+						tempNode.RefreshOffersSim()
+					}
 				}
 			}
-		}
 
-		lastTimeRefreshes = currentTime
+			lastTimeRefreshes[i] = currentTime
+		}
 	}
 
 	// 2. Spread Offers
-	if (currentTime - lastTimeSpreadOffers) >= e.caravelaConfigs.SpreadOffersInterval() {
-		// Necessary because the tick interval can be greater than the spread offers interval.
-		timesToSpread := int((currentTime - lastTimeSpreadOffers) / e.caravelaConfigs.SpreadOffersInterval())
+	for i := range lastTimeSpreadOffers {
+		if lastTimeSpreadOffers[i] >= currentTime && (currentTime-lastTimeSpreadOffers[i]) >= e.caravelaConfigs.SpreadOffersInterval() {
+			// Necessary because the tick interval can be greater than the spread offers interval.
+			timesToSpread := int((currentTime - lastTimeSpreadOffers[i]) / e.caravelaConfigs.SpreadOffersInterval())
 
-		for _, node := range e.nodes {
-			tempNode := node
-			e.workersPool.WaitCount(1)
-			e.workersPool.JobQueue <- func() {
-				defer e.workersPool.JobDone()
-				for i := 0; i < timesToSpread; i++ {
-					tempNode.SpreadOffersSim()
+			for _, node := range e.nodesBags[i] {
+				tempNode := node
+				e.workersPool.WaitCount(1)
+				e.workersPool.JobQueue <- func() {
+					defer e.workersPool.JobDone()
+					for i := 0; i < timesToSpread; i++ {
+						tempNode.SpreadOffersSim()
+					}
 				}
 			}
-		}
 
-		lastTimeSpreadOffers = currentTime
+			lastTimeSpreadOffers[i] = currentTime
+		}
 	}
 
 	return lastTimeRefreshes, lastTimeSpreadOffers
