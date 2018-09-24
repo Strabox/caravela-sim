@@ -109,7 +109,9 @@ func (m *Mock) collectLookupMessages(ctx context.Context, targetNodeIndex int) {
 		distance = -distance
 	}
 	if distance != 0 {
-		m.collector.IncrMessagesTradedRequest(types.RequestID(ctx), int(math.Log2(float64(distance)))/2)
+		totalChordLookupMessages := int(math.Log2(float64(distance))) / 2
+		m.collector.IncrMessagesTradedRequest(types.RequestID(ctx), totalChordLookupMessages)
+		m.collector.IncrChordMessages(int64(totalChordLookupMessages))
 	}
 }
 

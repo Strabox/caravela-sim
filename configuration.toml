@@ -9,10 +9,10 @@ SchedulingPolicy = "binpack"
     SpreadOffersInterval = "2m30s"
     RefreshingInterval = "7m30s"
     # Debug performance flags
-    SpreadOffers = true
-    SpreadPartitionsState = true
+    SpreadOffers = false
+    SpreadPartitionsState = false
     PartitionsStateBufferSize = 10
-    PseudoSuperPeers = true
+    PseudoSuperPeers = false
     GUIDEstimatedNetworkSize = 20000
     GUIDScaleFactor = 5
     [Caravela.DiscoveryBackend.RandomChordBackend]

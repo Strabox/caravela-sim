@@ -84,6 +84,12 @@ func (coll *Collector) InitNewSimulation(simLabel string, nodesMaxRes []types.Re
 
 // ================================= Metrics Collector Methods ====================================
 
+func (coll *Collector) IncrChordMessages(amount int64) {
+	if activeGlobal, err := coll.activeGlobal(); err == nil {
+		activeGlobal.IncrChordMessages(amount)
+	}
+}
+
 // GetOfferRelayed increment the number of messages traded from type GetOffersRelayed.
 func (coll *Collector) GetOfferRelayed(amount int64) {
 	if activeGlobal, err := coll.activeGlobal(); err == nil {
@@ -111,10 +117,10 @@ func (coll *Collector) APIRequestReceived(nodeIndex int) {
 	}
 }
 
-// SetAvailableNodeResources sets the available resources of a node.
-func (coll *Collector) SetAvailableNodeResources(nodeIndex int, res types.Resources) {
+// SetNodeInformation sets the available resources of a node.
+func (coll *Collector) SetNodeInformation(nodeIndex int, freeResources types.Resources, numActiveOffers int) {
 	if activeGlobal, err := coll.activeGlobal(); err == nil {
-		activeGlobal.SetAvailableNodeResources(nodeIndex, res)
+		activeGlobal.SetAvailableNodeResources(nodeIndex, freeResources)
 	}
 }
 
@@ -288,7 +294,7 @@ func (coll *Collector) plotGraphics() {
 
 	goroutinePool.WaitCount(1)
 	goroutinePool.JobQueue <- func() {
-		coll.plotMessagesTraderByRequestBoxPlots()
+		coll.plotMessagesExchangedByRequestBoxPlots()
 		goroutinePool.JobDone()
 	}
 

@@ -1,7 +1,6 @@
 package metrics
 
 import (
-	"github.com/strabox/caravela-sim/util"
 	"github.com/strabox/caravela/api/types"
 	"sync"
 	"sync/atomic"
@@ -15,6 +14,7 @@ type Global struct {
 
 	RunRequestsSucceeded int64  `json:"RunRequestsSucceeded"` // Number of run requests that were successful deployed.
 	NodesMetrics         []Node `json:"NodesMetrics"`         // Metrics collected for each system's node.
+	ChordMessagesTraded  int64  `json:"ChordMessagesTraded"`
 
 	RunRequestsAggregator  sync.Map     `json:"-"`
 	RunRequestsCompleted   []RunRequest `json:"RunRequestsCompleted"`
@@ -68,6 +68,10 @@ func NewGlobalNext(numNodes int, prevGlobal *Global) *Global {
 }
 
 // ========================= Metrics Collector Methods ====================================
+
+func (g *Global) IncrChordMessages(amount int64) {
+	atomic.AddInt64(&g.ChordMessagesTraded, amount)
+}
 
 func (g *Global) GetOfferRelayed(amount int64) {
 	atomic.AddInt64(&g.GetOffersRelayed, amount)
@@ -166,10 +170,6 @@ func (g *Global) ResourcesUsedNodeRatio() []float64 {
 	res := make([]float64, len(g.NodesMetrics))
 	for i, nodeMetric := range g.NodesMetrics {
 		res[i] = nodeMetric.UsedResourcesRatio()
-		if res[i] < 0 {
-			util.Log.Errorf("NodeIndex: %d, Max: <%d;%d>, Free: <%d;%d>, Used: <%d;%d>", i, nodeMetric.MaxResources.CPUs, nodeMetric.MaxResources.Memory,
-				nodeMetric.FreeRes.CPUs, nodeMetric.FreeRes.Memory, nodeMetric.UsedResources().CPUs, nodeMetric.UsedResources().Memory)
-		}
 	}
 	return res
 }
@@ -190,6 +190,15 @@ func (g *Global) TotalAPIMessagesReceivedByAllNodes() float64 {
 	return float64(acc)
 }
 
+func (g *Global) TotalMessagesReceivedByAllNodes() float64 {
+	acc := int64(0)
+	for _, nodeMetric := range g.NodesMetrics {
+		acc += nodeMetric.TotalAPIRequestsReceived()
+	}
+	acc += g.ChordMessagesTraded
+	return float64(acc)
+}
+
 // ================================= Getters and Setters =================================
 
 func (g *Global) StartTime() time.Duration {
@@ -202,6 +211,10 @@ func (g *Global) EndTime() time.Duration {
 
 func (g *Global) SetEndTime(endTime time.Duration) {
 	g.End = endTime
+}
+
+func (g *Global) TotalChordMessages() int64 {
+	return g.ChordMessagesTraded
 }
 
 func (g *Global) TotalGetOffersRelayed() int64 {

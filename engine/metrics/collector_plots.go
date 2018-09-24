@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/strabox/caravela-sim/engine/metrics/graphics"
+	"github.com/strabox/caravela-sim/util"
 	"gonum.org/v1/gonum/mat"
 	"gonum.org/v1/plot/palette"
 	"gonum.org/v1/plot/plotter"
@@ -96,24 +97,24 @@ func (coll *Collector) plotSystemFreeResourcesVSRequestSuccess() {
 	}
 }
 
-func (coll *Collector) plotMessagesTraderByRequestBoxPlots() {
-	plotRes := graphics.NewPlot("Lookup Messages Traded Distribution", "", "#Messages", false)
-
-	dataPoints := make([]interface{}, 0)
+func (coll *Collector) plotMessagesExchangedByRequestBoxPlots() {
 	for _, simData := range coll.simulations {
-		boxPoints := make(plotter.Values, 0)
+		plotRes := graphics.NewPlot(fmt.Sprintf("Lookup Messages Traded Distribution (%s)", simData.label), "", "#Messages", false)
+
+		dataPoints := make([]interface{}, 0)
+		boxPlotPoints := make(plotter.Values, 0)
 		for _, snapshot := range simData.snapshots {
-			boxPoints = append(boxPoints, snapshot.MessagesExchangedByRequest()...)
+			boxPlotPoints = append(boxPlotPoints, snapshot.MessagesExchangedByRequest()...)
+			dataPoints = append(dataPoints, util.FmtDuration(snapshot.EndTime()), boxPlotPoints)
 		}
-		dataPoints = append(dataPoints, simData.label, boxPoints)
-	}
 
-	err := plotutil.AddBoxPlots(plotRes, vg.Points(55), dataPoints...)
-	if err != nil {
-		panic(errors.New("Problem with plots, error: " + err.Error()))
-	}
+		err := plotutil.AddBoxPlots(plotRes, vg.Points(20), dataPoints...)
+		if err != nil {
+			panic(errors.New("Problem with plots, error: " + err.Error()))
+		}
 
-	graphics.Save(plotRes, 15*vg.Centimeter, 15*vg.Centimeter, generatePNGFileName(coll.outputDirPath, "MessagesDistribution"))
+		graphics.Save(plotRes, 35*vg.Centimeter, 12*vg.Centimeter, generatePNGFileName(coll.outputDirPath, "MessagesDistribution_"+simData.label))
+	}
 }
 
 func (coll *Collector) plotResourcesUsedDistributionByNodesOverTime() {
@@ -134,8 +135,9 @@ func (coll *Collector) plotResourcesUsedDistributionByNodesOverTime() {
 
 		dataGrid := &graphics.UnitGrid{Data: mat.NewDense(len(simData.snapshots), coll.numNodes, data)}
 
-		graphics.NewHeatMap(generatePNGFileName("ResourcesUsedDistribution_"+simData.label), fmt.Sprintf("Resources Used Distribution (%s)", simData.label),
-			"Nodes", "Time (Seconds)", coll.outputDirPath, yTicks, dataGrid, palette.Heat(64, 1))
+		graphics.NewHeatMap(generatePNGFileName(coll.outputDirPath, "ResourcesUsedDistribution_"+simData.label),
+			fmt.Sprintf("Resources Used Distribution (%s)", simData.label),
+			"Nodes", "Time (Seconds)", yTicks, dataGrid, palette.Heat(64, 1))
 	}
 }
 
@@ -157,8 +159,9 @@ func (coll *Collector) plotResourcesUnreachableDistributionByNodesOverTime() {
 
 		dataGrid := &graphics.UnitGrid{Data: mat.NewDense(len(simData.snapshots), coll.numNodes, data)}
 
-		graphics.NewHeatMap(generatePNGFileName("ResourcesUnreachableDistribution_"+simData.label), fmt.Sprintf("Resources Unreachable Distribution (%s)", simData.label),
-			"Nodes", "Time (Seconds)", coll.outputDirPath, yTicks, dataGrid, palette.Heat(64, 1))
+		graphics.NewHeatMap(generatePNGFileName(coll.outputDirPath, "ResourcesUnreachableDistribution_"+simData.label),
+			fmt.Sprintf("Resources Unreachable Distribution (%s)", simData.label),
+			"Nodes", "Time (Seconds)", yTicks, dataGrid, palette.Heat(64, 1))
 	}
 }
 
@@ -180,8 +183,9 @@ func (coll *Collector) plotMessagesAPIDistributionByNodesOverTime() {
 
 		dataGrid := &graphics.UnitGrid{Data: mat.NewDense(len(simData.snapshots), coll.numNodes, data)}
 
-		graphics.NewHeatMap(generatePNGFileName("MessagesAPIDistribution_"+simData.label), fmt.Sprintf("Messages Distribution (%s)", simData.label),
-			"Nodes", "Time (Seconds)", coll.outputDirPath, yTicks, dataGrid, palette.Heat(64, 1))
+		graphics.NewHeatMap(generatePNGFileName(coll.outputDirPath, "MessagesAPIDistribution_"+simData.label),
+			fmt.Sprintf("Messages Distribution (%s)", simData.label),
+			"Nodes", "Time (Seconds)", yTicks, dataGrid, palette.Heat(64, 1))
 	}
 }
 
@@ -195,7 +199,7 @@ func (coll *Collector) plotTotalMessagesTradedInSystem() {
 	for i, simData := range coll.simulations {
 		messagesTradedAcc := float64(0)
 		for _, snapshot := range simData.snapshots {
-			messagesTradedAcc += snapshot.TotalAPIMessagesReceivedByAllNodes()
+			messagesTradedAcc += snapshot.TotalMessagesReceivedByAllNodes()
 		}
 
 		barChart, err := plotter.NewBarChart(plotter.Values{messagesTradedAcc}, barWidth)
@@ -217,7 +221,7 @@ func (coll *Collector) plotTotalMessagesTradedInSystem() {
 	plotRes.Legend.Top = true
 	plotRes.NominalX("Main Simulation")
 
-	graphics.Save(plotRes, 15*vg.Centimeter, 15*vg.Centimeter, generatePNGFileName(coll.outputDirPath, "MessagesTradedInSystem"))
+	graphics.Save(plotRes, 10*vg.Centimeter, 12*vg.Centimeter, generatePNGFileName(coll.outputDirPath, "MessagesTradedInSystem"))
 }
 
 // ======================================= Debug Performance Plots ===============================

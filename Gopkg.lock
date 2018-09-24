@@ -4,8 +4,8 @@
 [[projects]]
   name = "github.com/BurntSushi/toml"
   packages = ["."]
-  revision = "b26d9c308763d68093482582cea63d69be07a0f0"
-  version = "v0.3.0"
+  revision = "3012a1dbe2e4bd1391d42b32f0577cb7bbc7f005"
+  version = "v0.3.1"
 
 [[projects]]
   branch = "master"
@@ -138,7 +138,7 @@
     "overlay/types",
     "util"
   ]
-  revision = "d22c323469f2181abfbfaa983aecd990c0193a91"
+  revision = "1b5ab45d402e7f6378295f25dd90f36a53f10749"
 
 [[projects]]
   name = "github.com/urfave/cli"
@@ -169,7 +169,7 @@
     "tiff",
     "tiff/lzw"
   ]
-  revision = "c73c2afc3b812cdd6385de5a50616511c4a3d458"
+  revision = "e1a1ede6891c997b81b830dbc6f4d2850b9392a4"
 
 [[projects]]
   branch = "master"
@@ -178,7 +178,7 @@
     "unix",
     "windows"
   ]
-  revision = "1561086e645b2809fb9f8a1e2a38160bf8d53bf4"
+  revision = "d47a0f3392421c5624713c9a19fe781f651f8a50"
 
 [[projects]]
   branch = "master"
@@ -197,7 +197,7 @@
     "lapack/lapack64",
     "mat"
   ]
-  revision = "20644dbe1a24b75924cac09e625a63b43203528f"
+  revision = "72366fbe5489967a1dc6b3f462def64018e088c3"
 
 [[projects]]
   branch = "master"

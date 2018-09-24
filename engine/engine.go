@@ -21,6 +21,8 @@ import (
 // engineLogTag log's tag for the simulator engine.
 const engineLogTag = "ENGINE"
 
+const numOfRandomBagsOfNode = 20
+
 // Engine represents an instance of a Caravela's simulator engine.
 // It holds all the structures to control, feed and analyse a engine during a simulation.
 type Engine struct {
@@ -54,7 +56,7 @@ func NewEngine(metricsCollector *metrics.Collector, simConfig *configuration.Con
 		nodes:       make([]*caravelaNode.Node, simConfig.TotalNumberOfNodes()),
 		overlayMock: nil,
 		feeder:      feeder.Create(simConfig, caravelaConfigurations, baseRngSeed),
-		nodesBags:   make([][]*caravelaNode.Node, 10),
+		nodesBags:   make([][]*caravelaNode.Node, numOfRandomBagsOfNode),
 
 		metricsCollector: metricsCollector,
 		workersPool:      grpool.NewPool(maxWorkers, maxWorkers*30),
@@ -107,7 +109,8 @@ func (e *Engine) Init() {
 	// Initialize metric's collector.
 	maxNodesResources := make([]types.Resources, e.simulatorConfigs.TotalNumberOfNodes())
 	for i := range maxNodesResources {
-		maxNodesResources[i] = e.nodes[i].MaximumResourcesSim()
+		_, nodeMaxResources, _ := e.nodes[i].NodeInformationSim()
+		maxNodesResources[i] = nodeMaxResources
 	}
 	e.metricsCollector.InitNewSimulation(e.caravelaConfigs.DiscoveryBackend(), maxNodesResources)
 
@@ -122,7 +125,7 @@ func (e *Engine) Init() {
 		allNodes[i] = i
 	}
 	for i := range e.nodesBags {
-		e.nodesBags[i] = make([]*caravelaNode.Node, e.simulatorConfigs.TotalNumberOfNodes()/10)
+		e.nodesBags[i] = make([]*caravelaNode.Node, e.simulatorConfigs.TotalNumberOfNodes()/numOfRandomBagsOfNode)
 		for j := range e.nodesBags[i] {
 			randIndex := util.RandomInteger(0, len(allNodes)-1)
 			e.nodesBags[i][j] = e.nodes[allNodes[randIndex]]
@@ -136,7 +139,7 @@ func (e *Engine) Init() {
 
 // Start starts the simulator engine.
 func (e *Engine) Start() {
-	const ticksPerPersist = 5
+	const ticksPerSnapshot = 5
 
 	if !e.isInit {
 		panic(errors.New("simulator is not initialized"))
@@ -175,11 +178,9 @@ func (e *Engine) Start() {
 			break
 		}
 
-		if numTicks != 0 && (numTicks%ticksPerPersist) == 0 {
+		if numTicks != 0 && (numTicks%ticksPerSnapshot) == 0 {
 			e.metricsCollector.Persist(simCurrentTime)
-			continue
 		}
-		e.metricsCollector.CreateNewGlobalSnapshot(simCurrentTime)
 	}
 
 	close(ticksChan) // Alert feeder that the engine has ended.
@@ -266,7 +267,7 @@ func (e *Engine) fireTimerActions(currentTime time.Duration, lastTimeRefreshes, 
 	return lastTimeRefreshes, lastTimeSpreadOffers
 }
 
-// updateMetrics updates all the collector metrics.
+// updateMetrics updates all the collector's metrics.
 func (e *Engine) updateMetrics() {
 	defer e.workersPool.WaitAll()
 
@@ -277,10 +278,9 @@ func (e *Engine) updateMetrics() {
 		e.workersPool.WaitCount(1)
 		e.workersPool.JobQueue <- func() {
 			defer e.workersPool.JobDone()
-			nodeFreeResources := tempNode.AvailableResourcesSim()
-			nodeMaxResources := tempNode.MaximumResourcesSim()
+			nodeFreeResources, nodeMaxResources, numActiveOffers := tempNode.NodeInformationSim()
 			e.assertNodeState(nodeFreeResources, nodeMaxResources)
-			e.metricsCollector.SetAvailableNodeResources(tempI, nodeFreeResources)
+			e.metricsCollector.SetNodeInformation(tempI, nodeFreeResources, numActiveOffers)
 		}
 	}
 }
@@ -336,20 +336,16 @@ func (e *Engine) nextRngSeed() int64 {
 
 func (e *Engine) assertNodeState(freeResources, maximumResources types.Resources) {
 	if freeResources.CPUs < 0 {
-		util.Log.Error("ASDDDDDDDDDDDDDD")
 		panic(errors.New("negative free CPUs"))
 	}
 	if freeResources.Memory < 0 {
-		util.Log.Error("ASDDDDasdasdDDDDDDDDDD")
 		panic(errors.New("negative free Memory"))
 	}
 
 	if freeResources.CPUs > maximumResources.CPUs {
-		util.Log.Error("ASDDDDDDDDDDDDDDasdasdadasd")
 		panic(errors.New("over free CPUs"))
 	}
 	if freeResources.Memory > maximumResources.Memory {
-		util.Log.Error("ASDDDDDDDDDDDDDDjkadlkasdkadslk")
 		panic(errors.New("over free Memory"))
 	}
 }
