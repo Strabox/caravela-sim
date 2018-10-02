@@ -1,13 +1,11 @@
 package chord
 
-import "github.com/strabox/caravela-sim/mocks/overlay"
-
 type speedupNodeMock struct {
-	*overlay.NodeMock
+	*NodeMock
 	index int
 }
 
-func newSpeedupNodeMock(index int, nodeMock *overlay.NodeMock) *speedupNodeMock {
+func newSpeedupNodeMock(index int, nodeMock *NodeMock) *speedupNodeMock {
 	return &speedupNodeMock{
 		NodeMock: nodeMock,
 		index:    index,

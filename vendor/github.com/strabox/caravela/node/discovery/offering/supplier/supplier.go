@@ -12,9 +12,12 @@ import (
 	"github.com/strabox/caravela/node/common/resources"
 	"github.com/strabox/caravela/node/discovery/common"
 	"github.com/strabox/caravela/node/external"
+	"github.com/strabox/caravela/overlay"
 	"github.com/strabox/caravela/util"
+	"github.com/strabox/caravela/util/debug"
 	"sync"
 	"time"
+	"unsafe"
 )
 
 // Supplier handles all the logic of managing the node own resources, advertising them into the system.
@@ -25,14 +28,13 @@ type Supplier struct {
 	offersStrategy OfferingStrategy             // Encapsulates the strategies to manage the offers in the system.
 	client         external.Caravela            // Client to collaborate with other CARAVELA's nodes
 
-	nodeGUID *guid.GUID
-
 	activeOffers       map[common.OfferID]*supplierOffer // Map with the current activeOffers (that are being managed by traders)
 	offersIDGen        common.OfferID                    // Monotonic counter to generate offer's local unique IDs
 	offersMutex        sync.Mutex                        // Mutex to handle active offers management
 	resourcesMap       *resources.Mapping                // The resources<->GUID mapping
 	maxResources       *resources.Resources              // The maximum resources that the Docker engine has available (Static value)
 	availableResources *resources.Resources              // CURRENT Available resources to offer
+	containersRunning  int                               // Number of containers running in the node.
 
 	quitChan             chan bool        // Channel to alert that the node is stopping
 	supplyingTicker      <-chan time.Time // Timer to supply available resources
@@ -40,7 +42,7 @@ type Supplier struct {
 }
 
 // NewSupplier creates a new supplier component, that manages the local resources.
-func NewSupplier(node nodeCommon.Node, config *configuration.Configuration, overlay external.Overlay, client external.Caravela,
+func NewSupplier(node nodeCommon.Node, config *configuration.Configuration, overlay overlay.Overlay, client external.Caravela,
 	resourcesMap *resources.Mapping, maxResources resources.Resources) *Supplier {
 
 	s := &Supplier{
@@ -48,14 +50,13 @@ func NewSupplier(node nodeCommon.Node, config *configuration.Configuration, over
 		offersStrategy: CreateOffersStrategy(node, config),
 		client:         client,
 
-		nodeGUID: nil,
-
 		resourcesMap:       resourcesMap,
 		maxResources:       maxResources.Copy(),
 		availableResources: maxResources.Copy(),
 		offersIDGen:        0,
 		activeOffers:       make(map[common.OfferID]*supplierOffer),
 		offersMutex:        sync.Mutex{},
+		containersRunning:  0,
 
 		quitChan:             make(chan bool),
 		supplyingTicker:      time.NewTicker(config.SupplyingInterval()).C,
@@ -114,9 +115,6 @@ func (s *Supplier) FindOffers(ctx context.Context, targetResources resources.Res
 		targetResources = *s.resourcesMap.LowestResources()
 	}
 
-	if s.nodeGUID != nil {
-		ctx = context.WithValue(ctx, types.NodeGUIDKey, s.nodeGUID.String())
-	}
 	return s.offersStrategy.FindOffers(ctx, targetResources)
 }
 
@@ -148,7 +146,7 @@ func (s *Supplier) RefreshOffer(fromTrader *types.Node, refreshOffer *types.Offe
 
 // Tries to obtain a subset of the resources represented by the given offer in order to deploy  a container.
 // It updates the respective trader that manages the offer.
-func (s *Supplier) ObtainResources(offerID int64, resourcesNecessary resources.Resources) bool {
+func (s *Supplier) ObtainResources(offerID int64, resourcesNecessary resources.Resources, numContainersToRun int) bool {
 	if !s.IsWorking() {
 		panic(errors.New("can't obtain resources, supplier not working"))
 	}
@@ -161,6 +159,7 @@ func (s *Supplier) ObtainResources(offerID int64, resourcesNecessary resources.R
 		return false
 	} else {
 		s.availableResources.Sub(resourcesNecessary)
+		s.containersRunning += numContainersToRun
 
 		delete(s.activeOffers, common.OfferID(offerID))
 
@@ -189,7 +188,7 @@ func (s *Supplier) ObtainResources(offerID int64, resourcesNecessary resources.R
 }
 
 // Release resources of an used offer into the supplier again in order to offer them again into the system.
-func (s *Supplier) ReturnResources(releasedResources resources.Resources) {
+func (s *Supplier) ReturnResources(releasedResources resources.Resources, numContainersStopped int) {
 	if !s.IsWorking() {
 		panic(errors.New("can't return resources, supplier not working"))
 	}
@@ -199,6 +198,7 @@ func (s *Supplier) ReturnResources(releasedResources resources.Resources) {
 
 	log.Debugf(util.LogTag("SUPPLIER")+"RESOURCES RELEASED Res: <%d;%d>", releasedResources.CPUs(), releasedResources.Memory())
 	s.availableResources.Add(releasedResources)
+	s.containersRunning -= numContainersStopped
 
 	if s.config.Simulation() {
 		s.updateOffers() // Update its own offers sequential
@@ -216,7 +216,8 @@ func (s *Supplier) updateOffers() {
 	if s.availableResources.IsValid() {
 		usedResources := s.maxResources.Copy()
 		usedResources.Sub(*s.availableResources)
-		s.offersStrategy.UpdateOffers(*s.availableResources, *usedResources)
+
+		s.offersStrategy.UpdateOffers(context.Background(), *s.availableResources, *usedResources)
 	}
 }
 
@@ -244,6 +245,10 @@ func (s *Supplier) removeOffer(offerID common.OfferID) {
 	delete(s.activeOffers, offerID)
 }
 
+func (s *Supplier) numContainersRunning() int {
+	return s.containersRunning
+}
+
 func (s *Supplier) offers() []supplierOffer {
 	res := make([]supplierOffer, len(s.activeOffers))
 	i := 0
@@ -265,11 +270,11 @@ func (s *Supplier) checkResourcesInvariant() {
 	}
 }
 
-// Simulation
-func (s *Supplier) SetNodeGUID(GUID guid.GUID) {
-	if s.nodeGUID == nil {
-		s.nodeGUID = guid.NewGUIDBytes(GUID.Bytes())
-	}
+//Simulation
+func (s *Supplier) NumActiveOffers() int {
+	s.offersMutex.Lock()
+	defer s.offersMutex.Unlock()
+	return len(s.activeOffers)
 }
 
 // Simulation
@@ -317,4 +322,32 @@ func (s *Supplier) Stop() {
 
 func (s *Supplier) IsWorking() bool {
 	return s.Working()
+}
+
+// ===============================================================================
+// =							    Debug Methods                                =
+// ===============================================================================
+
+func (s *Supplier) DebugSizeBytes() int {
+	supplierOfferSizeBytes := func(offer *supplierOffer) uintptr {
+		offerSizeBytes := unsafe.Sizeof(*offer)
+		// common.Offer
+		offerSizeBytes += unsafe.Sizeof(*offer.Offer)
+		offerSizeBytes += debug.SizeofResources(offer.Offer.Resources())
+		// supplier offer
+		offerSizeBytes += debug.SizeofString(offer.responsibleTraderIP)
+		offerSizeBytes += debug.SizeofGUID(offer.responsibleTraderGUID)
+		return offerSizeBytes
+	}
+
+	supplierSizeBytes := unsafe.Sizeof(*s)
+	supplierSizeBytes += debug.SizeofResources(s.maxResources)
+	supplierSizeBytes += debug.SizeofResources(s.availableResources)
+	supplierSizeBytes += 30 // Hack: Offer strategy structure.
+	for offerID, offer := range s.activeOffers {
+		supplierSizeBytes += unsafe.Sizeof(offerID)
+		supplierSizeBytes += unsafe.Sizeof(offer)
+		supplierSizeBytes += supplierOfferSizeBytes(offer)
+	}
+	return int(supplierSizeBytes)
 }

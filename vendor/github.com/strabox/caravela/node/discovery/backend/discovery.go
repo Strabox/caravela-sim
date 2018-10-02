@@ -17,15 +17,18 @@ type Discovery interface {
 	// Component is the interface that all "runnable" Components in caravela must adhere to.
 	common.Component
 
+	//
+	GUID() string
+
 	// =========================== Internal Services (Mandatory to Implement) =====================
 	//
 	AddTrader(traderGUID guid.GUID)
 	//
 	FindOffers(ctx context.Context, resources resources.Resources) []types.AvailableOffer
 	//
-	ObtainResources(offerID int64, resourcesNecessary resources.Resources) bool
+	ObtainResources(offerID int64, resourcesNecessary resources.Resources, numContainersToRun int) bool
 	//
-	ReturnResources(resources resources.Resources)
+	ReturnResources(resources resources.Resources, numContainerStopped int)
 
 	// ================================== External/Remote Services ================================
 	//
@@ -43,9 +46,13 @@ type Discovery interface {
 
 	// ========================== External/Remote Services (Only Simulation) =======================
 	//
-	NodeInformationSim() (types.Resources, types.Resources, int)
+	NodeInformationSim() (types.Resources, types.Resources, int, int)
 	//
 	RefreshOffersSim()
 	//
 	SpreadOffersSim()
+
+	// ===================================== Debug Methods =========================================
+	//
+	DebugSizeBytes() int
 }

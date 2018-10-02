@@ -84,12 +84,6 @@ func (coll *Collector) InitNewSimulation(simLabel string, nodesMaxRes []types.Re
 
 // ================================= Metrics Collector Methods ====================================
 
-func (coll *Collector) IncrChordMessages(amount int64) {
-	if activeGlobal, err := coll.activeGlobal(); err == nil {
-		activeGlobal.IncrChordMessages(amount)
-	}
-}
-
 // GetOfferRelayed increment the number of messages traded from type GetOffersRelayed.
 func (coll *Collector) GetOfferRelayed(amount int64) {
 	if activeGlobal, err := coll.activeGlobal(); err == nil {
@@ -110,17 +104,17 @@ func (coll *Collector) RunRequestSucceeded() {
 	}
 }
 
-// APIRequestReceived increments the number of Caravela's API requests a node received.
-func (coll *Collector) APIRequestReceived(nodeIndex int) {
+// MessageReceived increments the number of messages received by the node.
+func (coll *Collector) MessageReceived(nodeIndex int, amount int64, requestSizeBytes int64) {
 	if activeGlobal, err := coll.activeGlobal(); err == nil {
-		activeGlobal.APIRequestReceived(nodeIndex)
+		activeGlobal.MessageReceived(nodeIndex, amount, requestSizeBytes)
 	}
 }
 
-// SetNodeInformation sets the available resources of a node.
-func (coll *Collector) SetNodeInformation(nodeIndex int, freeResources types.Resources, numActiveOffers int) {
+// SetNodeState sets the available resources of a node.
+func (coll *Collector) SetNodeState(nodeIndex int, freeResources types.Resources, traderActiveOffers int64, memoryOccupied int64) {
 	if activeGlobal, err := coll.activeGlobal(); err == nil {
-		activeGlobal.SetAvailableNodeResources(nodeIndex, freeResources)
+		activeGlobal.SetNodeState(nodeIndex, freeResources, traderActiveOffers, memoryOccupied)
 	}
 }
 
@@ -210,9 +204,9 @@ func (coll *Collector) Print() {
 		fmt.Printf("##################################################################\n")
 		fmt.Printf("#          SIMULATION RESULT METRICS (%s)     #\n", simData.label)
 		fmt.Printf("##################################################################\n")
-		fmt.Printf("#Requests:               %d\n", totalRunRequests)
-		fmt.Printf("#Requests Succeeded:     %d\n", totalRunRequestsSucceeded)
-		fmt.Printf("#Requests Success Ratio: %.2f\n", float64(totalRunRequestsSucceeded)/float64(totalRunRequests))
+		fmt.Printf("Requests:               %d\n", totalRunRequests)
+		fmt.Printf("Requests Succeeded:     %d\n", totalRunRequestsSucceeded)
+		fmt.Printf("Requests Success Ratio: %.2f\n", float64(totalRunRequestsSucceeded)/float64(totalRunRequests))
 	}
 
 	coll.plotGraphics() // Plot the graphics for the simulations
@@ -276,25 +270,19 @@ func (coll *Collector) plotGraphics() {
 
 	goroutinePool.WaitCount(1)
 	goroutinePool.JobQueue <- func() {
-		coll.plotCumulativeRequestsSucceeded()
+		coll.plotRequestsSucceeded()
 		goroutinePool.JobDone()
 	}
 
 	goroutinePool.WaitCount(1)
 	goroutinePool.JobQueue <- func() {
-		coll.plotAvgMessagesTradedPerRunRequest()
+		coll.plotSystemUsedResourcesVSRequestSuccess()
 		goroutinePool.JobDone()
 	}
 
 	goroutinePool.WaitCount(1)
 	goroutinePool.JobQueue <- func() {
-		coll.plotSystemFreeResourcesVSRequestSuccess()
-		goroutinePool.JobDone()
-	}
-
-	goroutinePool.WaitCount(1)
-	goroutinePool.JobQueue <- func() {
-		coll.plotMessagesExchangedByRequestBoxPlots()
+		coll.plotMessagesExchangedByRunRequest()
 		goroutinePool.JobDone()
 	}
 
@@ -314,7 +302,25 @@ func (coll *Collector) plotGraphics() {
 
 	goroutinePool.WaitCount(1)
 	goroutinePool.JobQueue <- func() {
-		coll.plotMessagesAPIDistributionByNodesOverTime()
+		coll.plotMessagesDistributionByNodes()
+		goroutinePool.JobDone()
+	}
+
+	goroutinePool.WaitCount(1)
+	goroutinePool.JobQueue <- func() {
+		coll.plotActiveOffersByNode()
+		goroutinePool.JobDone()
+	}
+
+	goroutinePool.WaitCount(1)
+	goroutinePool.JobQueue <- func() {
+		coll.plotMasterNodeMessagesReceivedOverTime()
+		goroutinePool.JobDone()
+	}
+
+	goroutinePool.WaitCount(1)
+	goroutinePool.JobQueue <- func() {
+		coll.plotMemoryUsedByNode()
 		goroutinePool.JobDone()
 	}
 

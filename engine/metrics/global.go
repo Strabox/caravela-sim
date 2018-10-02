@@ -14,7 +14,6 @@ type Global struct {
 
 	RunRequestsSucceeded int64  `json:"RunRequestsSucceeded"` // Number of run requests that were successful deployed.
 	NodesMetrics         []Node `json:"NodesMetrics"`         // Metrics collected for each system's node.
-	ChordMessagesTraded  int64  `json:"ChordMessagesTraded"`
 
 	RunRequestsAggregator  sync.Map     `json:"-"`
 	RunRequestsCompleted   []RunRequest `json:"RunRequestsCompleted"`
@@ -69,8 +68,10 @@ func NewGlobalNext(numNodes int, prevGlobal *Global) *Global {
 
 // ========================= Metrics Collector Methods ====================================
 
-func (g *Global) IncrChordMessages(amount int64) {
-	atomic.AddInt64(&g.ChordMessagesTraded, amount)
+func (g *Global) MessageReceived(nodeIndex int, amount int64, requestSizeBytes int64) {
+	//if len(g.NodesMetrics) > nodeIndex {
+	g.NodesMetrics[nodeIndex].MessageReceived(amount, requestSizeBytes)
+	//}
 }
 
 func (g *Global) GetOfferRelayed(amount int64) {
@@ -136,6 +137,20 @@ func (g *Global) RunRequestsAvgMessages() float64 {
 	return float64(accMessages) / float64(len(g.RunRequestsCompleted))
 }
 
+func (g *Global) TotalUsedResourcesAvg() float64 {
+	result := float64(0)
+	numOfNodesCalculated := float64(0)
+	for _, nodeMetrics := range g.NodesMetrics {
+		numOfNodesCalculated++
+		if numOfNodesCalculated == 0 {
+			result = nodeMetrics.UsedResourcesRatio()
+		} else {
+			result = (result*(numOfNodesCalculated-1) + nodeMetrics.UsedResourcesRatio()) / numOfNodesCalculated
+		}
+	}
+	return result
+}
+
 func (g *Global) TotalFreeResourcesAvg() float64 {
 	result := float64(0)
 	numOfNodesCalculated := float64(0)
@@ -158,6 +173,14 @@ func (g *Global) MessagesExchangedByRequest() []float64 {
 	return resTotalMessages
 }
 
+func (g *Global) TotalTraderActiveOfferPerNode() []float64 {
+	resTotalActiveOffers := make([]float64, len(g.NodesMetrics))
+	for i := range resTotalActiveOffers {
+		resTotalActiveOffers[i] = float64(g.NodesMetrics[i].TotalTraderActiveOffers())
+	}
+	return resTotalActiveOffers
+}
+
 func (g *Global) ResourcesUnreachableRatioNode() []float64 {
 	res := make([]float64, len(g.NodesMetrics))
 	for i, nodeMetric := range g.NodesMetrics {
@@ -174,29 +197,47 @@ func (g *Global) ResourcesUsedNodeRatio() []float64 {
 	return res
 }
 
-func (g *Global) TotalAPIMessagesReceivedByNode() []float64 {
+func (g *Global) TotalMemoryUsedByNode() []float64 {
 	res := make([]float64, len(g.NodesMetrics))
 	for i, nodeMetric := range g.NodesMetrics {
-		res[i] = float64(nodeMetric.TotalAPIRequestsReceived())
+		res[i] = float64(nodeMetric.TotalMemoryUsed())
 	}
 	return res
 }
 
-func (g *Global) TotalAPIMessagesReceivedByAllNodes() float64 {
-	acc := int64(0)
+func (g *Global) TotalBandwidthUsedOnReceivingByNode() []float64 {
+	res := make([]float64, len(g.NodesMetrics))
+	for i, nodeMetric := range g.NodesMetrics {
+		res[i] = float64(nodeMetric.TotalBandwidthUsedOnReceiving())
+	}
+	return res
+}
+
+func (g *Global) TotalMessagesReceivedByNode() []float64 {
+	res := make([]float64, len(g.NodesMetrics))
+	for i, nodeMetric := range g.NodesMetrics {
+		res[i] = float64(nodeMetric.TotalMessagesReceived())
+	}
+	return res
+}
+
+func (g *Global) TotalMessagesReceivedByAllNodes() float64 {
+	acc := float64(0)
 	for _, nodeMetric := range g.NodesMetrics {
-		acc += nodeMetric.TotalAPIRequestsReceived()
+		acc += nodeMetric.TotalMessagesReceived()
 	}
 	return float64(acc)
 }
 
-func (g *Global) TotalMessagesReceivedByAllNodes() float64 {
-	acc := int64(0)
+func (g *Global) TotalMessagesReceivedByMasterNode() float64 {
+	totalMessagesReceived := float64(0)
 	for _, nodeMetric := range g.NodesMetrics {
-		acc += nodeMetric.TotalAPIRequestsReceived()
+		nodeMessagesReceived := nodeMetric.TotalMessagesReceived()
+		if nodeMessagesReceived > totalMessagesReceived {
+			totalMessagesReceived = nodeMessagesReceived
+		}
 	}
-	acc += g.ChordMessagesTraded
-	return float64(acc)
+	return totalMessagesReceived
 }
 
 // ================================= Getters and Setters =================================
@@ -211,10 +252,6 @@ func (g *Global) EndTime() time.Duration {
 
 func (g *Global) SetEndTime(endTime time.Duration) {
 	g.End = endTime
-}
-
-func (g *Global) TotalChordMessages() int64 {
-	return g.ChordMessagesTraded
 }
 
 func (g *Global) TotalGetOffersRelayed() int64 {
@@ -233,15 +270,9 @@ func (g *Global) TotalRunRequests() int64 {
 	return int64(len(g.RunRequestsCompleted))
 }
 
-func (g *Global) SetAvailableNodeResources(nodeIndex int, freeResources types.Resources) {
+func (g *Global) SetNodeState(nodeIndex int, freeResources types.Resources, traderActiveOffers int64, memoryUsed int64) {
 	if len(g.NodesMetrics) > nodeIndex {
-		g.NodesMetrics[nodeIndex].SetFreeResources(freeResources)
-	}
-}
-
-func (g *Global) APIRequestReceived(nodeIndex int) {
-	if len(g.NodesMetrics) > nodeIndex {
-		g.NodesMetrics[nodeIndex].APIRequestReceived()
+		g.NodesMetrics[nodeIndex].SetNodeState(freeResources, traderActiveOffers, memoryUsed)
 	}
 }
 

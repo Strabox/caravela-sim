@@ -67,6 +67,15 @@ func NewZero() *GUID {
 	}
 }
 
+// NewGUIDBigInt...
+func NewGUIDBigInt(guidBigInt *big.Int) *GUID {
+	tempID := big.NewInt(0)
+	tempID.Set(guidBigInt)
+	return &GUID{
+		id: tempID,
+	}
+}
+
 // NewGUIDRandom creates a random GUID in the range [0,MaxGUID).
 func NewGUIDRandom() *GUID {
 	guid := &GUID{}
@@ -210,6 +219,11 @@ func (g *GUID) Int64() int64 {
 	return g.id.Int64()
 }
 
+// BigInt...
+func (g *GUID) BigInt() *big.Int {
+	return g.id
+}
+
 // Copy creates a copy of the GUID object.
 func (g *GUID) Copy() *GUID {
 	return NewGUIDString(g.String())
@@ -222,5 +236,8 @@ func (g *GUID) String() string {
 
 // Short returns the first digits of the GUID in a string representation.
 func (g *GUID) Short() string {
-	return g.id.String()[0:guidShortStringSize]
+	if len(g.id.String()) < guidShortStringSize {
+		return g.id.String()[:len(g.id.String())]
+	}
+	return g.id.String()[:guidShortStringSize]
 }

@@ -9,7 +9,7 @@ import (
 	"github.com/strabox/caravela-sim/engine/metrics"
 	"github.com/strabox/caravela-sim/mocks/caravela"
 	"github.com/strabox/caravela-sim/mocks/docker"
-	"github.com/strabox/caravela-sim/mocks/overlay/chord"
+	chordMock "github.com/strabox/caravela-sim/mocks/overlay/chord"
 	"github.com/strabox/caravela-sim/util"
 	"github.com/strabox/caravela/api/types"
 	caravelaConfig "github.com/strabox/caravela/configuration"
@@ -31,7 +31,7 @@ type Engine struct {
 
 	// Engine's main components.
 	nodes       []*caravelaNode.Node // Array with all the Caravela's nodes for the simulation.
-	overlayMock *chord.Mock          // Overlay that "connects" all nodes.
+	overlayMock *chordMock.Mock      // Overlay that "connects" all nodes.
 	feeder      feeder.Feeder        // Used to feed the simulator with requests.
 	nodesBags   [][]*caravelaNode.Node
 
@@ -76,7 +76,8 @@ func (e *Engine) Init() {
 	apiServerMock := caravela.NewAPIServerMock()
 	dockerClientMock := docker.NewClientMock(docker.CreateResourceGen(e.simulatorConfigs, e.caravelaConfigs, e.nextRngSeed()))
 	caravelaClientMock := caravela.NewRemoteClientMock(e, e.metricsCollector)
-	e.overlayMock = chord.NewChordMock(e.simulatorConfigs.TotalNumberOfNodes(),
+	chordMock.Init(e.caravelaConfigs.ChordHashSizeBits())
+	e.overlayMock = chordMock.NewChordMock(e.simulatorConfigs.TotalNumberOfNodes(),
 		e.caravelaConfigs.ChordNumSuccessors(), e.simulatorConfigs.ChordMockSpeedupNodes(), e.metricsCollector)
 	e.overlayMock.Init()
 
@@ -92,12 +93,7 @@ func (e *Engine) Init() {
 		e.nodes[i] = caravelaNode.NewNode(nodeConfig, e.overlayMock, caravelaClientMock, dockerClientMock,
 			apiServerMock)
 
-		if nodeConfig.DiscoveryBackend() == "swarm" && i == 0 { // Special case for swarm discovery backends.
-			overlayNodeMock.SetZeroGUID() // Zero mode's GUID is the master (first node in simulator)
-			e.nodes[i].AddTrader(overlayNodeMock.Bytes())
-		} else {
-			e.nodes[i].AddTrader(overlayNodeMock.Bytes())
-		}
+		e.nodes[i].AddTrader(overlayNodeMock.Bytes())
 	}
 
 	// Start all the Caravela's nodes.
@@ -109,7 +105,7 @@ func (e *Engine) Init() {
 	// Initialize metric's collector.
 	maxNodesResources := make([]types.Resources, e.simulatorConfigs.TotalNumberOfNodes())
 	for i := range maxNodesResources {
-		_, nodeMaxResources, _ := e.nodes[i].NodeInformationSim()
+		_, nodeMaxResources, _, _ := e.nodes[i].NodeInformationSim()
 		maxNodesResources[i] = nodeMaxResources
 	}
 	e.metricsCollector.InitNewSimulation(e.caravelaConfigs.DiscoveryBackend(), maxNodesResources)
@@ -139,7 +135,7 @@ func (e *Engine) Init() {
 
 // Start starts the simulator engine.
 func (e *Engine) Start() {
-	const ticksPerSnapshot = 5
+	const ticksPerSnapshot = 9
 
 	if !e.isInit {
 		panic(errors.New("simulator is not initialized"))
@@ -222,7 +218,7 @@ func (e *Engine) acceptRequests(ticksChan chan<- chan feeder.RequestTask, curren
 func (e *Engine) fireTimerActions(currentTime time.Duration, lastTimeRefreshes, lastTimeSpreadOffers []time.Duration) ([]time.Duration, []time.Duration) {
 	defer e.workersPool.WaitAll()
 
-	// 1. Refresh Offers
+	// 1. Refresh Offers.
 	for i := range lastTimeRefreshes {
 		if lastTimeRefreshes[i] >= currentTime && (currentTime-lastTimeRefreshes[i]) >= e.caravelaConfigs.RefreshingInterval() {
 			// Necessary because the tick interval can be greater than the refresh interval.
@@ -243,7 +239,7 @@ func (e *Engine) fireTimerActions(currentTime time.Duration, lastTimeRefreshes, 
 		}
 	}
 
-	// 2. Spread Offers
+	// 2. Spread Offers.
 	for i := range lastTimeSpreadOffers {
 		if lastTimeSpreadOffers[i] >= currentTime && (currentTime-lastTimeSpreadOffers[i]) >= e.caravelaConfigs.SpreadOffersInterval() {
 			// Necessary because the tick interval can be greater than the spread offers interval.
@@ -278,9 +274,9 @@ func (e *Engine) updateMetrics() {
 		e.workersPool.WaitCount(1)
 		e.workersPool.JobQueue <- func() {
 			defer e.workersPool.JobDone()
-			nodeFreeResources, nodeMaxResources, numActiveOffers := tempNode.NodeInformationSim()
+			nodeFreeResources, nodeMaxResources, numActiveOffers, _ := tempNode.NodeInformationSim()
 			e.assertNodeState(nodeFreeResources, nodeMaxResources)
-			e.metricsCollector.SetNodeInformation(tempI, nodeFreeResources, numActiveOffers)
+			e.metricsCollector.SetNodeState(tempI, nodeFreeResources, int64(numActiveOffers), int64(tempNode.DebugSizeBytes()))
 		}
 	}
 }

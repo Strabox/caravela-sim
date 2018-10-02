@@ -15,7 +15,7 @@ import (
 	"os"
 )
 
-func NewHeatMap(fileName, title, XLabel, YLabel string, yTicks []int, grid *UnitGrid, colorPalette palette.Palette) {
+func NewHeatMap(fileName, title, XLabel, YLabel string, yTicks []int, grid *UnitGrid, colorPalette palette.Palette, width int, height int) {
 	heatMap := plotter.NewHeatMap(grid, colorPalette)
 
 	plotRes := NewPlot(title, XLabel, YLabel, false)
@@ -49,7 +49,7 @@ func NewHeatMap(fileName, title, XLabel, YLabel string, yTicks []int, grid *Unit
 	plotRes.X.Max = 1.5
 	plotRes.Y.Max = 1.5
 
-	img := vgimg.New(1850, 940)
+	img := vgimg.New(vg.Length(width), vg.Length(height))
 	dc := draw.New(img)
 
 	legend.Top = true

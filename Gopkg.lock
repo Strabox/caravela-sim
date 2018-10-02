@@ -16,8 +16,8 @@
 [[projects]]
   name = "github.com/Sirupsen/logrus"
   packages = ["."]
-  revision = "3e01752db0189b9157070a0e1668a620f9a85da2"
-  version = "v1.0.6"
+  revision = "a67f783a3814b8729bd2dac5780b5f78f8dbd64d"
+  version = "v1.1.0"
 
 [[projects]]
   name = "github.com/StackExchange/wmi"
@@ -73,6 +73,12 @@
   packages = ["."]
   revision = "14c1db30737a138f8d9797cffea58783892b2fae"
   version = "v1.0.0"
+
+[[projects]]
+  branch = "master"
+  name = "github.com/konsorten/go-windows-terminal-sequences"
+  packages = ["."]
+  revision = "b729f2633dfe35f4d1d8a32385f6685610ce1cb5"
 
 [[projects]]
   branch = "master"
@@ -135,10 +141,11 @@
     "node/scheduler/policies/binpack",
     "node/scheduler/policies/spread",
     "node/user",
-    "overlay/types",
-    "util"
+    "overlay",
+    "util",
+    "util/debug"
   ]
-  revision = "1b5ab45d402e7f6378295f25dd90f36a53f10749"
+  revision = "324b6d73251c397bac7536be5647f2263a0cc7be"
 
 [[projects]]
   name = "github.com/urfave/cli"
@@ -150,7 +157,7 @@
   branch = "master"
   name = "golang.org/x/crypto"
   packages = ["ssh/terminal"]
-  revision = "0e37d006457bf46f9e6692014ba72ef82c33022c"
+  revision = "e3636079e1a4c1f337f212cc5cd2aca108f6c900"
 
 [[projects]]
   branch = "master"
@@ -169,7 +176,7 @@
     "tiff",
     "tiff/lzw"
   ]
-  revision = "e1a1ede6891c997b81b830dbc6f4d2850b9392a4"
+  revision = "991ec62608f3c0da01d400756917825d1e2fd528"
 
 [[projects]]
   branch = "master"
@@ -178,7 +185,7 @@
     "unix",
     "windows"
   ]
-  revision = "d47a0f3392421c5624713c9a19fe781f651f8a50"
+  revision = "e4b3c5e9061176387e7cea65e4dc5853801f3fb7"
 
 [[projects]]
   branch = "master"
@@ -197,7 +204,7 @@
     "lapack/lapack64",
     "mat"
   ]
-  revision = "72366fbe5489967a1dc6b3f462def64018e088c3"
+  revision = "a290f01ec470228a325b6e013e3caa635d5fc2f7"
 
 [[projects]]
   branch = "master"
@@ -221,6 +228,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "0214e2fe285874158a40f9476245466cae9a95994539c76bd273ed0ed8ff7ac2"
+  inputs-digest = "b7fa502bfc84caa647c66a5c0248fa0a401cf6313e6c6b969e820f23ccb1c983"
   solver-name = "gps-cdcl"
   solver-version = 1

@@ -8,6 +8,7 @@ import (
 	"github.com/strabox/caravela/node/common/guid"
 	"github.com/strabox/caravela/node/common/resources"
 	"github.com/strabox/caravela/node/external"
+	"github.com/strabox/caravela/overlay"
 )
 
 type multipleOfferStrategy struct {
@@ -25,7 +26,7 @@ func newMultipleOfferStrategy(node common.Node, config *configuration.Configurat
 	}, nil
 }
 
-func (m *multipleOfferStrategy) Init(supp *Supplier, resourcesMapping *resources.Mapping, overlay external.Overlay,
+func (m *multipleOfferStrategy) Init(supp *Supplier, resourcesMapping *resources.Mapping, overlay overlay.Overlay,
 	remoteClient external.Caravela) {
 	m.localSupplier = supp
 	m.resourcesMapping = resourcesMapping
@@ -36,7 +37,7 @@ func (m *multipleOfferStrategy) Init(supp *Supplier, resourcesMapping *resources
 func (m *multipleOfferStrategy) FindOffers(ctx context.Context, targetResources resources.Resources) []types.AvailableOffer {
 	availableOffers := make([]types.AvailableOffer, 0)
 
-	for r := 0; r < 3; r++ {
+	for r := 0; r < m.configs.MaxPartitionsSearch(); r++ {
 		destinationGUID, err := m.resourcesMapping.RandGUIDFittestSearch(targetResources)
 		if err != nil { // System can't handle that many resources
 			return availableOffers
@@ -65,7 +66,7 @@ func (m *multipleOfferStrategy) FindOffers(ctx context.Context, targetResources 
 	return availableOffers
 }
 
-func (m *multipleOfferStrategy) UpdateOffers(availableResources, usedResources resources.Resources) {
+func (m *multipleOfferStrategy) UpdateOffers(ctx context.Context, availableResources, usedResources resources.Resources) {
 	lowerPartitions, _ := m.resourcesMapping.LowerPartitionsOffer(availableResources)
 	offersToRemove := make([]supplierOffer, 0)
 
@@ -83,26 +84,27 @@ OfferLoop:
 	}
 
 	for _, resourcePartitionTarget := range lowerPartitions {
-		offer, err := m.createAnOffer(int64(m.localSupplier.newOfferID()), resourcePartitionTarget, availableResources, usedResources)
+		offer, err := m.createAnOffer(ctx, int64(m.localSupplier.newOfferID()), resourcePartitionTarget, availableResources, usedResources)
 		if err == nil {
 			m.localSupplier.addOffer(offer)
 		}
 	}
 
 	for _, offerToRemove := range offersToRemove {
+		tmpOfferToRemove := offerToRemove
 		removeOffer := func(suppOffer supplierOffer) {
 			m.remoteClient.RemoveOffer(
-				context.Background(),
+				ctx,
 				&types.Node{IP: m.configs.HostIP()},
 				&types.Node{IP: suppOffer.ResponsibleTraderIP(), GUID: suppOffer.ResponsibleTraderGUID().String()},
 				&types.Offer{ID: int64(suppOffer.ID())})
 		}
 		if m.configs.Simulation() {
-			removeOffer(offerToRemove)
+			removeOffer(tmpOfferToRemove)
 		} else {
-			go removeOffer(offerToRemove)
+			go removeOffer(tmpOfferToRemove)
 		}
-		m.localSupplier.removeOffer(offerToRemove.ID())
+		m.localSupplier.removeOffer(tmpOfferToRemove.ID())
 	}
 
 	if m.updateOffers {
@@ -111,12 +113,13 @@ OfferLoop:
 			if !offer.Resources().Equals(availableResources) {
 				updateOffer := func(suppOffer supplierOffer) {
 					err := m.remoteClient.UpdateOffer(
-						context.Background(),
+						ctx,
 						&types.Node{IP: m.configs.HostIP()},
 						&types.Node{IP: suppOffer.ResponsibleTraderIP(), GUID: suppOffer.ResponsibleTraderGUID().String()},
 						&types.Offer{
-							ID:     int64(suppOffer.ID()),
-							Amount: 1,
+							ID:                int64(suppOffer.ID()),
+							Amount:            1,
+							ContainersRunning: m.localSupplier.numContainersRunning(),
 							FreeResources: types.Resources{
 								CPUClass: types.CPUClass(availableResources.CPUClass()),
 								CPUs:     availableResources.CPUs(),

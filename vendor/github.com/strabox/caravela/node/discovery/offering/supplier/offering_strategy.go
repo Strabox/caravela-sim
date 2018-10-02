@@ -5,6 +5,7 @@ import (
 	"github.com/strabox/caravela/api/types"
 	"github.com/strabox/caravela/node/common/resources"
 	"github.com/strabox/caravela/node/external"
+	"github.com/strabox/caravela/overlay"
 )
 
 // OfferingStrategy is an interface that can be implemented in an object in order to perform the actions of managing
@@ -13,12 +14,12 @@ import (
 type OfferingStrategy interface {
 	// Init initializes the offers manager structure with the necessary objects, resourcesMap the GUID<->Resource map,
 	// overlay the communication node overlay and the remoteClient that allows to communicate with other CARAVELA's nodes.
-	Init(supp *Supplier, resourcesMap *resources.Mapping, overlay external.Overlay, remoteClient external.Caravela)
+	Init(supp *Supplier, resourcesMap *resources.Mapping, overlay overlay.Overlay, remoteClient external.Caravela)
 
 	// FindOffers searches in the system (with help of the overlay) for node's that have offers that offer at least the
 	// same resources as targetResources.
 	FindOffers(ctx context.Context, targetResources resources.Resources) []types.AvailableOffer
 
 	// CreateOffer creates a new offer in the system given the current local's available resources.
-	UpdateOffers(availableResources, usedResources resources.Resources)
+	UpdateOffers(ctx context.Context, availableResources, usedResources resources.Resources)
 }
