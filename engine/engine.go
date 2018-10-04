@@ -21,13 +21,14 @@ import (
 // engineLogTag log's tag for the simulator engine.
 const engineLogTag = "ENGINE"
 
-const numOfRandomBagsOfNode = 20
+const numOfRandomBagsOfNode = 2
 
 // Engine represents an instance of a Caravela's simulator engine.
 // It holds all the structures to control, feed and analyse a engine during a simulation.
 type Engine struct {
-	isInit      bool  // Used to verify if the simulator is initialized.
-	baseRngSeed int64 // Base RNG seed for generating the node's max resources and the requests resources.
+	isInit         bool // Used to verify if the simulator is initialized.
+	lastSimulation bool
+	baseRngSeed    int64 // Base RNG seed for generating the node's max resources and the requests resources.
 
 	// Engine's main components.
 	nodes       []*caravelaNode.Node // Array with all the Caravela's nodes for the simulation.
@@ -42,32 +43,28 @@ type Engine struct {
 }
 
 // NewEngine creates a new simulator instance based on the configurations of the caravela and its own.
-func NewEngine(metricsCollector *metrics.Collector, simConfig *configuration.Configuration,
-	caravelaConfigurations *caravelaConfig.Configuration, baseRngSeed int64) *Engine {
-	maxWorkers := 1
-	if simConfig.Multithreaded() {
-		maxWorkers = runtime.NumCPU() * 2
-	}
-
+func NewEngine(metricsCollector *metrics.Collector, simConfig *configuration.Configuration, baseRngSeed int64) *Engine {
 	return &Engine{
-		isInit:      false,
-		baseRngSeed: baseRngSeed,
-
-		nodes:       make([]*caravelaNode.Node, simConfig.TotalNumberOfNodes()),
-		overlayMock: nil,
-		feeder:      feeder.Create(simConfig, caravelaConfigurations, baseRngSeed),
-		nodesBags:   make([][]*caravelaNode.Node, numOfRandomBagsOfNode),
-
+		isInit:           false,
+		baseRngSeed:      baseRngSeed,
 		metricsCollector: metricsCollector,
-		workersPool:      grpool.NewPool(maxWorkers, maxWorkers*30),
-		caravelaConfigs:  caravelaConfigurations,
 		simulatorConfigs: simConfig,
 	}
 }
 
 // Init initializes all the components making it ready to start the engine.
-func (e *Engine) Init() {
+func (e *Engine) Init(reuseEngine, lastSimulation bool, caravelaConfigurations *caravelaConfig.Configuration) {
 	util.Log.Info(util.LogTag(engineLogTag) + "Initializing...")
+	maxWorkers := 1
+	if e.simulatorConfigs.Multithreaded() {
+		maxWorkers = runtime.NumCPU() * 2
+	}
+	e.workersPool = grpool.NewPool(maxWorkers, maxWorkers*30)
+	e.nodes = make([]*caravelaNode.Node, e.simulatorConfigs.TotalNumberOfNodes())
+	e.nodesBags = make([][]*caravelaNode.Node, numOfRandomBagsOfNode)
+	e.caravelaConfigs = caravelaConfigurations
+	e.feeder = feeder.Create(e.simulatorConfigs, caravelaConfigurations, e.baseRngSeed)
+	e.lastSimulation = lastSimulation
 
 	// Init CARAVELA's packages structures.
 	caravela.Init(e.simulatorConfigs.CaravelaLogsLevel(), e.caravelaConfigs)
@@ -76,44 +73,65 @@ func (e *Engine) Init() {
 	apiServerMock := caravela.NewAPIServerMock()
 	dockerClientMock := docker.NewClientMock(docker.CreateResourceGen(e.simulatorConfigs, e.caravelaConfigs, e.nextRngSeed()))
 	caravelaClientMock := caravela.NewRemoteClientMock(e, e.metricsCollector)
-	chordMock.Init(e.caravelaConfigs.ChordHashSizeBits())
-	e.overlayMock = chordMock.NewChordMock(e.simulatorConfigs.TotalNumberOfNodes(),
-		e.caravelaConfigs.ChordNumSuccessors(), e.simulatorConfigs.ChordMockSpeedupNodes(), e.metricsCollector)
-	e.overlayMock.Init()
+	if !e.isInit || !reuseEngine {
+		chordMock.Init(e.caravelaConfigs.ChordHashSizeBits())
+		e.overlayMock = chordMock.NewChordMock(e.simulatorConfigs.TotalNumberOfNodes(),
+			e.caravelaConfigs.ChordNumSuccessors(), e.simulatorConfigs.ChordMockSpeedupNodes(), e.metricsCollector)
+		e.overlayMock.Init()
+	}
 
 	// Create the CARAVELA's nodes for the engine.
 	util.Log.Info(util.LogTag(engineLogTag) + "Initializing nodes...")
 	for i := 0; i < e.simulatorConfigs.NumberOfNodes; i++ {
-		overlayNodeMock := e.overlayMock.GetNodeMockByIndex(i)
-		nodeConfig, err := caravelaConfig.ObtainExternal(overlayNodeMock.IP(), e.caravelaConfigs)
-		if err != nil {
-			panic(fmt.Errorf("can't make caravela configurations, error: %s", err))
+		tempIndex := i
+		e.workersPool.WaitCount(1)
+		e.workersPool.JobQueue <- func() {
+			defer e.workersPool.JobDone()
+
+			overlayNodeMock := e.overlayMock.GetNodeMockByIndex(tempIndex)
+			nodeConfig, err := caravelaConfig.ObtainExternal(overlayNodeMock.IP(), e.caravelaConfigs)
+			if err != nil {
+				panic(fmt.Errorf("can't make caravela configurations, error: %s", err))
+			}
+
+			e.nodes[tempIndex] = caravelaNode.NewNode(nodeConfig, e.overlayMock, caravelaClientMock, dockerClientMock, apiServerMock)
+			e.nodes[tempIndex].AddTrader(overlayNodeMock.Bytes())
 		}
-
-		e.nodes[i] = caravelaNode.NewNode(nodeConfig, e.overlayMock, caravelaClientMock, dockerClientMock,
-			apiServerMock)
-
-		e.nodes[i].AddTrader(overlayNodeMock.Bytes())
 	}
+	e.workersPool.WaitAll()
 
-	// Start all the Caravela's nodes.
+	// Start the Caravela's nodes.
 	util.Log.Info(util.LogTag(engineLogTag) + "Starting nodes functions...")
 	for i := 0; i < e.simulatorConfigs.TotalNumberOfNodes(); i++ {
-		e.nodes[i].Start(true, util.RandomIP())
+		tempIndex := i
+		e.workersPool.WaitCount(1)
+		e.workersPool.JobQueue <- func() {
+			defer e.workersPool.JobDone()
+
+			e.nodes[tempIndex].Start(true, util.RandomIP())
+		}
 	}
+	e.workersPool.WaitAll()
 
 	// Initialize metric's collector.
 	maxNodesResources := make([]types.Resources, e.simulatorConfigs.TotalNumberOfNodes())
 	for i := range maxNodesResources {
-		_, nodeMaxResources, _, _ := e.nodes[i].NodeInformationSim()
-		maxNodesResources[i] = nodeMaxResources
+		tempIndex := i
+		e.workersPool.WaitCount(1)
+		e.workersPool.JobQueue <- func() {
+			defer e.workersPool.JobDone()
+
+			_, nodeMaxResources, _, _ := e.nodes[tempIndex].NodeInformationSim()
+			maxNodesResources[tempIndex] = nodeMaxResources
+		}
 	}
+	e.workersPool.WaitAll()
 	e.metricsCollector.InitNewSimulation(e.caravelaConfigs.DiscoveryBackend(), maxNodesResources)
 
 	// Initialize request feeder.
-	maxCpus, maxMemory := dockerClientMock.MaxResourcesAvailable()
-	e.feeder.Init(e.metricsCollector, types.Resources{CPUs: maxCpus, Memory: maxMemory})
-	util.Log.Infof(util.LogTag(engineLogTag)+"System Total Resources: <%d;%d>", maxCpus, maxMemory)
+	systemTotalCPUs, systemTotalMemory := dockerClientMock.MaxResourcesAvailable()
+	e.feeder.Init(e.metricsCollector, types.Resources{CPUs: systemTotalCPUs, Memory: systemTotalMemory})
+	util.Log.Debugf(util.LogTag(engineLogTag)+"System Total Resources: <%d;%d>", systemTotalCPUs, systemTotalMemory)
 
 	// Make a bag of random nodes in order to enforce time based actions more realistically.
 	allNodes := make([]int, len(e.nodes))
@@ -145,7 +163,7 @@ func (e *Engine) Start() {
 	realStartTime := time.Now()
 
 	simCurrentTime, numTicks := 0*time.Second, 0
-	simLastTimeRefreshes, simLastTimeSpread := make([]time.Duration, 10), make([]time.Duration, 10)
+	simLastTimeRefreshes, simLastTimeSpread := make([]time.Duration, numOfRandomBagsOfNode), make([]time.Duration, numOfRandomBagsOfNode)
 	for i := range simLastTimeRefreshes {
 		simLastTimeRefreshes[i] = time.Duration(i) * e.caravelaConfigs.RefreshingInterval()
 		simLastTimeSpread[i] = time.Duration(i) * e.caravelaConfigs.SpreadOffersInterval()
@@ -220,9 +238,10 @@ func (e *Engine) fireTimerActions(currentTime time.Duration, lastTimeRefreshes, 
 
 	// 1. Refresh Offers.
 	for i := range lastTimeRefreshes {
-		if lastTimeRefreshes[i] >= currentTime && (currentTime-lastTimeRefreshes[i]) >= e.caravelaConfigs.RefreshingInterval() {
+		if lastTimeRefreshes[i] < currentTime && (currentTime-lastTimeRefreshes[i]) >= e.caravelaConfigs.RefreshingInterval() {
 			// Necessary because the tick interval can be greater than the refresh interval.
 			timesToRefresh := int((currentTime - lastTimeRefreshes[i]) / e.caravelaConfigs.RefreshingInterval())
+			util.Log.Debugf(util.LogTag(engineLogTag)+"Refreshing at %d, Times: %d", currentTime.Seconds(), timesToRefresh)
 
 			for _, node := range e.nodesBags[i] {
 				tempNode := node
@@ -241,9 +260,10 @@ func (e *Engine) fireTimerActions(currentTime time.Duration, lastTimeRefreshes, 
 
 	// 2. Spread Offers.
 	for i := range lastTimeSpreadOffers {
-		if lastTimeSpreadOffers[i] >= currentTime && (currentTime-lastTimeSpreadOffers[i]) >= e.caravelaConfigs.SpreadOffersInterval() {
+		if lastTimeSpreadOffers[i] < currentTime && (currentTime-lastTimeSpreadOffers[i]) >= e.caravelaConfigs.SpreadOffersInterval() {
 			// Necessary because the tick interval can be greater than the spread offers interval.
 			timesToSpread := int((currentTime - lastTimeSpreadOffers[i]) / e.caravelaConfigs.SpreadOffersInterval())
+			util.Log.Debugf(util.LogTag(engineLogTag)+"Spreading at %d, Times: %d", currentTime.Seconds(), timesToSpread)
 
 			for _, node := range e.nodesBags[i] {
 				tempNode := node
@@ -274,6 +294,7 @@ func (e *Engine) updateMetrics() {
 		e.workersPool.WaitCount(1)
 		e.workersPool.JobQueue <- func() {
 			defer e.workersPool.JobDone()
+
 			nodeFreeResources, nodeMaxResources, numActiveOffers, _ := tempNode.NodeInformationSim()
 			e.assertNodeState(nodeFreeResources, nodeMaxResources)
 			e.metricsCollector.SetNodeState(tempI, nodeFreeResources, int64(numActiveOffers), int64(tempNode.DebugSizeBytes()))
@@ -299,9 +320,11 @@ func (e *Engine) release() {
 	util.Log.Info(util.LogTag(engineLogTag) + "Clearing engine objects...")
 	e.workersPool.Release()
 	e.feeder = nil
-	e.workersPool = nil
 	e.nodes = nil
-	e.overlayMock = nil
+	e.workersPool = nil
+	if e.lastSimulation {
+		e.overlayMock = nil
+	}
 	runtime.GC() // Force the GC to run in order to release the memory
 	util.Log.Info(util.LogTag(engineLogTag) + "FINISHED")
 }

@@ -29,13 +29,15 @@ func start(c *cli.Context) {
 	// Base seed for engine pseudo-random generators.
 	baseRngSeed := time.Now().UnixNano()
 
-	for _, str := range simulatorConfig.CaravelaDiscoveryBackends() {
+	simEngine := engine.NewEngine(metricsCollector, simulatorConfig, baseRngSeed)
+
+	for i, str := range simulatorConfig.CaravelaDiscoveryBackends() {
 		caravelaConfigs := caravela.Configuration()
 		caravelaConfigs.Caravela.DiscoveryBackend.Backend = str
 
-		simEngine := engine.NewEngine(metricsCollector, simulatorConfig, caravelaConfigs, baseRngSeed)
 		fmt.Println("Initializing engine...")
-		simEngine.Init()
+		lastSimulation := i == (len(simulatorConfig.CaravelaDiscoveryBackends()) - 1)
+		simEngine.Init(true, lastSimulation, caravelaConfigs)
 
 		fmt.Println("Starting engine...")
 		simEngine.Start()

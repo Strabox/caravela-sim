@@ -25,8 +25,9 @@ const boxPlotOverTimePNGHeight = 12 * vg.Centimeter
 const linePlotOverTimePNGWidth = 12 * vg.Centimeter
 const linePlotOverTimePNGHeight = 12 * vg.Centimeter
 
-const heatMapOverTimePNGWidth = 1600
-const heatMapOverTimePNGHeight = 720
+const heatMapOverTimePNGWidth = 1440
+const heatMapOverTimePNGHeight = 540
+const heatMapOverTimePaletteSize = 52
 
 // resultPlot is used as a temporary structure to save gonum/plot structures and its visual label.
 type resultPlot struct {
@@ -163,6 +164,19 @@ func (coll *Collector) plotRequestsSucceeded() {
 			pts[i].Y = float64(runRequestsSucceededAcc)
 		}
 		dataPoints = append(dataPoints, visualStrategyName(simData.label), pts)
+	}
+
+	for _, simData := range coll.simulations {
+		pts := make(plotter.XYs, len(simData.snapshots))
+
+		totalRequestsAcc := int64(0)
+		for i := range pts {
+			totalRequestsAcc += simData.snapshots[i].TotalRunRequests()
+			pts[i].X = simData.snapshots[i].EndTime().Seconds()
+			pts[i].Y = float64(totalRequestsAcc)
+		}
+		dataPoints = append(dataPoints, "total", pts)
+		break
 	}
 
 	err := plotutil.AddLines(plotRes, dataPoints...)
@@ -308,7 +322,7 @@ func (coll *Collector) plotResourcesUsedDistributionByNodesOverTime() {
 
 		graphics.NewHeatMap(generatePNGFileName(coll.outputDirPath, "ResourcesUsedDistribution_"+visualStrategyName(simData.label)),
 			fmt.Sprintf("Resources Used Distribution (%s)", visualStrategyName(simData.label)),
-			"Nodes", "Time (Seconds)", yTicks, dataGrid, palette.Heat(64, 1),
+			"Nodes", "Time (Seconds)", yTicks, dataGrid, palette.Heat(heatMapOverTimePaletteSize, 1),
 			heatMapOverTimePNGWidth, heatMapOverTimePNGHeight)
 	}
 }
@@ -333,7 +347,7 @@ func (coll *Collector) plotResourcesUnreachableDistributionByNodesOverTime() {
 
 		graphics.NewHeatMap(generatePNGFileName(coll.outputDirPath, "ResourcesUnreachableDistribution_"+visualStrategyName(simData.label)),
 			fmt.Sprintf("Resources Unreachable Distribution (%s)", visualStrategyName(simData.label)),
-			"Nodes", "Time (Seconds)", yTicks, dataGrid, palette.Heat(64, 1),
+			"Nodes", "Time (Seconds)", yTicks, dataGrid, palette.Heat(heatMapOverTimePaletteSize, 1),
 			heatMapOverTimePNGWidth, heatMapOverTimePNGHeight)
 	}
 }
@@ -427,7 +441,8 @@ func (coll *Collector) plotMessagesDistributionByNodes() {
 
 			util.Log.Infof(util.LogTag(plotsLogTag)+"Strategy (%s)", simData.label)
 			for i := range boxPlots {
-				util.Log.Infof(util.LogTag(plotsLogTag)+"MessagesBandwidth: Outliers %d, Ratio: %.2f%%", len(boxPlots[i].Outside), (float64(len(boxPlots[i].Outside))/float64(len(boxPlots[i].Values)))*100)
+				util.Log.Infof(util.LogTag(plotsLogTag)+"MessagesBandwidth: Outliers %d, Ratio: %.2f%%",
+					len(boxPlots[i].Outside), (float64(len(boxPlots[i].Outside))/float64(len(boxPlots[i].Values)))*100)
 				plotRes.Add(boxPlots[i])
 			}
 			plotRes.NominalX(xLabels...)

@@ -6,22 +6,22 @@ MemoryOvercommit = 100
 SchedulingPolicy = "binpack"
 [Caravela.DiscoveryBackend]
     [Caravela.DiscoveryBackend.OfferingChordBackend]
-    SpreadOffersInterval = "25m"
-    RefreshingInterval = "20m"
-    MaxPartitionsSearch = 1
+    SpreadOffersInterval = "3m"
+    RefreshingInterval = "10m"
+    MaxPartitionsSearch = 3
     # Debug performance flags
-    SpreadOffers = false
-    SpreadPartitionsState = false
-    PartitionsStateBufferSize = 20
+    SpreadOffers = true
+    SpreadPartitionsState = true
+    PartitionsStateBufferSize = 15
     PseudoSuperPeers = true
     GUIDEstimatedNetworkSize = 16383
-    GUIDScaleFactor = 6
+    GUIDScaleFactor = 20
     [Caravela.DiscoveryBackend.RandomChordBackend]
     RandBackendMaxRetries = 3
 [Caravela.Resources]
     [[Caravela.Resources.CPUClasses]]
     Value = 0
-    Percentage = 75
+    Percentage = 65
         [[Caravela.Resources.CPUClasses.CPUCores]]
         Value = 1
         Percentage = 50
@@ -33,10 +33,10 @@ SchedulingPolicy = "binpack"
         Percentage = 35
             [[Caravela.Resources.CPUClasses.CPUCores.Memory]]
             Value = 512
-            Percentage = 60
+            Percentage = 65
             [[Caravela.Resources.CPUClasses.CPUCores.Memory]]
             Value = 1024
-            Percentage = 40
+            Percentage = 35
         [[Caravela.Resources.CPUClasses.CPUCores]]
         Value = 4
         Percentage = 15
@@ -45,16 +45,16 @@ SchedulingPolicy = "binpack"
             Percentage = 50
             [[Caravela.Resources.CPUClasses.CPUCores.Memory]]
             Value = 2048
-            Percentage = 30
+            Percentage = 35
             [[Caravela.Resources.CPUClasses.CPUCores.Memory]]
             Value = 4096
-            Percentage = 20
+            Percentage = 15
     [[Caravela.Resources.CPUClasses]]
     Value = 1
-    Percentage = 25
+    Percentage = 35
         [[Caravela.Resources.CPUClasses.CPUCores]]
         Value = 1
-        Percentage = 60
+        Percentage = 50
             [[Caravela.Resources.CPUClasses.CPUCores.Memory]]
             Value = 256
             Percentage = 100
@@ -63,28 +63,28 @@ SchedulingPolicy = "binpack"
         Percentage = 25
             [[Caravela.Resources.CPUClasses.CPUCores.Memory]]
             Value = 512
-            Percentage = 70
+            Percentage = 65
             [[Caravela.Resources.CPUClasses.CPUCores.Memory]]
             Value = 1024
-            Percentage = 30
+            Percentage = 35
         [[Caravela.Resources.CPUClasses.CPUCores]]
         Value = 4
-        Percentage = 10
+        Percentage = 15
             [[Caravela.Resources.CPUClasses.CPUCores.Memory]]
             Value = 2048
-            Percentage = 70
+            Percentage = 65
             [[Caravela.Resources.CPUClasses.CPUCores.Memory]]
             Value = 4096
-            Percentage = 30
+            Percentage = 35
         [[Caravela.Resources.CPUClasses.CPUCores]]
         Value = 8
-        Percentage = 5
+        Percentage = 10
             [[Caravela.Resources.CPUClasses.CPUCores.Memory]]
             Value = 4096
-            Percentage = 70
+            Percentage = 65
             [[Caravela.Resources.CPUClasses.CPUCores.Memory]]
             Value = 8198
-            Percentage = 30
+            Percentage = 35
 
 [Overlay]
     [Overlay.Chord]

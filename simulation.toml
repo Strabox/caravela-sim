@@ -4,25 +4,25 @@ TickInterval = "20s"
 MaxTicks = 360
 Multithread = true
 # chord-random, chord-single-offer, chord-multiple-offer, chord-multiple-offer-updates, swarm
-DiscoveryBackends = ["chord-multiple-offer-updates", "chord-random", "swarm"]
+DiscoveryBackends = ["chord-single-offer", "chord-random", "swarm"]
 OutDirectoryPath = "out"
 SimulatorLogLevel = "info"
 CaravelaLogLevel = "info"
 
 [RequestFeeder]
 RequestFeeder = "random"    # random, json
-    DeployRequestsRate = [1.5, 1.5, 2.0, 1.5, 2.5, 1.0, 1.5, 1.5, 2.0, 1.5, 2.0, 1.5, 1.5, 2.0, 1.0, 1.5, 1.0, 1.5, 1.5, 1.0, 1.0]
-    StopRequestsRate =   [0.0, 0.0, 0.5, 0.5, 0.5, 0.5, 1.0, 1.0, 0.5, 0.5, 0.5, 1.0, 2.0, 1.5, 0.5, 1.5, 1.5, 1.0, 1.0, 1.0, 1.0]
+    DeployRequestsRate = [0.5, 1.0, 1.5, 1.0, 2.0, 1.5, 1.0, 1.5, 1.0, 1.5, 1.0, 1.0, 0.5, 1.5]
+    StopRequestsRate =   [0.0, 0.3, 0.5, 0.5, 1.0, 0.5, 0.2, 0.5, 1.0, 1.5, 1.0, 1.0, 1.0, 0.5]
     # CPU Class 0
     [[RequestFeeder.RequestsProfile]]
     CPUClass = 0
     CPUs = 1
     Memory =  250
-    Percentage = 30
+    Percentage = 25
     [[RequestFeeder.RequestsProfile]]
     CPUClass = 0
     CPUs = 1
-    Memory = 550
+    Memory = 500
     Percentage = 10
     [[RequestFeeder.RequestsProfile]]
     CPUClass = 0
@@ -38,17 +38,27 @@ RequestFeeder = "random"    # random, json
     CPUClass = 0
     CPUs = 3
     Memory =  3000
-    Percentage = 10
+    Percentage = 5
     # CPU Class 1
     [[RequestFeeder.RequestsProfile]]
     CPUClass = 1
     CPUs = 1
-    Memory =  750
-    Percentage = 15
+    Memory =  250
+    Percentage = 10
     [[RequestFeeder.RequestsProfile]]
     CPUClass = 1
     CPUs = 2
-    Memory =  2500
+    Memory =  750
+    Percentage = 10
+    [[RequestFeeder.RequestsProfile]]
+    CPUClass = 1
+    CPUs = 2
+    Memory =  2000
+    Percentage = 5
+    [[RequestFeeder.RequestsProfile]]
+    CPUClass = 1
+    CPUs = 3
+    Memory =  3500
     Percentage = 5
     [[RequestFeeder.RequestsProfile]]
     CPUClass = 1

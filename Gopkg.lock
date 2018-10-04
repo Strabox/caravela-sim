@@ -145,7 +145,7 @@
     "util",
     "util/debug"
   ]
-  revision = "324b6d73251c397bac7536be5647f2263a0cc7be"
+  revision = "25dab76ae624a991934ef0fa7c3b0e673043e9ba"
 
 [[projects]]
   name = "github.com/urfave/cli"
@@ -185,7 +185,7 @@
     "unix",
     "windows"
   ]
-  revision = "e4b3c5e9061176387e7cea65e4dc5853801f3fb7"
+  revision = "af653ce8b74f808d092db8ca9741fbb63d2a469d"
 
 [[projects]]
   branch = "master"
