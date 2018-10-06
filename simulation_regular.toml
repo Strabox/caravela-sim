@@ -1,58 +1,65 @@
-NumberOfNodes = 10000
+#4095, 8191, 16383, 32767, 65535, 131071, 262143, 524287, 1048575
+NumberOfNodes = 16383
 TickInterval = "20s"
 MaxTicks = 360
 Multithread = true
-DiscoveryBackends = ["chord-multiple-offer-updates", "chord-random", "swarm"]  # chord-random, chord-single-offer, chord-multiple-offer, swarm
+# chord-random, chord-single-offer, chord-multiple-offer, chord-multiple-offer-updates, swarm
+DiscoveryBackends = ["chord-single-offer", "chord-random", "swarm"]
 OutDirectoryPath = "out"
 SimulatorLogLevel = "info"
 CaravelaLogLevel = "info"
 
 [RequestFeeder]
 RequestFeeder = "random"    # random, json
-    DeployRequestsRate = [2.5, 3.0, 2.0, 2.5, 3.5, 2.5, 2.5, 2.0, 1.5, 1.5, 2.0, 1.5, 2.0, 1.5, 1.0, 2.0, 1.5, 2.5, 3.5, 2.0, 2.0, 2.0, 1.5, 2.0, 3.0]
-    StopRequestsRate =   [0.0, 1.0, 0.5, 0.5, 0.5, 1.5, 1.0, 1.5, 1.5, 1.5, 1.0, 1.5, 2.0, 2.0, 1.0, 1.5, 1.0, 1.5, 1.0, 0.5, 1.0, 0.5, 0.5, 0.5, 0.5]
+    DeployRequestsRate = [0.5, 1.0, 1.5, 1.0, 2.0, 1.5, 1.0, 1.5, 1.0, 1.5, 1.0, 1.0, 0.5, 1.5]
+    StopRequestsRate =   [0.0, 0.3, 0.5, 0.5, 1.0, 0.5, 0.2, 0.5, 1.0, 1.5, 1.0, 1.0, 1.0, 0.5]
     # CPU Class 0
     [[RequestFeeder.RequestsProfile]]
     CPUClass = 0
     CPUs = 1
-    Memory =  200
-    Percentage = 15
+    Memory =  250
+    Percentage = 25
     [[RequestFeeder.RequestsProfile]]
     CPUClass = 0
     CPUs = 1
-    Memory =  600
-    Percentage = 5
-    [[RequestFeeder.RequestsProfile]]
-    CPUClass = 0
-    CPUs = 2
-    Memory =  1200
+    Memory = 500
     Percentage = 10
     [[RequestFeeder.RequestsProfile]]
     CPUClass = 0
     CPUs = 2
-    Memory =  1600
-    Percentage = 10
-    [[RequestFeeder.RequestsProfile]]
-    CPUClass = 0
-    CPUs = 2
-    Memory =  2800
-    Percentage = 10
-    [[RequestFeeder.RequestsProfile]]
-    CPUClass = 0
-    CPUs = 4
-    Memory =  3000
+    Memory =  1000
     Percentage = 15
+    [[RequestFeeder.RequestsProfile]]
+    CPUClass = 0
+    CPUs = 2
+    Memory =  2000
+    Percentage = 10
+    [[RequestFeeder.RequestsProfile]]
+    CPUClass = 0
+    CPUs = 3
+    Memory =  3000
+    Percentage = 5
     # CPU Class 1
     [[RequestFeeder.RequestsProfile]]
     CPUClass = 1
     CPUs = 1
-    Memory =  750
-    Percentage = 20
+    Memory =  250
+    Percentage = 10
     [[RequestFeeder.RequestsProfile]]
     CPUClass = 1
     CPUs = 2
-    Memory =  2500
+    Memory =  750
     Percentage = 10
+    [[RequestFeeder.RequestsProfile]]
+    CPUClass = 1
+    CPUs = 2
+    Memory =  2000
+    Percentage = 5
+    [[RequestFeeder.RequestsProfile]]
+    CPUClass = 1
+    CPUs = 3
+    Memory =  3500
+    Percentage = 5
     [[RequestFeeder.RequestsProfile]]
     CPUClass = 1
     CPUs = 6
@@ -63,4 +70,4 @@ RequestFeeder = "random"    # random, json
 ResourceGenerator = "partition-fit" # static, partition-fit
 
 [ChordMock]
-SpeedupNodes = 300
+SpeedupNodes = 500

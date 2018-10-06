@@ -4,7 +4,7 @@ TickInterval = "20s"
 MaxTicks = 360
 Multithread = true
 # chord-random, chord-single-offer, chord-multiple-offer, chord-multiple-offer-updates, swarm
-DiscoveryBackends = ["chord-single-offer", "chord-random", "swarm"]
+DiscoveryBackends = ["chord-multiple-offer-updates", "chord-random", "swarm"]
 OutDirectoryPath = "out"
 SimulatorLogLevel = "info"
 CaravelaLogLevel = "info"
@@ -18,17 +18,17 @@ RequestFeeder = "random"    # random, json
     CPUClass = 0
     CPUs = 1
     Memory =  250
-    Percentage = 25
+    Percentage = 15
     [[RequestFeeder.RequestsProfile]]
     CPUClass = 0
     CPUs = 1
     Memory = 500
-    Percentage = 10
+    Percentage = 5
     [[RequestFeeder.RequestsProfile]]
     CPUClass = 0
     CPUs = 2
     Memory =  1000
-    Percentage = 15
+    Percentage = 5
     [[RequestFeeder.RequestsProfile]]
     CPUClass = 0
     CPUs = 2
@@ -38,33 +38,33 @@ RequestFeeder = "random"    # random, json
     CPUClass = 0
     CPUs = 3
     Memory =  3000
-    Percentage = 5
+    Percentage = 10
     # CPU Class 1
     [[RequestFeeder.RequestsProfile]]
     CPUClass = 1
     CPUs = 1
     Memory =  250
-    Percentage = 10
+    Percentage = 15
     [[RequestFeeder.RequestsProfile]]
     CPUClass = 1
     CPUs = 2
     Memory =  750
-    Percentage = 10
+    Percentage = 5
     [[RequestFeeder.RequestsProfile]]
     CPUClass = 1
     CPUs = 2
     Memory =  2000
-    Percentage = 5
+    Percentage = 15
     [[RequestFeeder.RequestsProfile]]
     CPUClass = 1
     CPUs = 3
     Memory =  3500
-    Percentage = 5
+    Percentage = 13
     [[RequestFeeder.RequestsProfile]]
     CPUClass = 1
     CPUs = 6
     Memory =  5000
-    Percentage = 5
+    Percentage = 7
 
 [ResourcesGenerator]
 ResourceGenerator = "partition-fit" # static, partition-fit

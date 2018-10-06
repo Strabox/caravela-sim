@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"github.com/ivpusic/grpool"
 	"github.com/pkg/errors"
+	"github.com/strabox/caravela-sim/configuration"
 	"github.com/strabox/caravela/api/types"
 	"io/ioutil"
 	"os"
@@ -50,26 +51,29 @@ type Collector struct {
 	currSimulation *simulationData   // Current simulation.
 	simulations    []*simulationData // Contains all the simulations identified by its label.
 
-	outputDirPath string // Output directory path.
+	simulatorConfigs *configuration.Configuration
+	outputDirPath    string // Output directory path.
 }
 
 // NewCollector creates a new metric's collector.
-func NewCollector(numNodes int, baseOutputDirPath string) *Collector {
+func NewCollector(numNodes int, baseOutputDirPath string, simulatorConfigs *configuration.Configuration) *Collector {
 	return &Collector{
 		numNodes:       numNodes,
 		currSimulation: nil,
 		simulations:    make([]*simulationData, 0),
-		outputDirPath:  filepath.Join(baseOutputDirPath, simulationDirBaseName+time.Now().Format(simulationDirSuffixFormat)),
+
+		simulatorConfigs: simulatorConfigs,
+		outputDirPath:    filepath.Join(baseOutputDirPath, simulationDirBaseName+time.Now().Format(simulationDirSuffixFormat)),
 	}
 }
 
 // InitNewSimulation initialize the metric's collector.
-func (coll *Collector) InitNewSimulation(simLabel string, nodesMaxRes []types.Resources) {
+func (c *Collector) InitNewSimulation(simLabel string, nodesMaxRes []types.Resources) {
 	newSimulation := &simulationData{
 		label:     simLabel,
 		snapshots: make([]Global, 1),
 	}
-	coll.currSimulation = newSimulation
+	c.currSimulation = newSimulation
 
 	dirFullPath, err := ioutil.TempDir("", metricsTempDirName+newSimulation.label+"-")
 	if err != nil {
@@ -77,123 +81,115 @@ func (coll *Collector) InitNewSimulation(simLabel string, nodesMaxRes []types.Re
 	}
 	newSimulation.tmpDirFullPath = dirFullPath
 
-	os.MkdirAll(coll.outputDirPath, 0644)
+	os.MkdirAll(c.outputDirPath, 0644)
 
-	newSimulation.snapshots[0] = *NewGlobalInitial(coll.numNodes, time.Duration(0), nodesMaxRes)
+	newSimulation.snapshots[0] = *NewGlobalInitial(c.numNodes, time.Duration(0), nodesMaxRes)
 }
 
 // ================================= Metrics Collector Methods ====================================
 
 // GetOfferRelayed increment the number of messages traded from type GetOffersRelayed.
-func (coll *Collector) GetOfferRelayed(amount int64) {
-	if activeGlobal, err := coll.activeGlobal(); err == nil {
+func (c *Collector) GetOfferRelayed(amount int64) {
+	if activeGlobal, err := c.activeGlobal(); err == nil {
 		activeGlobal.GetOfferRelayed(amount)
 	}
 }
 
-func (coll *Collector) EmptyGetOfferMessage(amount int64) {
-	if activeGlobal, err := coll.activeGlobal(); err == nil {
+func (c *Collector) EmptyGetOfferMessage(amount int64) {
+	if activeGlobal, err := c.activeGlobal(); err == nil {
 		activeGlobal.EmptyGetOfferMessages(amount)
 	}
 }
 
-// RunRequestSucceeded increments the number of run requests that were fulfilled with success.
-func (coll *Collector) RunRequestSucceeded() {
-	if activeGlobal, err := coll.activeGlobal(); err == nil {
-		activeGlobal.RunRequestSucceeded()
-	}
-}
-
 // MessageReceived increments the number of messages received by the node.
-func (coll *Collector) MessageReceived(nodeIndex int, amount int64, requestSizeBytes int64) {
-	if activeGlobal, err := coll.activeGlobal(); err == nil {
+func (c *Collector) MessageReceived(nodeIndex int, amount int64, requestSizeBytes int64) {
+	if activeGlobal, err := c.activeGlobal(); err == nil {
 		activeGlobal.MessageReceived(nodeIndex, amount, requestSizeBytes)
 	}
 }
 
 // SetNodeState sets the available resources of a node.
-func (coll *Collector) SetNodeState(nodeIndex int, freeResources types.Resources, traderActiveOffers int64, memoryOccupied int64) {
-	if activeGlobal, err := coll.activeGlobal(); err == nil {
+func (c *Collector) SetNodeState(nodeIndex int, freeResources types.Resources, traderActiveOffers int64, memoryOccupied int64) {
+	if activeGlobal, err := c.activeGlobal(); err == nil {
 		activeGlobal.SetNodeState(nodeIndex, freeResources, traderActiveOffers, memoryOccupied)
 	}
 }
 
 // CreateRunRequest creates a new run request in order to gather its metrics.
-func (coll *Collector) CreateRunRequest(nodeIndex int, requestID string, resources types.Resources,
-	currentTime time.Duration) {
-	if activeGlobal, err := coll.activeGlobal(); err == nil {
-		activeGlobal.CreateRunRequest(nodeIndex, requestID, resources, currentTime)
+func (c *Collector) CreateRunRequest(nodeIndex int, requestID string, resources types.Resources) {
+	if activeGlobal, err := c.activeGlobal(); err == nil {
+		activeGlobal.CreateRunRequest(nodeIndex, requestID, resources)
 	}
 }
 
 // IncrMessagesTradedRequest increment the number of messages traded to fulfill a run request.
-func (coll *Collector) IncrMessagesTradedRequest(requestID string, numMessages int) {
-	if activeGlobal, err := coll.activeGlobal(); err == nil {
+func (c *Collector) IncrMessagesTradedRequest(requestID string, numMessages int) {
+	if activeGlobal, err := c.activeGlobal(); err == nil {
 		activeGlobal.IncrMessagesTradedRequest(requestID, numMessages)
 	}
 }
 
 // ArchiveRunRequest archives the metrics of request that was happening because it ended.
-func (coll *Collector) ArchiveRunRequest(requestID string) {
-	if activeGlobal, err := coll.activeGlobal(); err == nil {
-		activeGlobal.ArchiveRunRequest(requestID)
+func (c *Collector) ArchiveRunRequest(requestID string, succeeded bool) {
+	if activeGlobal, err := c.activeGlobal(); err == nil {
+		activeGlobal.ArchiveRunRequest(requestID, succeeded)
 	}
 }
 
 // ================================= Collector Management Methods ===================================
 
 // CreateNewGlobalSnapshot creates a snapshot of the system's current metrics and initialize a new one.
-func (coll *Collector) CreateNewGlobalSnapshot(currentTime time.Duration) {
-	if activeGlobal, err := coll.activeGlobal(); err == nil {
+func (c *Collector) CreateNewGlobalSnapshot(currentTime time.Duration) {
+	if activeGlobal, err := c.activeGlobal(); err == nil {
 		activeGlobal.SetEndTime(currentTime)
-		coll.currSimulation.snapshots = append(coll.currSimulation.snapshots, *NewGlobalNext(coll.numNodes, activeGlobal))
+		c.currSimulation.snapshots = append(c.currSimulation.snapshots, *NewGlobalNext(c.numNodes, activeGlobal))
 	}
 }
 
 // Persist is used to persist the in memory metrics into JSON files, in order to save memory.
-func (coll *Collector) Persist(currentTime time.Duration) {
-	if activeGlobal, err := coll.activeGlobal(); err == nil {
+func (c *Collector) Persist(currentTime time.Duration) {
+	if activeGlobal, err := c.activeGlobal(); err == nil {
 		activeGlobal.SetEndTime(currentTime)
 
-		for index, global := range coll.currSimulation.snapshots {
-			jsonBytes, err := json.Marshal(&coll.currSimulation.snapshots[index])
+		for index, global := range c.currSimulation.snapshots {
+			jsonBytes, err := json.Marshal(&c.currSimulation.snapshots[index])
 			if err != nil {
 				panic(errors.New("can't marshall the collector snapshot, error: " + err.Error()))
 			}
-			err = ioutil.WriteFile(filepath.Join(coll.currSimulation.tmpDirFullPath, global.Start.String()+".json"), jsonBytes, 0644)
+			err = ioutil.WriteFile(filepath.Join(c.currSimulation.tmpDirFullPath, global.Start.String()+".json"), jsonBytes, 0644)
 			if err != nil {
 				panic(errors.New("can't write the collector snapshot to disk, error: " + err.Error()))
 			}
 		}
 
-		newGlobal := NewGlobalNext(coll.numNodes, activeGlobal)
-		coll.currSimulation.snapshots = make([]Global, 1)
-		coll.currSimulation.snapshots[0] = *newGlobal
+		newGlobal := NewGlobalNext(c.numNodes, activeGlobal)
+		c.currSimulation.snapshots = make([]Global, 1)
+		c.currSimulation.snapshots[0] = *newGlobal
 	}
 }
 
 // EndSimulation is called when the simulator's engine stops and there is no need to gather more metrics.
-func (coll *Collector) EndSimulation(endTime time.Duration) {
-	if activeGlobal, err := coll.activeGlobal(); err == nil {
+func (c *Collector) EndSimulation(endTime time.Duration) {
+	if activeGlobal, err := c.activeGlobal(); err == nil {
 		activeGlobal.SetEndTime(endTime)
-		coll.simulations = append(coll.simulations, coll.currSimulation)
-		coll.currSimulation = nil
+		c.simulations = append(c.simulations, c.currSimulation)
+		c.currSimulation = nil
 	}
 }
 
 // Clear removes all the temporary files and resources used during the metrics gathering.
-func (coll *Collector) Clear() {
-	for _, simData := range coll.simulations {
+func (c *Collector) Clear() {
+	for _, simData := range c.simulations {
 		os.RemoveAll(simData.tmpDirFullPath) // clean up the engine temp collector files
 	}
 }
 
 // Print is used to gather all the metrics of the engine into memory, consolidating them
 // in order to produce results into the console and into the files.
-func (coll *Collector) Print() {
-	coll.loadAllMetrics() // Load all the intermediate snapshots in memory
+func (c *Collector) Print() {
+	c.loadAllMetrics() // Load all the intermediate snapshots in memory
 
-	for _, simData := range coll.simulations {
+	for _, simData := range c.simulations {
 		totalRunRequests := int64(0)
 		totalRunRequestsSucceeded := int64(0)
 		for _, global := range simData.snapshots {
@@ -209,21 +205,21 @@ func (coll *Collector) Print() {
 		fmt.Printf("Requests Success Ratio: %.2f\n", float64(totalRunRequestsSucceeded)/float64(totalRunRequests))
 	}
 
-	coll.plotGraphics() // Plot the graphics for the simulations
+	c.plotGraphics() // Plot the graphics for the simulations
 }
 
 // activeGlobal returns the current global snapshot that is gathering metrics.
-func (coll *Collector) activeGlobal() (*Global, error) {
-	if coll.currSimulation == nil {
+func (c *Collector) activeGlobal() (*Global, error) {
+	if c.currSimulation == nil {
 		return nil, errors.New("no active simulation")
 	}
-	return &coll.currSimulation.snapshots[len(coll.currSimulation.snapshots)-1], nil
+	return &c.currSimulation.snapshots[len(c.currSimulation.snapshots)-1], nil
 }
 
 // loadAllMetrics is used to fill the collector with all the metrics that were persisted into disk,
 // in order to be analysed after that.
-func (coll *Collector) loadAllMetrics() {
-	for _, simData := range coll.simulations {
+func (c *Collector) loadAllMetrics() {
+	for _, simData := range c.simulations {
 		filesInfo, err := ioutil.ReadDir(simData.tmpDirFullPath)
 		if err != nil {
 			panic(errors.New("can't find the collector snapshot files, error: " + err.Error()))
@@ -248,7 +244,7 @@ func (coll *Collector) loadAllMetrics() {
 		}
 	}
 
-	for _, simData := range coll.simulations {
+	for _, simData := range c.simulations {
 		sort.Sort(simData) // Sort the global snapshots by the sim time of them.
 		for _, snapshot := range simData.snapshots {
 			sort.Sort(&snapshot)
@@ -257,88 +253,96 @@ func (coll *Collector) loadAllMetrics() {
 }
 
 // plotGraphics plots all the charts/plots based on the metrics collected.
-func (coll *Collector) plotGraphics() {
+func (c *Collector) plotGraphics() {
 	// Goroutine pool used to plot the graphics in parallel.
 	maxWorkers := runtime.NumCPU() + 1
 	goroutinePool := grpool.NewPool(maxWorkers, maxWorkers*3)
 
 	goroutinePool.WaitCount(1)
 	goroutinePool.JobQueue <- func() {
-		coll.plotTotalMessagesTradedInSystem()
+		c.plotMemoryUsedByNodeV2()
+		c.plotBandwidthUsedByNodeV2()
+		c.plotMessagesReceivedByNodeV2()
 		goroutinePool.JobDone()
 	}
 
 	goroutinePool.WaitCount(1)
 	goroutinePool.JobQueue <- func() {
-		coll.plotRequestsSucceeded()
+		c.plotMessagesTradedByDeployRequestLinePlot()
 		goroutinePool.JobDone()
 	}
 
 	goroutinePool.WaitCount(1)
 	goroutinePool.JobQueue <- func() {
-		coll.plotSystemUsedResourcesVSRequestSuccess()
+		c.plotRequestsRate()
 		goroutinePool.JobDone()
 	}
 
 	goroutinePool.WaitCount(1)
 	goroutinePool.JobQueue <- func() {
-		coll.plotMessagesExchangedByRunRequest()
+		c.plotBandwidthUsedByNode()
 		goroutinePool.JobDone()
 	}
 
 	goroutinePool.WaitCount(1)
 	goroutinePool.JobQueue <- func() {
-		coll.plotResourcesUsedDistributionByNodesOverTime()
-		goroutinePool.JobDone()
-	}
-
-	/*
-		goroutinePool.WaitCount(1)
-		goroutinePool.JobQueue <- func() {
-			coll.plotResourcesUnreachableDistributionByNodesOverTime()
-			goroutinePool.JobDone()
-		}
-	*/
-
-	goroutinePool.WaitCount(1)
-	goroutinePool.JobQueue <- func() {
-		coll.plotMessagesDistributionByNodes()
+		c.plotResourcesAllocationEfficiency()
 		goroutinePool.JobDone()
 	}
 
 	goroutinePool.WaitCount(1)
 	goroutinePool.JobQueue <- func() {
-		coll.plotActiveOffersByNode()
+		c.plotTotalMessagesTradedInSystem()
 		goroutinePool.JobDone()
 	}
 
 	goroutinePool.WaitCount(1)
 	goroutinePool.JobQueue <- func() {
-		coll.plotMasterNodeMessagesReceivedOverTime()
+		c.plotRequestsSucceeded()
 		goroutinePool.JobDone()
 	}
 
 	goroutinePool.WaitCount(1)
 	goroutinePool.JobQueue <- func() {
-		coll.plotMemoryUsedByNode()
+		c.plotSystemUsedResourcesVSRequestSuccess()
 		goroutinePool.JobDone()
 	}
 
-	// Debug Performance Metrics Plots
+	goroutinePool.WaitCount(1)
+	goroutinePool.JobQueue <- func() {
+		c.plotMessagesTradedByDeployRequestBoxPlot()
+		goroutinePool.JobDone()
+	}
 
-	/*
-		goroutinePool.WaitCount(1)
-		goroutinePool.JobQueue <- func() {
-			coll.plotRelayedGetOfferMessages()
-			goroutinePool.JobDone()
-		}
+	goroutinePool.WaitCount(1)
+	goroutinePool.JobQueue <- func() {
+		c.plotResourcesUsedDistributionByNodesOverTime()
+		goroutinePool.JobDone()
+	}
 
-		goroutinePool.WaitCount(1)
-		goroutinePool.JobQueue <- func() {
-			coll.plotEmptyGetOfferMessages()
-			goroutinePool.JobDone()
-		}
-	*/
+	goroutinePool.WaitCount(1)
+	goroutinePool.JobQueue <- func() {
+		c.plotMessagesDistributionByNodes()
+		goroutinePool.JobDone()
+	}
+
+	goroutinePool.WaitCount(1)
+	goroutinePool.JobQueue <- func() {
+		c.plotActiveOffersByNode()
+		goroutinePool.JobDone()
+	}
+
+	goroutinePool.WaitCount(1)
+	goroutinePool.JobQueue <- func() {
+		c.plotMasterNodeMessagesReceivedOverTime()
+		goroutinePool.JobDone()
+	}
+
+	goroutinePool.WaitCount(1)
+	goroutinePool.JobQueue <- func() {
+		c.plotMemoryUsedByNode()
+		goroutinePool.JobDone()
+	}
 
 	goroutinePool.WaitAll() // Wait for all the plots to be completed.
 	goroutinePool.Release() // Release goroutinePool resources.

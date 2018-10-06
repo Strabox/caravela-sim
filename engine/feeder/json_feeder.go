@@ -88,7 +88,7 @@ func (j *jsonFeeder) Start(ticksChannel <-chan chan RequestTask) {
 						newTickChan <- func(nodeIndex int, injectedNode *node.Node, currentTime time.Duration) {
 							if _, exist := j.currentRequests.Load(requestID); !exist {
 								requestCtx := context.WithValue(context.Background(), types.RequestIDKey, requestID)
-								j.collector.CreateRunRequest(nodeIndex, requestID, reqResources, currentTime)
+								j.collector.CreateRunRequest(nodeIndex, requestID, reqResources)
 								contStatus, err := injectedNode.SubmitContainers(
 									requestCtx,
 									[]types.ContainerConfig{{
@@ -102,10 +102,9 @@ func (j *jsonFeeder) Start(ticksChannel <-chan chan RequestTask) {
 								if err == nil {
 									j.containerInjectionNode.Store(contStatus[0].ContainerID, injectedNode)
 									j.currentRequests.Store(requestID, contStatus[0].ContainerID)
-									j.collector.RunRequestSucceeded()
 								}
 								j.currentRequests.Delete(requestID)
-								j.collector.ArchiveRunRequest(requestID)
+								j.collector.ArchiveRunRequest(requestID, err == nil)
 							}
 						}
 

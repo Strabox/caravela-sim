@@ -71,7 +71,7 @@ func (e *Engine) Init(reuseEngine, lastSimulation bool, caravelaConfigurations *
 
 	// External node's component mocks (Creation and initialization).
 	apiServerMock := caravela.NewAPIServerMock()
-	dockerClientMock := docker.NewClientMock(docker.CreateResourceGen(e.simulatorConfigs, e.caravelaConfigs, e.nextRngSeed()))
+	dockerClientMock := docker.NewClientMock(docker.CreateResourceGen(e.simulatorConfigs, e.caravelaConfigs, e.baseRngSeed))
 	caravelaClientMock := caravela.NewRemoteClientMock(e, e.metricsCollector)
 	if !e.isInit || !reuseEngine {
 		chordMock.Init(e.caravelaConfigs.ChordHashSizeBits())
@@ -131,7 +131,7 @@ func (e *Engine) Init(reuseEngine, lastSimulation bool, caravelaConfigurations *
 	// Initialize request feeder.
 	systemTotalCPUs, systemTotalMemory := dockerClientMock.MaxResourcesAvailable()
 	e.feeder.Init(e.metricsCollector, types.Resources{CPUs: systemTotalCPUs, Memory: systemTotalMemory})
-	util.Log.Debugf(util.LogTag(engineLogTag)+"System Total Resources: <%d;%d>", systemTotalCPUs, systemTotalMemory)
+	util.Log.Debugf(util.LogTag(engineLogTag)+"System Total ResRequested: <%d;%d>", systemTotalCPUs, systemTotalMemory)
 
 	// Make a bag of random nodes in order to enforce time based actions more realistically.
 	allNodes := make([]int, len(e.nodes))
@@ -345,12 +345,6 @@ func (e *Engine) NodeByGUID(guid string) (*caravelaNode.Node, int) {
 func (e *Engine) randomNode() (int, *caravelaNode.Node) {
 	randIndex := util.RandomInteger(0, len(e.nodes)-1)
 	return randIndex, e.nodes[randIndex]
-}
-
-// nextRngSeed returns a deterministic seed based on the base seed given to the engine.
-func (e *Engine) nextRngSeed() int64 {
-	e.baseRngSeed += 11
-	return e.baseRngSeed
 }
 
 func (e *Engine) assertNodeState(freeResources, maximumResources types.Resources) {

@@ -7,17 +7,26 @@ import (
 	"time"
 )
 
+type Resources struct {
+	CPUClass int64
+	CPUs     int64
+	Memory   int64
+}
+
 // Global holds metrics information about the system's level metrics collected during a time window.
 type Global struct {
 	Start time.Duration `json:"StartTime"` // Start time of the collection.
 	End   time.Duration `json:"EndTime"`   // End time of the collection.
 
-	RunRequestsSucceeded int64  `json:"RunRequestsSucceeded"` // Number of run requests that were successful deployed.
-	NodesMetrics         []Node `json:"NodesMetrics"`         // Metrics collected for each system's node.
+	NodesMetrics []Node `json:"NodesMetrics"` // Metrics collected for each system's node.
 
+	RunRequestsSucceeded   int64        `json:"RunRequestsSucceeded"` // Number of run requests that were successful deployed.
 	RunRequestsAggregator  sync.Map     `json:"-"`
 	RunRequestsCompleted   []RunRequest `json:"RunRequestsCompleted"`
 	requestsCompletedMutex sync.Mutex   `json:"-"`
+
+	ResourcesRequested Resources `json:"ResourcesRequested"`
+	ResourcesAllocated Resources `json:"ResourcesAllocated"`
 
 	// Debug Performance Metrics
 	GetOffersRelayed       int64 `json:"GetOffersRelayed"`
@@ -36,6 +45,9 @@ func NewGlobalInitial(numNodes int, startTime time.Duration, nodesMaxRes []types
 		RunRequestsAggregator:  sync.Map{},
 		RunRequestsCompleted:   make([]RunRequest, 0),
 		requestsCompletedMutex: sync.Mutex{},
+
+		ResourcesRequested: Resources{CPUClass: 0, CPUs: 0, Memory: 0},
+		ResourcesAllocated: Resources{CPUClass: 0, CPUs: 0, Memory: 0},
 	}
 
 	for index := range res.NodesMetrics {
@@ -69,9 +81,7 @@ func NewGlobalNext(numNodes int, prevGlobal *Global) *Global {
 // ========================= Metrics Collector Methods ====================================
 
 func (g *Global) MessageReceived(nodeIndex int, amount int64, requestSizeBytes int64) {
-	//if len(g.NodesMetrics) > nodeIndex {
 	g.NodesMetrics[nodeIndex].MessageReceived(amount, requestSizeBytes)
-	//}
 }
 
 func (g *Global) GetOfferRelayed(amount int64) {
@@ -82,16 +92,13 @@ func (g *Global) EmptyGetOfferMessages(amount int64) {
 	atomic.AddInt64(&g.EmptyGetOffersMessages, amount)
 }
 
-func (g *Global) RunRequestSucceeded() {
-	atomic.AddInt64(&g.RunRequestsSucceeded, 1)
-}
-
-func (g *Global) CreateRunRequest(nodeIndex int, requestID string, resources types.Resources,
-	currentTime time.Duration) {
-
+func (g *Global) CreateRunRequest(nodeIndex int, requestID string, resources types.Resources) {
 	newRunRequest := NewRunRequest(resources)
 	newRunRequest.IncrMessagesExchanged(1)
 	g.RunRequestsAggregator.Store(requestID, newRunRequest)
+
+	atomic.AddInt64(&g.ResourcesRequested.CPUs, int64(resources.CPUs))
+	atomic.AddInt64(&g.ResourcesRequested.Memory, int64(resources.Memory))
 
 	g.NodesMetrics[nodeIndex].RunRequestSubmitted()
 }
@@ -104,9 +111,15 @@ func (g *Global) IncrMessagesTradedRequest(requestID string, numMessages int) {
 	}
 }
 
-func (g *Global) ArchiveRunRequest(requestID string) {
+func (g *Global) ArchiveRunRequest(requestID string, succeeded bool) {
 	if req, exist := g.RunRequestsAggregator.Load(requestID); exist {
 		if request, ok := req.(*RunRequest); ok {
+			if succeeded {
+				atomic.AddInt64(&g.ResourcesAllocated.CPUs, int64(request.ResourcesRequested().CPUs))
+				atomic.AddInt64(&g.ResourcesAllocated.Memory, int64(request.ResourcesRequested().Memory))
+				atomic.AddInt64(&g.RunRequestsSucceeded, 1)
+			}
+
 			g.RunRequestsAggregator.Delete(requestID)
 
 			g.requestsCompletedMutex.Lock()
@@ -240,6 +253,12 @@ func (g *Global) TotalMessagesReceivedByMasterNode() float64 {
 	return totalMessagesReceived
 }
 
+func (g *Global) ResourcesAllocationEfficiency() float64 {
+	cpuRatio := float64(g.ResourcesAllocated.CPUs) / float64(g.ResourcesRequested.CPUs)
+	memoryRatio := float64(g.ResourcesAllocated.Memory) / float64(g.ResourcesRequested.Memory)
+	return (cpuRatio + memoryRatio) / 2
+}
+
 // ================================= Getters and Setters =================================
 
 func (g *Global) StartTime() time.Duration {
@@ -270,6 +289,14 @@ func (g *Global) TotalRunRequests() int64 {
 	return int64(len(g.RunRequestsCompleted))
 }
 
+func (g *Global) TotalResourcesRequested() types.Resources {
+	return types.Resources{CPUs: int(g.ResourcesRequested.CPUs), Memory: int(g.ResourcesRequested.Memory)}
+}
+
+func (g *Global) TotalResourcesAllocated() types.Resources {
+	return types.Resources{CPUs: int(g.ResourcesAllocated.CPUs), Memory: int(g.ResourcesAllocated.Memory)}
+}
+
 func (g *Global) SetNodeState(nodeIndex int, freeResources types.Resources, traderActiveOffers int64, memoryUsed int64) {
 	if len(g.NodesMetrics) > nodeIndex {
 		g.NodesMetrics[nodeIndex].SetNodeState(freeResources, traderActiveOffers, memoryUsed)
@@ -277,7 +304,7 @@ func (g *Global) SetNodeState(nodeIndex int, freeResources types.Resources, trad
 }
 
 // ===================================== Sort Interface =======================================
-// Order the node's metrics by ascending Maximum Resources.
+// Order the node's metrics by ascending Maximum ResRequested.
 
 func (g *Global) Len() int {
 	return len(g.NodesMetrics)

@@ -13,9 +13,10 @@ import (
 	"log"
 	"math"
 	"os"
+	"path/filepath"
 )
 
-func NewHeatMap(fileName, title, XLabel, YLabel string, yTicks []int, grid *UnitGrid, colorPalette palette.Palette, width int, height int) {
+func NewHeatMap(outFilePath, title, XLabel, YLabel string, yTicks []int, grid *UnitGrid, colorPalette palette.Palette, width int, height int) {
 	heatMap := plotter.NewHeatMap(grid, colorPalette)
 
 	plotRes := NewPlot(title, XLabel, YLabel, false)
@@ -62,7 +63,9 @@ func NewHeatMap(fileName, title, XLabel, YLabel string, yTicks []int, grid *Unit
 	dc = draw.Crop(dc, 0, -legendWidth-vg.Millimeter, 0, 0) // Make space for the legend.
 	plotRes.Draw(dc)
 
-	w, err := os.Create(fileName)
+	dirPath := filepath.Dir(outFilePath)
+	os.MkdirAll(dirPath, os.ModePerm)
+	w, err := os.Create(outFilePath)
 	if err != nil {
 		log.Panic(err)
 	}

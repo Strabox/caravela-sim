@@ -1,6 +1,6 @@
 package chord
 
-func findSuccessorMessageSize() int {
-	// Num + Key + Node ID + IP address
-	return 100
-}
+// Num + Key + Node ID + IP address
+const findSuccessorMessageSizeREST = int64(100)
+
+const findSuccessorMessageResponseSizeREST = int64(30)

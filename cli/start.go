@@ -14,29 +14,29 @@ import (
 func start(c *cli.Context) {
 	configFilePath := c.GlobalString("config")
 
-	simulatorConfig, err := configuration.ReadFromFile(configFilePath)
+	simulatorConfigs, err := configuration.ReadFromFile(configFilePath)
 	if err != nil {
 		util.Log.Errorf("Cannot read config file %s, error: %s", configFilePath, err)
 		fmt.Println("Information: Using the default configurations!!")
-		simulatorConfig = configuration.Default()
+		simulatorConfigs = configuration.Default()
 	}
 
-	overrideSimFileConfigs(c, simulatorConfig)
-	simulatorConfig.Print()
+	overrideSimFileConfigs(c, simulatorConfigs)
+	simulatorConfigs.Print()
 
-	metricsCollector := metrics.NewCollector(simulatorConfig.TotalNumberOfNodes(), simulatorConfig.OutDirectoryPath)
+	metricsCollector := metrics.NewCollector(simulatorConfigs.TotalNumberOfNodes(), simulatorConfigs.OutDirectoryPath, simulatorConfigs)
 
 	// Base seed for engine pseudo-random generators.
 	baseRngSeed := time.Now().UnixNano()
 
-	simEngine := engine.NewEngine(metricsCollector, simulatorConfig, baseRngSeed)
+	simEngine := engine.NewEngine(metricsCollector, simulatorConfigs, baseRngSeed)
 
-	for i, str := range simulatorConfig.CaravelaDiscoveryBackends() {
+	for i, str := range simulatorConfigs.CaravelaDiscoveryBackends() {
 		caravelaConfigs := caravela.Configuration()
 		caravelaConfigs.Caravela.DiscoveryBackend.Backend = str
 
 		fmt.Println("Initializing engine...")
-		lastSimulation := i == (len(simulatorConfig.CaravelaDiscoveryBackends()) - 1)
+		lastSimulation := i == (len(simulatorConfigs.CaravelaDiscoveryBackends()) - 1)
 		simEngine.Init(true, lastSimulation, caravelaConfigs)
 
 		fmt.Println("Starting engine...")

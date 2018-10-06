@@ -111,7 +111,7 @@ func (rf *randomFeeder) Start(ticksChannel <-chan chan RequestTask) {
 					newTickChan <- func(nodeIndex int, injectedNode *node.Node, currentTime time.Duration) {
 						requestID := guid.NewGUIDRandom().String() // Generate a GUID for tracking the request inside Caravela.
 						requestCtx := context.WithValue(context.Background(), types.RequestIDKey, requestID)
-						rf.collector.CreateRunRequest(nodeIndex, requestID, resources, currentTime)
+						rf.collector.CreateRunRequest(nodeIndex, requestID, resources)
 						contStatus, err := injectedNode.SubmitContainers(
 							requestCtx,
 							[]types.ContainerConfig{{
@@ -124,9 +124,8 @@ func (rf *randomFeeder) Start(ticksChannel <-chan chan RequestTask) {
 							}})
 						if err == nil {
 							rf.reqProfiles[profile].AddRequest(&containerRunning{containerID: contStatus[0].ContainerID, injectedNode: injectedNode})
-							rf.collector.RunRequestSucceeded()
 						}
-						rf.collector.ArchiveRunRequest(requestID)
+						rf.collector.ArchiveRunRequest(requestID, err == nil)
 					}
 
 				}
@@ -148,8 +147,8 @@ func (rf *randomFeeder) Start(ticksChannel <-chan chan RequestTask) {
 
 				close(newTickChan) // No more user requests for this tick
 			} else { // Simulator closed ticks channel
-				util.Log.Infof(util.LogTag(logRandFeederTag)+"Total Resources Submitted: <%d,%d>", totalResourcesSubmitted.CPUs, totalResourcesSubmitted.Memory)
-				util.Log.Infof(util.LogTag(logRandFeederTag)+"Total Resources Released:  <%d,%d>", totalResourcesReleased.CPUs, totalResourcesReleased.Memory)
+				util.Log.Infof(util.LogTag(logRandFeederTag)+"Total ResRequested Submitted: <%d,%d>", totalResourcesSubmitted.CPUs, totalResourcesSubmitted.Memory)
+				util.Log.Infof(util.LogTag(logRandFeederTag)+"Total ResRequested Released:  <%d,%d>", totalResourcesReleased.CPUs, totalResourcesReleased.Memory)
 				return // Stop feeding engine
 			}
 		}

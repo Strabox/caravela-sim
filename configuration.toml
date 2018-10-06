@@ -6,16 +6,16 @@ MemoryOvercommit = 100
 SchedulingPolicy = "binpack"
 [Caravela.DiscoveryBackend]
     [Caravela.DiscoveryBackend.OfferingChordBackend]
-    SpreadOffersInterval = "3m"
-    RefreshingInterval = "10m"
-    MaxPartitionsSearch = 3
+    SpreadOffersInterval = "1m"
+    RefreshingInterval = "15m"
+    MaxPartitionsSearch = 1
     # Debug performance flags
-    SpreadOffers = true
-    SpreadPartitionsState = true
-    PartitionsStateBufferSize = 15
+    SpreadOffers = false
+    SpreadPartitionsState = false
+    PartitionsStateBufferSize = 25
     PseudoSuperPeers = true
     GUIDEstimatedNetworkSize = 16383
-    GUIDScaleFactor = 20
+    GUIDScaleFactor = 7
     [Caravela.DiscoveryBackend.RandomChordBackend]
     RandBackendMaxRetries = 3
 [Caravela.Resources]

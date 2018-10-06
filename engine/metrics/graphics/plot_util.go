@@ -4,6 +4,8 @@ import (
 	"gonum.org/v1/plot"
 	"gonum.org/v1/plot/plotter"
 	"gonum.org/v1/plot/vg"
+	"os"
+	"path/filepath"
 )
 
 func NewPlot(title, xLabel, yLabel string, grid bool) *plot.Plot {
@@ -23,6 +25,8 @@ func NewPlot(title, xLabel, yLabel string, grid bool) *plot.Plot {
 }
 
 func Save(plot *plot.Plot, width, height vg.Length, outFilePath string) {
+	dirPath := filepath.Dir(outFilePath)
+	os.MkdirAll(dirPath, os.ModePerm)
 	if err := plot.Save(width, height, outFilePath); err != nil {
 		panic(err)
 	}

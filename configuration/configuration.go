@@ -256,7 +256,7 @@ func (c *Configuration) Print() {
 
 	util.Log.Infof("Resource Generation")
 	util.Log.Infof("  Resource Generator:     %s", c.ResourceGen())
-	util.Log.Infof("  Static Gen Resources:   <<%d;%d>;%d>", c.StaticGeneratorResources().CPUClass, c.StaticGeneratorResources().CPUs, c.StaticGeneratorResources().Memory)
+	util.Log.Infof("  Static Gen ResRequested:   <<%d;%d>;%d>", c.StaticGeneratorResources().CPUClass, c.StaticGeneratorResources().CPUs, c.StaticGeneratorResources().Memory)
 
 	util.Log.Infof("")
 
