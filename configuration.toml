@@ -14,7 +14,7 @@ SchedulingPolicy = "binpack"
     SpreadPartitionsState = false
     PartitionsStateBufferSize = 25
     PseudoSuperPeers = true
-    GUIDEstimatedNetworkSize = 16383
+    GUIDEstimatedNetworkSize = 1048575
     GUIDScaleFactor = 7
     [Caravela.DiscoveryBackend.RandomChordBackend]
     RandBackendMaxRetries = 3

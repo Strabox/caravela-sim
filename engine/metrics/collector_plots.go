@@ -30,7 +30,7 @@ const linePlotOverTimePNGHeight = 10 * vg.Centimeter
 
 const heatMapOverTimePNGWidth = 1440
 const heatMapOverTimePNGHeight = 540
-const heatMapOverTimePaletteSize = 52
+const heatMapOverTimePaletteSize = 42
 
 // resultPlot is used as a temporary structure to save gonum/plot structures and its visual label.
 type resultPlot struct {
@@ -73,7 +73,7 @@ func (c *Collector) plotRequestsRate() {
 
 	plotutil.AddLines(linePlotRes, dataPoints...)
 
-	graphics.Save(linePlotRes, linePlotOverTimePNGWidth, 10*vg.Centimeter, generatePNGFileName(c.outputDirPath, outDir, "RequestsRates"))
+	graphics.Save(linePlotRes, linePlotOverTimePNGWidth, 8*vg.Centimeter, generatePNGFileName(c.outputDirPath, outDir, "RequestsRates"))
 }
 
 func (c *Collector) plotResourcesAllocationEfficiency() {
@@ -156,9 +156,9 @@ func (c *Collector) plotActiveOffersByNode() {
 	for i := range outliers {
 		boxPlotPoints := make(plotter.Values, 0)
 		boxPlotPoints = append(boxPlotPoints, outliers[i]...)
-		boxPlot, _ := plotter.NewBoxPlot(vg.Points(boxPlotWidth), float64(i+1)*c.simulatorConfigs.TicksInterval().Minutes(), boxPlotPoints)
+		boxPlot, _ := plotter.NewBoxPlot(vg.Points(boxPlotWidth), float64(i+1)*3, boxPlotPoints)
 		outliersBoxPlot.Add(boxPlot)
-		quartilePlot, _ := plotter.NewQuartPlot(float64(i+1)*c.simulatorConfigs.TicksInterval().Minutes(), boxPlotPoints)
+		quartilePlot, _ := plotter.NewQuartPlot(float64(i+1)*3, boxPlotPoints)
 		outliersQuartilePlot.Add(quartilePlot)
 	}
 	graphics.Save(outliersQuartilePlot, quartilePlotOverTimePNGWidth, quartilePlotOverTimePNGHeight,
@@ -291,7 +291,7 @@ func (c *Collector) plotRequestsSucceeded() {
 }
 
 func (c *Collector) plotSystemUsedResourcesVSRequestSuccess() {
-	const title = "System Resources Usage Vs Deploy Requests Succeeded (%s)"
+	const title = "Total System Used Vs Deploy Requests Succeeded (%s)"
 	const xLabel = "Time (Minutes)"
 	const yLabel = "Ratios"
 	const outDir = "Requests"
@@ -337,7 +337,7 @@ func (c *Collector) plotSystemUsedResourcesVSRequestSuccess() {
 	for _, resPlot := range resPlots {
 		resPlot.plot.Y.Max = maxY
 		resPlot.plot.Y.Min = minY
-		graphics.Save(resPlot.plot, linePlotOverTimePNGWidth, linePlotOverTimePNGHeight,
+		graphics.Save(resPlot.plot, linePlotOverTimePNGWidth+(2*vg.Centimeter), linePlotOverTimePNGHeight,
 			generatePNGFileName(c.outputDirPath, outDir, "UsedResourcesVsRequestSuccess_"+visualStrategyName(resPlot.label)))
 	}
 }

@@ -192,6 +192,7 @@ func (m *Mock) Lookup(ctx context.Context, key []byte) ([]*overlay.OverlayNode, 
 			m.collector.MessageReceived(currentNodeSearchIndex, 1, findSuccessorMessageSizeREST)
 			if found {
 				// Reply to the node that called the Lookup.
+				messagesPerReqAcc++
 				fromNodeIndex, _ := m.GetNodeMockByGUID(fromNodeGUID)
 				m.collector.MessageReceived(fromNodeIndex, 1, findSuccessorMessageResponseSizeREST)
 				m.collector.IncrMessagesTradedRequest(types.RequestID(ctx), messagesPerReqAcc)
