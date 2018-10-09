@@ -30,7 +30,7 @@ const linePlotOverTimePNGHeight = 10 * vg.Centimeter
 
 const heatMapOverTimePNGWidth = 1440
 const heatMapOverTimePNGHeight = 540
-const heatMapOverTimePaletteSize = 42
+const heatMapOverTimePaletteSize = 43
 
 // resultPlot is used as a temporary structure to save gonum/plot structures and its visual label.
 type resultPlot struct {
@@ -78,13 +78,24 @@ func (c *Collector) plotRequestsRate() {
 
 func (c *Collector) plotResourcesAllocationEfficiency() {
 	const title = "Resources Allocation Efficiency - Cumulative"
-	const xLabel = "Time (Minutes)"
+	const xLabel = "Time (minutes)"
 	const yLabel = "Allocation Efficiency"
 	const outDir = "Resources"
 
 	plotRes := graphics.NewPlot(title, xLabel, yLabel, true)
 
 	dataPoints := make([]interface{}, 0)
+	for _, simData := range c.simulations {
+		pts := make(plotter.XYs, len(simData.snapshots))
+
+		for i := range pts {
+			pts[i].X = simData.snapshots[i].EndTime().Minutes()
+			pts[i].Y = float64(1)
+		}
+		dataPoints = append(dataPoints, "total", pts)
+		break
+	}
+
 	for _, simData := range c.simulations {
 		pts := make(plotter.XYs, len(simData.snapshots))
 
@@ -113,7 +124,7 @@ func (c *Collector) plotResourcesAllocationEfficiency() {
 
 func (c *Collector) plotActiveOffersByNode() {
 	const title = "Offers Per Node (%s)"
-	const xLabel = "Time (Minutes)"
+	const xLabel = "Time (minutes)"
 	const yLabel = "Offers"
 	const outDir = "Offers"
 
@@ -169,7 +180,7 @@ func (c *Collector) plotActiveOffersByNode() {
 
 func (c *Collector) plotMemoryUsedByNode() {
 	const title = "Memory Used by Node (%s)"
-	const xLabel = "Time (Minutes)"
+	const xLabel = "Time (minutes)"
 	const yLabel = "Memory Used (bytes)"
 	const outDir = "Memory"
 
@@ -253,25 +264,13 @@ func (c *Collector) plotMemoryUsedByNode() {
 
 func (c *Collector) plotRequestsSucceeded() {
 	const title = "Deploy Requests Success - Cumulative"
-	const xLabel = "Time (Minutes)"
+	const xLabel = "Time (minutes)"
 	const yLabel = "Requests Succeeded"
 	const outDir = "Requests"
 
 	plotRes := graphics.NewPlot(title, xLabel, yLabel, true)
 
 	dataPoints := make([]interface{}, 0)
-	for _, simData := range c.simulations {
-		pts := make(plotter.XYs, len(simData.snapshots))
-
-		runRequestsSucceededAcc := int64(0)
-		for i := range pts {
-			runRequestsSucceededAcc += simData.snapshots[i].TotalRunRequestsSucceeded()
-			pts[i].X = simData.snapshots[i].EndTime().Minutes()
-			pts[i].Y = float64(runRequestsSucceededAcc)
-		}
-		dataPoints = append(dataPoints, visualStrategyName(simData.label), pts)
-	}
-
 	for _, simData := range c.simulations {
 		pts := make(plotter.XYs, len(simData.snapshots))
 
@@ -285,6 +284,18 @@ func (c *Collector) plotRequestsSucceeded() {
 		break
 	}
 
+	for _, simData := range c.simulations {
+		pts := make(plotter.XYs, len(simData.snapshots))
+
+		runRequestsSucceededAcc := int64(0)
+		for i := range pts {
+			runRequestsSucceededAcc += simData.snapshots[i].TotalRunRequestsSucceeded()
+			pts[i].X = simData.snapshots[i].EndTime().Minutes()
+			pts[i].Y = float64(runRequestsSucceededAcc)
+		}
+		dataPoints = append(dataPoints, visualStrategyName(simData.label), pts)
+	}
+
 	plotutil.AddLines(plotRes, dataPoints...)
 
 	graphics.Save(plotRes, linePlotOverTimePNGWidth, linePlotOverTimePNGHeight, generatePNGFileName(c.outputDirPath, outDir, "RequestsSucceeded"))
@@ -292,7 +303,7 @@ func (c *Collector) plotRequestsSucceeded() {
 
 func (c *Collector) plotSystemUsedResourcesVSRequestSuccess() {
 	const title = "Total System Used Vs Deploy Requests Succeeded (%s)"
-	const xLabel = "Time (Minutes)"
+	const xLabel = "Time (minutes)"
 	const yLabel = "Ratios"
 	const outDir = "Requests"
 
@@ -344,7 +355,7 @@ func (c *Collector) plotSystemUsedResourcesVSRequestSuccess() {
 
 func (c *Collector) plotMessagesTradedByDeployRequestLinePlot() {
 	const title = "Average Discover Messages per Request"
-	const xLabel = "Time (Minutes)"
+	const xLabel = "Time (minutes)"
 	const yLabel = "Average Messages"
 	const outDir = "Requests"
 	// Line Plot. Average messages per request overtime.
@@ -371,7 +382,7 @@ func (c *Collector) plotMessagesTradedByDeployRequestLinePlot() {
 
 func (c *Collector) plotMessagesTradedByDeployRequestBoxPlot() {
 	const title = "Messages Traded To Deploy Containers (%s)"
-	const xLabel = "Time (Minutes)"
+	const xLabel = "Time (minutes)"
 	const yLabel = "Messages"
 	const outDir = "Requests"
 
@@ -425,7 +436,7 @@ func (c *Collector) plotMessagesTradedByDeployRequestBoxPlot() {
 func (c *Collector) plotResourcesUsedDistributionByNodesOverTime() {
 	const title = "Resources Used Distribution (%s)"
 	const xLabel = "Nodes"
-	const yLabel = "Time (Minutes)"
+	const yLabel = "Time (minutes)"
 	const outDir = "Resources"
 
 	for _, simData := range c.simulations {
@@ -454,7 +465,7 @@ func (c *Collector) plotResourcesUsedDistributionByNodesOverTime() {
 func (c *Collector) plotResourcesUnreachableDistributionByNodesOverTime() {
 	const title = "Resources Unreachable Distribution (%s)"
 	const xLabel = "Nodes"
-	const yLabel = "Time (Minutes)"
+	const yLabel = "Time (minutes)"
 	const outDir = "Resources"
 
 	for _, simData := range c.simulations {
@@ -482,7 +493,7 @@ func (c *Collector) plotResourcesUnreachableDistributionByNodesOverTime() {
 
 func (c *Collector) plotBandwidthUsedByNode() {
 	const title = "Bandwidth Used on Receiving (%s)"
-	const xLabel = "Time (Minutes)"
+	const xLabel = "Time (minutes)"
 	const yLabel = "Bandwidth (bytes)"
 	const outDir = "Bandwidth"
 
@@ -571,7 +582,7 @@ func (c *Collector) plotBandwidthUsedByNode() {
 
 func (c *Collector) plotMessagesDistributionByNodes() {
 	const title = "Messages Received per Node (%s)"
-	const xLabel = "Time (Minutes)"
+	const xLabel = "Time (minutes)"
 	const yLabel = "Messages"
 	const outDir = "Messages"
 
@@ -692,7 +703,7 @@ func (c *Collector) plotTotalMessagesTradedInSystem() {
 }
 
 func (c *Collector) plotMasterNodeMessagesReceivedOverTime() {
-	const xLabel = "Time (Minutes)"
+	const xLabel = "Time (minutes)"
 	const yLabel = "Messages Received"
 	const outDir = "SwarmMaster"
 
@@ -736,7 +747,7 @@ func (c *Collector) plotMasterNodeMessagesReceivedOverTime() {
 // ======================================= Debug Performance Plots ===============================
 
 func (c *Collector) plotRelayedGetOfferMessages() {
-	plotRes := graphics.NewPlot("Total Relayed Get Offer", "Time (Minutes)", "#Relayed Get Offers", true)
+	plotRes := graphics.NewPlot("Total Relayed Get Offer", "Time (minutes)", "#Relayed Get Offers", true)
 
 	dataPoints := make([]interface{}, 0)
 	for _, simData := range c.simulations {
@@ -754,7 +765,7 @@ func (c *Collector) plotRelayedGetOfferMessages() {
 }
 
 func (c *Collector) plotEmptyGetOfferMessages() {
-	plotRes := graphics.NewPlot("Empty Get Offer Messages", "Time (Minutes)", "#Empty Get Offer", true)
+	plotRes := graphics.NewPlot("Empty Get Offer Messages", "Time (minutes)", "#Empty Get Offer", true)
 
 	dataPoints := make([]interface{}, 0)
 	for _, simData := range c.simulations {

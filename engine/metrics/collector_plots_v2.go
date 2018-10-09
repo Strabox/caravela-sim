@@ -31,7 +31,7 @@ func (c *Collector) plotMemoryUsedByNodeV2() {
 		allSimsErrorBars = append(allSimsErrorBars, medMinMax)
 	}
 
-	plotRes := graphics.NewPlot("Memory Used per Node", "Time (Minutes)", "Memory Used (bytes)", false)
+	plotRes := graphics.NewPlot("Memory Used per Node", "Time (minutes)", "Memory Used (bytes)", false)
 	plotutil.AddLinePoints(plotRes, allSimsLines...)
 	plotutil.AddErrorBars(plotRes, allSimsErrorBars...)
 	plotRes.Legend.Left = true
@@ -61,7 +61,7 @@ func (c *Collector) plotBandwidthUsedByNodeV2() {
 		allSimsErrorBars = append(allSimsErrorBars, medMinMax)
 	}
 
-	plotRes := graphics.NewPlot("Bandwidth Used per Node", "Time (Minutes)", "Bandwidth Used (bytes)", false)
+	plotRes := graphics.NewPlot("Bandwidth Used per Node", "Time (minutes)", "Bandwidth Used (bytes)", false)
 	plotutil.AddLinePoints(plotRes, allSimsLines...)
 	plotutil.AddErrorBars(plotRes, allSimsErrorBars...)
 	plotRes.Legend.Left = true
@@ -93,7 +93,7 @@ func (c *Collector) plotMessagesReceivedByNodeV2() {
 		}
 	}
 
-	plotRes := graphics.NewPlot("Messages Received per Node", "Time (Minutes)", "Messages", false)
+	plotRes := graphics.NewPlot("Messages Received per Node", "Time (minutes)", "Messages", false)
 	plotutil.AddLinePoints(plotRes, allSimsLines...)
 	plotutil.AddErrorBars(plotRes, allSimsErrorBars...)
 	plotRes.Legend.Left = true

@@ -1,5 +1,5 @@
 #4095, 8191, 16383, 32767, 65535, 131071, 262143, 524287, 1048575
-NumberOfNodes = 1048575
+NumberOfNodes = 8191
 TickInterval = "20s"
 MaxTicks = 360
 Multithread = true

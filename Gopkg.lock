@@ -29,7 +29,7 @@
   branch = "master"
   name = "github.com/ajstarks/svgo"
   packages = ["."]
-  revision = "7338bd80e7908a1cdc427fd4d222f883b254f771"
+  revision = "6ce6a3bcf6cde6c5007887677ebd148ec30f42a4"
 
 [[projects]]
   name = "github.com/go-ole/go-ole"
@@ -75,10 +75,10 @@
   version = "v1.0.0"
 
 [[projects]]
-  branch = "master"
   name = "github.com/konsorten/go-windows-terminal-sequences"
   packages = ["."]
-  revision = "b729f2633dfe35f4d1d8a32385f6685610ce1cb5"
+  revision = "5c8c8bd35d3832f5d134ae1e1e375b69a4d25242"
+  version = "v1.0.1"
 
 [[projects]]
   branch = "master"
@@ -145,7 +145,7 @@
     "util",
     "util/debug"
   ]
-  revision = "25dab76ae624a991934ef0fa7c3b0e673043e9ba"
+  revision = "605336ec1f084e1c9d61dcc4f14351b44598baee"
 
 [[projects]]
   name = "github.com/urfave/cli"
@@ -185,7 +185,7 @@
     "unix",
     "windows"
   ]
-  revision = "af653ce8b74f808d092db8ca9741fbb63d2a469d"
+  revision = "4497e2df6f9e69048a54498c7affbbec3294ad47"
 
 [[projects]]
   branch = "master"
@@ -204,7 +204,7 @@
     "lapack/lapack64",
     "mat"
   ]
-  revision = "a290f01ec470228a325b6e013e3caa635d5fc2f7"
+  revision = "513db5a0a3aa4236f0ace2604a014c157876c32e"
 
 [[projects]]
   branch = "master"
@@ -228,6 +228,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "b7fa502bfc84caa647c66a5c0248fa0a401cf6313e6c6b969e820f23ccb1c983"
+  inputs-digest = "b2ea37a22a52bb57cd38dc0117c955ba40e57743523f7e18ab0945fc2bb9838b"
   solver-name = "gps-cdcl"
   solver-version = 1
