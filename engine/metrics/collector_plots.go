@@ -28,9 +28,9 @@ const quartilePlotOverTimePNGHeight = 9 * vg.Centimeter
 const linePlotOverTimePNGWidth = 10 * vg.Centimeter
 const linePlotOverTimePNGHeight = 10 * vg.Centimeter
 
-const heatMapOverTimePNGWidth = 1440
-const heatMapOverTimePNGHeight = 540
-const heatMapOverTimePaletteSize = 43
+const heatMapOverTimePNGWidth = 900
+const heatMapOverTimePNGHeight = 400
+const heatMapOverTimePaletteSize = 31
 
 // resultPlot is used as a temporary structure to save gonum/plot structures and its visual label.
 type resultPlot struct {

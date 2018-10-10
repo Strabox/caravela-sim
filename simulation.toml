@@ -1,10 +1,10 @@
 #4095, 8191, 16383, 32767, 65535, 131071, 262143, 524287, 1048575
-NumberOfNodes = 8191
+NumberOfNodes = 65535
 TickInterval = "20s"
 MaxTicks = 360
 Multithread = true
 # chord-random, chord-single-offer, chord-multiple-offer, chord-multiple-offer-updates, swarm
-DiscoveryBackends = ["chord-multiple-offer-updates", "chord-random", "swarm"]
+DiscoveryBackends = ["chord-multiple-offer-updates"]
 OutDirectoryPath = "out"
 SimulatorLogLevel = "info"
 CaravelaLogLevel = "info"

@@ -45,7 +45,7 @@ func NewHeatMap(outFilePath, title, XLabel, YLabel string, yTicks []int, grid *U
 		legend.Add(fmt.Sprintf("%.2g", val), t)
 	}
 
-	plotRes.X.Padding = 0
+	plotRes.X.Padding = 2
 	plotRes.Y.Padding = 0
 	plotRes.X.Max = 1.5
 	plotRes.Y.Max = 1.5
@@ -113,14 +113,13 @@ func (it integerTicks) Ticks(min, max float64) []plot.Tick {
 	var t []plot.Tick
 	ticksIndex := 0
 	for i := math.Trunc(min); i <= max; i++ {
-		if ticksIndex < len(it.ticks) {
+		if ticksIndex < len(it.ticks) && it.ticks[ticksIndex] <= 5000 {
 			t = append(t, plot.Tick{Value: i, Label: fmt.Sprint(it.ticks[ticksIndex])})
 		} else {
 			t = append(t, plot.Tick{Value: i, Label: fmt.Sprint(-1)})
 		}
 		ticksIndex++
 	}
-
 	return t
 }
 
